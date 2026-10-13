@@ -1,0 +1,82 @@
+name: UltraSec Public Documentation - 7 Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate_1:
+    name: "1/7 Public asset boundary"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 01-public-asset-boundary
+
+  gate_2:
+    name: "2/7 Secret pattern scan"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 02-secret-scan
+
+  gate_3:
+    name: "3/7 Proprietary rights notice"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 03-rights-notice
+
+  gate_4:
+    name: "4/7 Truthful status claims"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 04-truthful-claims
+
+  gate_5:
+    name: "5/7 Public provenance metadata"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 05-provenance-metadata
+
+  gate_6:
+    name: "6/7 Relative links"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 06-public-link-integrity
+
+  gate_7:
+    name: "7/7 CI hardening / negative tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check public repository policy
+        run: python3 ultrasec-v7/tools/verify_public.py 07-ci-hardening-tests
+
