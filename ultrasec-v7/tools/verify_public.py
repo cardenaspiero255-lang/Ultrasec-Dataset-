@@ -13,7 +13,7 @@ PROJECT = ROOT / 'ultrasec-v7'
 FORBIDDEN_SUFFIXES = {'.zip', '.zst', '.gz', '.jsonl', '.db', '.sqlite', '.parquet', '.onnx', '.pkl', '.pt', '.pth', '.safetensors', '.env', '.apk', '.exe', '.bin', '.pem', '.key', '.p12', '.keystore', '.7z', '.tar', '.jar'}
 BANNED_PATH_PARTS = {'private', 'secrets', 'dataset', 'datasets', 'holdout', 'answers', 'keys', 'proprietary-core', 'credentials'}
 REQUIRED_STATUS = {'distribution': 'PUBLIC_METADATA_ONLY', 'semgrep': 'NOT_RUN', 'codeql': 'NOT_RUN', 'external_certification': 'NOT_CERTIFIED', 'mechanisms_500': 'NOT_VERIFIED', 'historical_million_semantic_unique': 'NOT_VERIFIED'}
-SECRET_PATTERN = re.compile(r'(?:gh[pousr]_[A-Za-z0-9_]{28,}|github_pat_[A-Za-z0-9_]{30,}|sk-[A-Za-z0-9]{32,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)')
+SECRET_PATTERN = re.compile(r'(?:gh[pousr]_[A-Za-z0-9_]{28,}|github_pat_[A-Za-z0-9_]{30,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|xoxb-[0-9]+-[0-9]+-[0-9A-Za-z]+|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)')
 URL_SECRET_PATTERN = re.compile(r'https?://[^\s/]+:[^\s@/]+@')
 
 
