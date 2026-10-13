@@ -12,7 +12,20 @@ El uso, ejecución, modificación, distribución y comercialización de los mate
 
 ## Estado técnico verificable
 
-La fuente pública de estado es [release-status.json](release-status.json): Semgrep y CodeQL no ejecutados, certificación externa **NOT_CERTIFIED**, unicidad semántica del millón histórico y 500 mecanismos aún no verificados. Los datos históricos no forman parte de una versión comercial certificada.
+La fuente pública de estado es [release-status.json](release-status.json): **Semgrep y CodeQL aún no ejecutados sobre el dataset privado**, certificación externa **NOT_CERTIFIED**, unicidad semántica del millón histórico y 500 mecanismos aún no verificados. Los datos históricos no forman parte de una versión comercial certificada.
+
+### Analizadores independientes: ejecuciones reales sobre el verificador público
+
+El workflow [Independent SAST](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/workflows/ultrasec-public-sast.yml) ejecuta Semgrep OSS con reglas comunitarias y CodeQL con la suite de seguridad ampliada, **exclusivamente sobre el código público Python de validación**.
+
+La [ejecución verificable #38446975445](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/38446975445) completó **2/2 jobs**: Semgrep OSS 1.180.0 encontró 0 hallazgos y 0 errores de parser; CodeQL completó el análisis y publicó resultados en GitHub. **No se escaneó el dataset propietario**.
+
+El análisis privado interno de V7 etapa 1 verificó 324 fragmentos, 162 pares completos y 0 duplicados normalizados; los experimentos funcionales privados de V5.6 se repitieron con 60.000 ejecuciones correctas usando servicios simulados y SQLite en memoria. Estas son comprobaciones internas, **no certificación externa**. Todavía no hay resultados Semgrep/CodeQL sobre las vulnerabilidades privadas ni revisión humana independiente firmada.
+
+### Dos baterías públicas de CI
+
+[7 controles documentales](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/workflows/ultrasec-public-ci.yml) y [7 controles técnicos de una muestra pública](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/workflows/ultrasec-enterprise-public.yml). Su estado en verde no certifica el corpus privado, la causalidad de sus etiquetas ni un valor comercial.
+
 
 ### CI público: 7 comprobaciones de política
 
