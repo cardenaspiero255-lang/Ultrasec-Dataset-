@@ -39,6 +39,8 @@ class CiHardeningTests(unittest.TestCase):
         workflow = (WORKFLOW_DIR / "ultrasec-public-ci.yml").read_text()
         self.assertIn("fetch-depth: 0", workflow)
         self.assertIn("gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e", workflow)
+        self.assertIn('detect --source . --log-opts="--all"', workflow)
+        self.assertIn('GITLEAKS_VERSION: "8.24.3"', workflow)
 
     def test_git_history_scanner_does_not_request_write_token(self):
         workflow = (WORKFLOW_DIR / "ultrasec-public-ci.yml").read_text()
