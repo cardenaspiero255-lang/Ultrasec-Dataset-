@@ -1,4 +1,5 @@
 name: UltraSec Public Documentation - 7 Quality Gates
+# Scope: public documentation integrity only; not a certificate for the private UltraSec dataset.
 
 on:
   push:
