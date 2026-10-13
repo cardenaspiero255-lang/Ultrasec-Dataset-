@@ -1,0 +1,74 @@
+name: UltraSec Public Reference - Independent SAST
+# Scope: public Python verification code ONLY, NOT the private vulnerability corpus.
+# Two scanners must actually run to count as an independent tooling check.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ultrasec-public-sast.yml'
+      - 'ultrasec-v7/verification/**'
+      - 'ultrasec-v7/tests/**'
+      - 'ultrasec-v7/fixtures/**'
+  pull_request:
+    paths:
+      - '.github/workflows/ultrasec-public-sast.yml'
+      - 'ultrasec-v7/verification/**'
+      - 'ultrasec-v7/tests/**'
+      - 'ultrasec-v7/fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep_oss_public:
+    name: "Semgrep OSS — real public-reference scan (NOT private dataset)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install independent Semgrep OSS CLI
+        run: |
+          python3 -m pip install --disable-pip-version-check 'semgrep>=1,<2'
+          semgrep --version
+      - name: Scan only PUBLIC verifier and its tests with community rules
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          semgrep scan --oss-only --disable-version-check --metrics off --json --output /tmp/ultrasec-semgrep.json --config p/security-audit ultrasec-v7/verification ultrasec-v7/tests
+          python3 - <<'PY'
+          import json,os
+          data=json.load(open('/tmp/ultrasec-semgrep.json'))
+          findings=data.get('results',[])
+          errors=data.get('errors',[])
+          summary=f'Semgrep OSS executed on PUBLIC Python verifier: {len(findings)} findings, {len(errors)} parser errors. The proprietary dataset was NOT scanned.'
+          print(summary)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write('### Semgrep OSS\n'+summary+'\n')
+          if errors: raise SystemExit('Semgrep parser errors prevent clean execution claim')
+          PY
+
+  codeql_python_public:
+    name: "CodeQL — real public-reference Python scan (NOT private dataset)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Initialize genuine CodeQL analysis
+        uses: github/codeql-action/init@9f759ee644a3e7c15c1390abf49868036c00067b # v3 commit verified 2026-10-13
+        with:
+          languages: python
+          queries: security-extended
+      - name: Analyze real public code with CodeQL
+        uses: github/codeql-action/analyze@9f759ee644a3e7c15c1390abf49868036c00067b # v3 commit verified 2026-10-13
+        with:
+          category: "/language:python"
+      - name: Declare accurate scan scope
+        run: |
+          echo 'CodeQL analyzed PUBLIC Python verifier code, NOT the UltraSec private security dataset or holdout labels.' >> "$GITHUB_STEP_SUMMARY"
