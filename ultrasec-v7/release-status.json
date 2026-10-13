@@ -1,0 +1,20 @@
+{
+  "project": "UltraSec V7.0",
+  "repository_role": "PUBLIC_DOCUMENTATION_ONLY",
+  "distribution": "PUBLIC_METADATA_ONLY",
+  "source_of_truth": "OWNER_CONTROLLED_PRIVATE_ARCHIVE",
+  "historical_records_archived": 1000000,
+  "semgrep": "NOT_RUN",
+  "codeql": "NOT_RUN",
+  "external_certification": "NOT_CERTIFIED",
+  "mechanisms_500": "NOT_VERIFIED",
+  "historical_million_semantic_unique": "NOT_VERIFIED",
+  "verified_external_experts": 0,
+  "commercial_appraisal_verified": false,
+  "notes": [
+    "The CI contains 7 public-scope repository policy checks, not benchmark validation.",
+    "Do not publish private datasets, executables, source code, holdout labels, tokens or signing keys.",
+    "A restrictive license does not physically prevent downloads from public GitHub repositories.",
+    "Semgrep, CodeQL, third-party review, security diversity and pricing are separate, still-unmet qualification gates."
+  ]
+}
