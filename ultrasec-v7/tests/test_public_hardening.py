@@ -68,5 +68,54 @@ class CiHardeningTests(unittest.TestCase):
                     policy.secrets(root)
 
 
+class CodeqlSarifGateTests(unittest.TestCase):
+    def load_gate(self):
+        module_path = ROOT / "ultrasec-v7" / "tools" / "check_codeql_sarif.py"
+        self.assertTrue(module_path.is_file(), "CodeQL SARIF quality gate must exist")
+        spec = importlib.util.spec_from_file_location("codeql_quality_gate", module_path)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def write_sarif(self, root, results):
+        import json
+        (root / "python.sarif").write_text(json.dumps({"version": "2.1.0", "runs": [{"results": results}]}))
+
+    def test_missing_sarif_fails_closed(self):
+        gate = self.load_gate()
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(ValueError):
+                gate.scan_sarif(pathlib.Path(d))
+
+    def test_codeql_warning_blocks_merge(self):
+        gate = self.load_gate()
+        with tempfile.TemporaryDirectory() as d:
+            directory = pathlib.Path(d)
+            self.write_sarif(directory, [{"ruleId": "py/test-warning", "level": "warning"}])
+            with self.assertRaises(ValueError):
+                gate.scan_sarif(directory)
+
+    def test_codeql_error_blocks_merge(self):
+        gate = self.load_gate()
+        with tempfile.TemporaryDirectory() as d:
+            directory = pathlib.Path(d)
+            self.write_sarif(directory, [{"ruleId": "py/test-error", "level": "error"}])
+            with self.assertRaises(ValueError):
+                gate.scan_sarif(directory)
+
+    def test_clean_sarif_accepted(self):
+        gate = self.load_gate()
+        with tempfile.TemporaryDirectory() as d:
+            directory = pathlib.Path(d)
+            self.write_sarif(directory, [])
+            self.assertEqual(gate.scan_sarif(directory)["blocking"], 0)
+
+    def test_codeql_sarif_gate_is_executed_in_workflow(self):
+        sast = (WORKFLOW_DIR / "ultrasec-public-sast.yml").read_text()
+        self.assertIn("check_codeql_sarif.py", sast)
+        self.assertIn("sarif-output", sast)
+
+
 if __name__ == "__main__":
     unittest.main()
