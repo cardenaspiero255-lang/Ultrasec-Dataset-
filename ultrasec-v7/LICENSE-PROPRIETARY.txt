@@ -1,0 +1,16 @@
+UltraSec V7.0 — PROPRIETARY RIGHTS NOTICE
+Copyright © 2026 UltraSec V7.0 rights holder. All rights reserved.
+
+SCOPE
+This notice applies solely to original UltraSec V7.0 works published under the ultrasec-v7/ directory. It does not change licensing for other content in this repository.
+
+NO THIRD-PARTY LICENSE
+Except where applicable law, GitHub's Terms of Service, or previously granted rights permit otherwise, no permission is granted to any third party to use, execute, reproduce, modify, distribute, sublicense, host, commercialize, or train models on the proprietary UltraSec V7.0 materials without prior written authorization from the rights holder.
+
+PUBLIC VISIBILITY LIMITATIONS
+A public GitHub repository can be viewed, downloaded, cloned, and forked. This rights notice does NOT physically prevent those actions and does not provide device locking, DRM, or access control. Publishing proprietary executable source code here would expose it to copying.
+
+PROTECTED ASSETS
+The commercial datasets, generators, evaluation holdouts, answer keys, credentials, binaries, and executable core of UltraSec V7.0 are NOT included in this public directory. Authorized execution must be controlled separately by keeping proprietary components in private storage or on an authenticated service.
+
+This notice is not a certification, a warranty, or legal advice. For commercial permission, contact the repository owner through GitHub.
