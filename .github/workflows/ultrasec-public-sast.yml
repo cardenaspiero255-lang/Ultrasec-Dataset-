@@ -68,9 +68,15 @@ jobs:
           languages: python
           queries: security-extended
       - name: Analyze real public code with CodeQL
+        id: codeql_analysis
         uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3 verified immutable release
         with:
           category: "/language:python"
+          output: "./codeql-results"
+      - name: Block CodeQL security warnings and errors from SARIF
+        env:
+          CODEQL_SARIF_DIR: ${{ steps.codeql_analysis.outputs.sarif-output }}
+        run: python3 ultrasec-v7/tools/check_codeql_sarif.py
       - name: Declare accurate scan scope
         run: |
           echo 'CodeQL analyzed PUBLIC Python verifier code, NOT the UltraSec private security dataset or holdout labels.' >> "$GITHUB_STEP_SUMMARY"
