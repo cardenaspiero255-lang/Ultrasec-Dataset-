@@ -12,9 +12,11 @@ El uso, ejecución, modificación, distribución y comercialización de los mate
 
 ## Estado técnico verificable
 
-UltraSec V7.0 continúa en desarrollo. No se afirma que Semgrep o CodeQL hayan sido ejecutados, que existan 500 mecanismos causales independientes, que el millón histórico represente un millón de vulnerabilidades independientes ni que se haya expedido una certificación externa.
+La fuente pública de estado es [release-status.json](release-status.json): Semgrep y CodeQL no ejecutados, certificación externa **NOT_CERTIFIED**, unicidad semántica del millón histórico y 500 mecanismos aún no verificados. Los datos históricos no forman parte de una versión comercial certificada.
 
-Las ediciones históricas V5 se conservan fuera de este directorio como material de investigación y trazabilidad; no forman parte de una versión comercial certificada.
+### CI público: 7 comprobaciones de política
+
+Los siete checks verifican límites de archivos públicos, posibles secretos, aviso de derechos, afirmaciones respaldadas, trazabilidad mínima, enlaces relativos y robustez básica del propio validador. **Un 7/7 verde demuestra solo la salud de este repositorio documental, NO la exactitud de etiquetas de vulnerabilidades, pruebas del motor privado, dificultad ante SAST ni valoración comercial.**
 
 ## Política de publicación segura
 
