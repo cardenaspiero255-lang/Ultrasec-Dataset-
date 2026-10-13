@@ -38,6 +38,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: "false"
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_VERSION: "8.24.3"
+      - name: Audit all reachable Git history (including merge parents)
+        shell: bash
+        run: |
+          set -euo pipefail
+          scanner=/tmp/gitleaks-8.24.3/gitleaks
+          if [[ ! -x "$scanner" ]]; then
+            echo "::error::Pinned Gitleaks binary unavailable; aborting."
+            exit 1
+          fi
+          "$scanner" detect --source . --log-opts="--all" --redact --exit-code=1
 
   gate_3:
     name: "3/7 Proprietary rights notice"
