@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import Counter
 import argparse
 import gzip
+import lzma
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -18,6 +19,13 @@ import sqlite3
 import tempfile
 import zipfile
 import zlib
+
+try:
+    from compression.zstd import ZstdError as _ZstdError  # Python 3.14+ ZIP_ZSTANDARD
+except ImportError:
+    class _ZstdError(Exception):
+        """Placeholder on interpreters without built-in Zstandard support."""
+        pass
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sealed_evidence import _no_duplicates, public_receipt, write_private
@@ -216,7 +224,7 @@ def main(argv=None) -> int:
         if not matches:
             report["errors"]["sha256_mismatch"] = 1
             report["owner_integrity_pass"] = False
-    except (ValueError, OSError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, KeyError, RecursionError, RuntimeError, sqlite3.Error, zlib.error):
+    except (ValueError, OSError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, KeyError, RecursionError, RuntimeError, sqlite3.Error, zlib.error, lzma.LZMAError, _ZstdError):
         report = empty_report()
         report["errors"] = {"input_parse_error": 1}
         report["integrity"] = {"sha256_matches_expected": False}
