@@ -50,6 +50,13 @@ class CodexFourRegressions(unittest.TestCase):
         result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
         self.assertIn("nonminimal_patch",result["failures"])
 
+    def test_parenthesized_large_literal_rewrite_is_nonminimal(self):
+        gate=load("premium_evidence")
+        before="payload = "+repr("A"*10000)
+        after="payload = ("+repr("B"*10000)+")"
+        result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertIn("nonminimal_patch",result["failures"])
+
     def test_pattern_capture_renames_are_trivial(self):
         gate=load("premium_evidence")
         before='match obj:\n    case {"x": value}:\n        print(value)'
