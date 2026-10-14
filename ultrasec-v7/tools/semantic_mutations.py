@@ -8,6 +8,7 @@ Do NOT export protected corpus code, and do NOT conflate variations with roots.
 from __future__ import annotations
 import ast
 import copy
+import hashlib
 import re
 
 OPERATORS=frozenset({
@@ -79,6 +80,7 @@ def propose_mutation(source:str,operator:str,family_id:str)->dict:
         raise ValueError("No AST-level change")
     return {
         "source":candidate,
+        "source_sha256":hashlib.sha256(candidate.encode("utf-8")).hexdigest(),
         "operator":operator,
         "family_id":family_id,
         "validation_status":"UNVALIDATED_CANDIDATE",
@@ -93,6 +95,20 @@ def propose_mutation(source:str,operator:str,family_id:str)->dict:
 
 def mutation_admission(proposal:dict,evidence:dict)->dict:
     failures={}
+    if (not isinstance(proposal,dict)
+            or not isinstance(proposal.get("source"),str)
+            or not proposal.get("source")
+            or proposal.get("operator") not in OPERATORS
+            or not isinstance(proposal.get("family_id"),str)
+            or not re.fullmatch(r"CWE-[1-9][0-9]*",proposal["family_id"])
+            or proposal.get("validation_status")!="UNVALIDATED_CANDIDATE"):
+        failures["invalid_proposal_schema"]=1
+    else:
+        actual_digest=hashlib.sha256(proposal["source"].encode("utf-8")).hexdigest()
+        if proposal.get("source_sha256")!=actual_digest:
+            failures["tampered_proposal_digest"]=1
+        if evidence.get("artifact_sha256")!=actual_digest:
+            failures["missing_artifact_bound_witness"]=1
     if (evidence.get("vulnerable_reproduced") is not True
             or evidence.get("fix_verified") is not True):
         failures["missing_executable_witness"]=1
