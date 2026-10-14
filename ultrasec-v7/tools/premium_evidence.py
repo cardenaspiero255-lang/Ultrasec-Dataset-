@@ -226,17 +226,23 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
                 or after_statements>before_statements+max(3,before_statements//2)
                 or len(fixed_code.encode("utf-8"))>len(vulnerable_code.encode("utf-8"))*2+256):
             fail["nonminimal_patch"]+=1
-        # Count substitutions, not just growth; semicolon-packed rewrites
-        # with unchanged statement counts must not pass the minimality gate.
-        before_units=[ast.dump(n,include_attributes=False)
-                      for n in ast.walk(before_ast) if isinstance(n,ast.stmt)]
-        after_units=[ast.dump(n,include_attributes=False)
-                     for n in ast.walk(after_ast) if isinstance(n,ast.stmt)]
-        statement_edits=sum(max(i2-i1,j2-j1)
+        # Compare non-overlapping lexical tokens: a single nested edit is
+        # counted once, while same-size expression rewrites remain visible.
+        import io as _io
+        import tokenize as _tokenize
+        def tokens(source):
+            return [(t.type,t.string) for t in _tokenize.generate_tokens(
+                _io.StringIO(source).readline)
+                if t.type not in (_tokenize.ENCODING,_tokenize.NL,
+                                  _tokenize.NEWLINE,_tokenize.INDENT,
+                                  _tokenize.DEDENT,_tokenize.ENDMARKER)]
+        old_tokens=tokens(vulnerable_code)
+        new_tokens=tokens(fixed_code)
+        token_edits=sum(max(i2-i1,j2-j1)
             for tag,i1,i2,j1,j2 in difflib.SequenceMatcher(
-                None,before_units,after_units,autojunk=False).get_opcodes()
+                None,old_tokens,new_tokens,autojunk=False).get_opcodes()
             if tag!="equal")
-        if statement_edits>max(3,len(before_units)//2):
+        if token_edits>max(6,len(old_tokens)//3):
             fail["nonminimal_patch"]+=1
         if changes>allowed_delta or len(after_lines)>len(before_lines)+allowed_delta:
             fail["nonminimal_patch"]+=1
