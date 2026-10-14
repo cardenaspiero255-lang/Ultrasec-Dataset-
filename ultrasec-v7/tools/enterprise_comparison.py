@@ -16,7 +16,7 @@ from typing import Iterable
 
 # Owner-only, shared strict reader and one-shot sealed reporting.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sealed_evidence import read_jsonl, write_private, public_receipt
+from sealed_evidence import read_jsonl, write_private, public_receipt, safe_ratio
 
 SCORECARD = Path(__file__).resolve().with_name("enterprise_scorecard.py")
 spec = importlib.util.spec_from_file_location("ultrasec_scorecard_for_comparison", SCORECARD)
@@ -143,9 +143,9 @@ def main(argv: list[str] | None = None) -> int:
         result = _empty()
         result["failures"] = {"input_parse_error": 1}
         result["criteria"] = {
-            "min_recall": args.min_recall, "max_fpr": args.max_fpr,
-            "min_recall_gain": args.min_recall_gain,
-            "max_fpr_increase": args.max_fpr_increase,
+            "min_recall": safe_ratio(args.min_recall), "max_fpr": safe_ratio(args.max_fpr),
+            "min_recall_gain": safe_ratio(args.min_recall_gain),
+            "max_fpr_increase": safe_ratio(args.max_fpr_increase),
             "comparisons": "raw_confusion_counts_not_rounded_metrics",
         }
     try:
