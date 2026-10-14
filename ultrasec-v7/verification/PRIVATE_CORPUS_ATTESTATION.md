@@ -24,6 +24,12 @@ Use the actual 64-character lowercase digest from an authenticated owner-control
 
 The expected historical V4-style keys are id, pair_id, template_id, code, label, language, family, split, independently_validated (boolean), license_clearance, verification_tier, label_provenance and origin. This scanner is tailored to that historical data contract and MUST NOT reinterpret V7.9 pilot samples as compatible million-record inventory entries.
 
+## Memory and private scratch directory
+
+The million-record run uses **temporary SQLite indexes on disk**, not a Python set containing all records. The indexes contain SHA-256 digests of identifiers and code plus pair/split status, not raw code or identifiers. SQLite files live inside an automatically created mode-0700 subdirectory alongside the sealed report and are deleted after the audit. The owner must put `--sealed-report` inside an access-controlled directory with sufficient free disk space; physical storage or backups can still retain deleted blocks, so confidential execution requires trusted storage and appropriate disk encryption. The code checks exact deduplication, not semantic independence.
+
+Input errors such as excessive JSON nesting and problematic compressed archive entries are recorded as `input_parse_error` in the owner-only report rather than exposing stack traces.
+
 ## Limits
 
 Owner integrity PASS means **only** syntax, pairing, exact duplication and supplied hash consistency. It does not validate semantic or causal independence, accuracy of fixes, security of code, provenance signatures, legal rights, external certifications or any market value. A million unique source strings is not a million independent vulnerabilities. External AppSec auditors and an independent commercial buyer are still necessary.
