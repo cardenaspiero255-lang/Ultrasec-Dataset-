@@ -77,7 +77,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertNotIn("record_id", output)
         self.assertNotIn("v1", output)
         self.assertNotIn("150000", output)
-        self.assertNotIn("certified", output.lower())
+        self.assertEqual(self.compare()["certification"], "NOT_CERTIFIED")
 
     def test_deterioration_cannot_pass(self):
         report = self.compare(baseline=self.candidate, candidate=self.baseline)
