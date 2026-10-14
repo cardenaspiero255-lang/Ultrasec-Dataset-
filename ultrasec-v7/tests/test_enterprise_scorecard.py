@@ -104,11 +104,15 @@ class EnterpriseScorecardTests(unittest.TestCase):
             goldfile.write_text("invalid json", encoding="utf-8")
             predfile.write_text("".join(json.dumps(row) + "\n" for row in self.pred), encoding="utf-8")
             proc = subprocess.run([sys.executable, str(SCRIPT), "--gold", str(goldfile),
-                "--predictions", str(predfile), "--min-recall", "0.5", "--max-fpr", "0.5"],
+                "--predictions", str(predfile), "--min-recall", "0.5", "--max-fpr", "0.5",
+                "--sealed-report", str(Path(d) / "evidence.json"),
+                "--session-lock", str(Path(d) / "session.lock")],
                 capture_output=True, text=True, check=False)
-            self.assertNotEqual(proc.returncode, 0)
-            self.assertEqual(json.loads(proc.stdout)["certification"], "NOT_CERTIFIED")
-            self.assertIn("input_parse_error", json.loads(proc.stdout)["failures"])
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+            report = json.loads((Path(d) / "evidence.json").read_text())
+            self.assertEqual(report["certification"], "NOT_CERTIFIED")
+            self.assertIn("input_parse_error", report["failures"])
 
 
 if __name__ == "__main__":
