@@ -11,6 +11,9 @@ import re
 
 _COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 _CWE = re.compile(r"CWE-[1-9][0-9]{0,5}\Z")
+# Pinned MITRE CWE identifiers: intentionally conservative and incomplete.
+_PINNED_MITRE_CWES = frozenset(("CWE-79","CWE-89","CWE-352","CWE-862","CWE-787","CWE-22",
+    "CWE-416","CWE-125","CWE-78","CWE-94","CWE-120","CWE-434"))
 
 
 def admission_report(cases: list[dict], required_cases: int = 100,
@@ -54,6 +57,8 @@ def admission_report(cases: list[dict], required_cases: int = 100,
         ids.add(case_id)
         families.add(family)
         cwe=case["cwe_id"]
+        if cwe not in _PINNED_MITRE_CWES:
+            failures["unknown_cwe_id"]+=1
         cwes.add(cwe)
         if family in family_cwe and family_cwe[family]!=cwe:
             failures["family_cwe_conflict"]+=1
