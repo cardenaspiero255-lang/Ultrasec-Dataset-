@@ -9,7 +9,12 @@ from __future__ import annotations
 from collections import Counter
 import argparse
 import gzip
-import lzma
+try:
+    from lzma import LZMAError as _LzmaError
+except ImportError:
+    class _LzmaError(Exception):
+        """Placeholder when optional _lzma is absent; ZIP_STORED still works."""
+        pass
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -224,7 +229,7 @@ def main(argv=None) -> int:
         if not matches:
             report["errors"]["sha256_mismatch"] = 1
             report["owner_integrity_pass"] = False
-    except (ValueError, OSError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, KeyError, RecursionError, RuntimeError, sqlite3.Error, zlib.error, lzma.LZMAError, _ZstdError):
+    except (ValueError, OSError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, KeyError, RecursionError, RuntimeError, sqlite3.Error, zlib.error, _LzmaError, _ZstdError):
         report = empty_report()
         report["errors"] = {"input_parse_error": 1}
         report["integrity"] = {"sha256_matches_expected": False}
