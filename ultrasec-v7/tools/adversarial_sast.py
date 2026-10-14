@@ -71,6 +71,8 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
         summary[tool]={}
         for cwe,counts in sorted(cwes.items()):
             tp,fp,tn,fn=[counts[x] for x in ("tp","fp","tn","fn")]
+            if tp+fn==0 or tn+fp==0:
+                failures["unmeasurable_cwe_class_balance"]+=1
             precision=tp/(tp+fp) if tp+fp else 0.0
             recall=tp/(tp+fn) if tp+fn else None
             if recall is not None and recall<required_recall:
