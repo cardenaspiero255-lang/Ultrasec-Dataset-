@@ -154,6 +154,45 @@ class SealedCliTests(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(report.read_text(), "KEEP")
 
+    def test_metadata_invalid_file_retains_minimums(self):
+        self.metadata.write_text("invalid-local-json", encoding="utf-8")
+        proc, path, _ = self._sealed("enterprise_metadata.py", [
+            "--input", str(self.metadata), "--minimum-records", "500",
+            "--minimum-mechanisms", "42"])
+        self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+        report = json.loads(path.read_text())
+        self.assertEqual(report["acceptance_thresholds"], {
+            "minimum_records": 500, "minimum_mechanisms": 42,
+        })
+        self.assertIn("input_parse_error", report["failures"])
+
+    def test_extremely_long_json_line_is_rejected_without_echo(self):
+        self.candidate.write_bytes(b'X' * 1_100_000 + b'\n')
+        proc, path, _ = self._sealed("enterprise_scorecard.py", [
+            "--gold", str(self.gold), "--predictions", str(self.candidate),
+            "--min-recall", "0.8", "--max-fpr", "0.25"])
+        self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+        self.assertIn("input_parse_error", json.loads(path.read_text())["failures"])
+
+    def test_invalid_nan_threshold_still_produces_private_error_receipt(self):
+        proc, path, _ = self._sealed("enterprise_scorecard.py", [
+            "--gold", str(self.gold), "--predictions", str(self.candidate),
+            "--min-recall", "nan", "--max-fpr", "0.25"])
+        self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+        report = json.loads(path.read_text())
+        self.assertIn("input_parse_error", report["failures"])
+        self.assertEqual(report["buyer_thresholds"]["min_recall"], "INVALID_NONFINITE")
+
+    def test_invalid_infinite_comparison_criterion_is_serializable(self):
+        proc, path, _ = self._sealed("enterprise_comparison.py", [
+            "--gold", str(self.gold), "--candidate", str(self.candidate),
+            "--baseline", str(self.baseline), "--min-recall", "0.5",
+            "--max-fpr", "0.25", "--min-recall-gain", "inf", "--max-fpr-increase", "0"])
+        self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+        report = json.loads(path.read_text())
+        self.assertIn("input_parse_error", report["failures"])
+        self.assertEqual(report["criteria"]["min_recall_gain"], "INVALID_NONFINITE")
+
     def test_negative_required_gain_is_rejected(self):
         proc, path, _ = self._sealed("enterprise_comparison.py", [
             "--gold", str(self.gold), "--candidate", str(self.candidate),
