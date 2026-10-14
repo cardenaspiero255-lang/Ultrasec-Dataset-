@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import os
 import zipfile
 import json
 from pathlib import Path
@@ -48,7 +49,16 @@ def _owner_holdout_ids(path:Path,expected_sha256:str,required:int)->set[str]:
     """Bind reviewer answers to the exact owner-held ZIP committed out of band."""
     if not isinstance(expected_sha256,str) or len(expected_sha256)!=64:
         raise ValueError("Missing SHA-256 commitment")
-    verified_bytes=path.read_bytes()
+    # Bound the ZIP container itself, not only its decompressed member.
+    max_zip_bytes=4_000_000
+    if path.stat().st_size>max_zip_bytes:
+        raise ValueError("Owner ZIP container too large")
+    with path.open("rb") as source:
+        if os.fstat(source.fileno()).st_size>max_zip_bytes:
+            raise ValueError("Owner ZIP container too large")
+        verified_bytes=source.read(max_zip_bytes+1)
+    if len(verified_bytes)>max_zip_bytes:
+        raise ValueError("Owner ZIP container too large")
     digest=hashlib.sha256(verified_bytes).hexdigest()
     if digest!=expected_sha256.lower():
         raise ValueError("Owner manifest commitment mismatch")
@@ -98,7 +108,7 @@ def main(argv=None)->int:
                 if set(ratings_a)!=expected or set(ratings_b)!=expected:
                     report["agreement_gate_pass"]=False
                     report["failures"]["owner_holdout_case_id_mismatch"]=1
-            except (ValueError,OSError,KeyError,TypeError,zipfile.BadZipFile,UnicodeError):
+            except (ValueError,OSError,KeyError,TypeError,zipfile.BadZipFile,UnicodeError,RuntimeError,NotImplementedError):
                 report["agreement_gate_pass"]=False
                 report["failures"]["owner_holdout_manifest_invalid"]=1
         # A text reviewer ID is NOT an authenticated cryptographic signature.
