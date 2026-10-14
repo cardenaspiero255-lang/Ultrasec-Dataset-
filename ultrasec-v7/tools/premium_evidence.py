@@ -148,6 +148,19 @@ class _NameMask(ast.NodeTransformer):
         node.name="ID"
         node.asname="ID" if node.asname is not None else None
         return node
+    def visit_MatchAs(self,node):
+        if node.name is not None:
+            node.name="ID"
+        return self.generic_visit(node)
+    def visit_MatchStar(self,node):
+        if node.name is not None:
+            node.name="ID"
+        return self.generic_visit(node)
+    def visit_MatchMapping(self,node):
+        if node.rest is not None:
+            node.rest="ID"
+        return self.generic_visit(node)
+
 
 
 def _shape(code: str)->str:
@@ -212,6 +225,18 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
         if (after_nodes>before_nodes+max(8,before_nodes//2)
                 or after_statements>before_statements+max(3,before_statements//2)
                 or len(fixed_code.encode("utf-8"))>len(vulnerable_code.encode("utf-8"))*2+256):
+            fail["nonminimal_patch"]+=1
+        # Count substitutions, not just growth; semicolon-packed rewrites
+        # with unchanged statement counts must not pass the minimality gate.
+        before_units=[ast.dump(n,include_attributes=False)
+                      for n in ast.walk(before_ast) if isinstance(n,ast.stmt)]
+        after_units=[ast.dump(n,include_attributes=False)
+                     for n in ast.walk(after_ast) if isinstance(n,ast.stmt)]
+        statement_edits=sum(max(i2-i1,j2-j1)
+            for tag,i1,i2,j1,j2 in difflib.SequenceMatcher(
+                None,before_units,after_units,autojunk=False).get_opcodes()
+            if tag!="equal")
+        if statement_edits>max(3,len(before_units)//2):
             fail["nonminimal_patch"]+=1
         if changes>allowed_delta or len(after_lines)>len(before_lines)+allowed_delta:
             fail["nonminimal_patch"]+=1
