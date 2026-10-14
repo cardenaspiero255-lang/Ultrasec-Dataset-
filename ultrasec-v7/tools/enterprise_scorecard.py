@@ -15,6 +15,10 @@ import re
 import sys
 from typing import Iterable
 
+# Owner-only, shared strict reader and one-shot sealed reporting.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sealed_evidence import read_jsonl, write_private, public_receipt
+
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 GOLD_FIELDS = frozenset({"record_id", "split", "expected_vulnerable"})
 PRED_FIELDS = frozenset({"record_id", "predicted_vulnerable"})
@@ -133,9 +137,7 @@ def evaluate_scorecard(gold_rows: Iterable[object], prediction_rows: Iterable[ob
 
 
 def _rows(path: Path):
-    with path.open(encoding="utf-8") as src:
-        for line in src:
-            yield json.loads(line)
+    yield from read_jsonl(path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -144,6 +146,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--predictions", type=Path, required=True)
     parser.add_argument("--min-recall", type=float, required=True)
     parser.add_argument("--max-fpr", type=float, required=True)
+    parser.add_argument("--sealed-report", type=Path, required=True)
+    parser.add_argument("--session-lock", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         report = evaluate_scorecard(_rows(args.gold), _rows(args.predictions),
@@ -151,8 +155,15 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError):
         report = _report()
         report["failures"] = {"input_parse_error": 1}
-    print(json.dumps(report, ensure_ascii=True, sort_keys=True))
-    return 0 if report["buyer_thresholds_pass"] else 1
+        report["buyer_thresholds"] = {"min_recall": args.min_recall, "max_fpr": args.max_fpr}
+        report["threshold_comparison"] = "raw_rates_inclusive"
+    try:
+        write_private(args.sealed_report, args.session_lock, report)
+    except (ValueError, OSError, UnicodeError):
+        print('{"status":"RECORDING_FAILED"}')
+        return 2
+    print(public_receipt())
+    return 0
 
 
 if __name__ == "__main__":
