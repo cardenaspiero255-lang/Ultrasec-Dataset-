@@ -170,7 +170,7 @@ class CorpusAttestationTests(unittest.TestCase):
     def test_stored_zip_remains_supported_without_optional_lzma(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "stored.zip"
-            data = "".join(json.dumps(item) + "\\n" for item in self.rows).encode("utf-8")
+            data = "".join(json.dumps(item) + "\n" for item in self.rows).encode("utf-8")
             with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
                 archive.writestr("records.jsonl", data)
             report = Path(d) / "sealed.json"
