@@ -167,6 +167,28 @@ class CorpusAttestationTests(unittest.TestCase):
             self.assertIn("input_parse_error", json.loads(reportpath.read_text())["errors"])
             self.assertNotIn("Traceback", p.stderr)
 
+    def test_corrupt_deflate_gzip_is_recorded_as_sealed_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            zpath = Path(d) / "corrupt.zip"
+            # Valid GZIP header followed by deliberately invalid DEFLATE bytes.
+            bad_gzip = bytes.fromhex("1f8b08000000000000ff") + b"not-a-deflate-stream" * 3
+            with zipfile.ZipFile(zpath, "w") as archive:
+                archive.writestr("private.jsonl.gz", bad_gzip)
+            report_path = Path(d) / "evidence.json"
+            cmd = [
+                sys.executable, str(SCRIPT), "--archive", str(zpath),
+                "--member", "private.jsonl.gz", "--expected-sha256", "0" * 64,
+                "--sealed-report", str(report_path),
+                "--session-lock", str(Path(d) / "lock"),
+            ]
+            run = subprocess.run(cmd, text=True, capture_output=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(json.loads(run.stdout), {"status": "SEALED"})
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertIn("input_parse_error", report["errors"])
+            self.assertFalse(report["owner_integrity_pass"])
+            self.assertNotIn("Traceback", run.stderr)
+
     def test_encrypted_member_runtime_error_seals_input_error(self):
         from unittest.mock import patch
         class BrokenArchive:
