@@ -87,6 +87,14 @@ class PremiumEvidenceTDD(unittest.TestCase):
         self.assertFalse(result["causal_gate_pass"])
         self.assertIn("trivial_guard_only_change",result["failures"])
 
+    def test_wholesale_rewrite_is_not_a_minimal_security_patch(self):
+        original="\\n".join("value"+str(i)+" = "+str(i) for i in range(12)).replace("\\n","\n")
+        replacement="\\n".join("other"+str(i)+" = sanitize("+str(i)+")" for i in range(12)).replace("\\n","\n")
+        report=gates.causal_patch_gate(original,replacement,
+            {"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertFalse(report["causal_gate_pass"])
+        self.assertIn("nonminimal_patch",report["failures"])
+
     def test_patch_with_material_flow_change_and_witness_can_pass_screen(self):
         r = gates.causal_patch_gate("db.execute('Q'+user)",
                                     "db.execute('Q?', (user,))",
