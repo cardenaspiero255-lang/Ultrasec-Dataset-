@@ -109,4 +109,6 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_enterprise_scorecard.py' -v
       - name: Validate same-holdout baseline comparison (synthetic tests only)
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_enterprise_comparison.py' -v
+      - name: Validate sealed holdout privacy, replay protection and strict JSON parsing
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_sealed_buyer_cli.py' -v
 
