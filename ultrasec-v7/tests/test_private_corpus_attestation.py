@@ -126,6 +126,32 @@ class CorpusAttestationTests(unittest.TestCase):
             self.assertEqual(result["index_backend"], "sqlite-private-temporary")
             self.assertEqual(list(Path(scratch).iterdir()), [])
 
+    def test_high_cardinality_family_and_language_are_disk_indexed(self):
+        import tracemalloc
+
+        def records():
+            for i in range(1200):
+                name = "case-" + str(i)
+                family = ("F" * 4096) + str(i)
+                language = ("L" * 4096) + str(i)
+                for row in pair(name, "template-" + str(i)):
+                    row["family"] = family
+                    row["language"] = language
+                    yield row
+
+        with tempfile.TemporaryDirectory() as root:
+            tracemalloc.start()
+            try:
+                report = module.audit_rows(records(), scratch_dir=Path(root))
+                _, peak = tracemalloc.get_traced_memory()
+            finally:
+                tracemalloc.stop()
+            self.assertEqual(report["metrics"]["family_count"], 1200)
+            self.assertEqual(report["metrics"]["language_count"], 1200)
+            self.assertEqual(report["metrics"]["complete_pairs"], 1200)
+            self.assertLess(peak, 5_000_000, "High-cardinality strings must not remain in Python sets")
+            self.assertEqual(list(Path(root).iterdir()), [])
+
     def test_deep_json_corpus_seals_input_error_without_traceback(self):
         with tempfile.TemporaryDirectory() as d:
             zpath = Path(d) / "private.zip"
