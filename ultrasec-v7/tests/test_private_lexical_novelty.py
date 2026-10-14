@@ -39,6 +39,15 @@ class LexicalNoveltyTests(unittest.TestCase):
         self.assertTrue(report["lexical_screen_pass"])
         self.assertEqual(report["certification"], "NOT_CERTIFIED")
 
+    def test_exact_duplicates_are_not_misclassified_as_lexical_collisions(self):
+        report = module.screen_records([row("a = 1"), row("a = 1"), row("b = 2")], 0.0)
+        self.assertEqual(report["metrics"]["records"], 3)
+        self.assertEqual(report["metrics"]["exact_unique_code"], 2)
+        self.assertEqual(report["metrics"]["lexical_patterns"], 1)
+        self.assertEqual(report["metrics"]["exact_duplicate_rows"], 1)
+        self.assertEqual(report["metrics"]["additional_lexical_collisions"], 1)
+        self.assertEqual(report["metrics"]["total_redundant_rows"], 2)
+
     def test_threshold_blocks_claim_when_distinct_fraction_below_target(self):
         report = module.screen_records([row("alpha = 10"), row("beta = 20"), row("x -= 3")], 0.9)
         self.assertFalse(report["lexical_screen_pass"])
