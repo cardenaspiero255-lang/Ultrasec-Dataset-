@@ -78,6 +78,11 @@ class LexicalNoveltyTests(unittest.TestCase):
         report = module.screen_records([row("correct"), {"code": "invalid", "language": 1}], 0.2)
         self.assertIn("invalid_record_schema", report["failures"])
 
+    def test_leading_trailing_decimal_float_literals_collapse(self):
+        variants=["x=.5","x=0.5","x=1.","x=1.0","x=1.e3","x=1e3","x=10e+2"]
+        shapes={module.lexical_shape(text) for text in variants}
+        self.assertEqual(len(shapes),1)
+
     def test_unsupported_thresholds_rejected(self):
         for value in (float("nan"), float("inf"), -0.1, 1.01):
             with self.subTest(value=value), self.assertRaises(ValueError):
