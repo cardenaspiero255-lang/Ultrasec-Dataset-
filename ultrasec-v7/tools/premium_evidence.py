@@ -121,17 +121,31 @@ def _shape(code: str)->str:
 
 
 def _trivial_guard_wrapper(before_source:str,after_source:str)->bool:
+    """Reject guard-only wrappers at module, function, class and nested block scope.
+
+    Removing a newly inserted guard must restore the same masked AST.  The
+    comparison is structural only; an independent executable witness is still
+    required to establish patch correctness.
+    """
     before=ast.parse(before_source)
     after=ast.parse(after_source)
     normalized=ast.dump(_NameMask().visit(copy.deepcopy(before)),include_attributes=False)
-    for pos,node in enumerate(after.body):
-        if isinstance(node,ast.If) and not node.orelse:
-            candidate=ast.Module(body=after.body[:pos]+node.body+after.body[pos+1:],type_ignores=[])
-            candidate_shape=ast.dump(_NameMask().visit(copy.deepcopy(candidate)),include_attributes=False)
-            if candidate_shape==normalized:
-                return True
+    for container in ast.walk(after):
+        for field in ("body","orelse","finalbody"):
+            block=getattr(container,field,None)
+            if not isinstance(block,list):
+                continue
+            for pos,node in enumerate(tuple(block)):
+                if not isinstance(node,ast.If) or node.orelse:
+                    continue
+                block[pos:pos+1]=node.body
+                try:
+                    candidate=ast.dump(_NameMask().visit(copy.deepcopy(after)),include_attributes=False)
+                finally:
+                    block[pos:pos+len(node.body)]=[node]
+                if candidate==normalized:
+                    return True
     return False
-
 
 def causal_patch_gate(vulnerable_code: str, fixed_code: str,
                       witness: dict | None = None)->dict:
@@ -149,12 +163,12 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
             fail["identical_patch"]+=1
         before_lines=vulnerable_code.strip().splitlines()
         after_lines=fixed_code.strip().splitlines()
-        if len(before_lines)>=8:
-            changes=sum(max(i2-i1,j2-j1) for tag,i1,i2,j1,j2 in
-                difflib.SequenceMatcher(None,before_lines,after_lines,autojunk=False).get_opcodes()
-                if tag!="equal")
-            if changes>max(3,len(before_lines)//2):
-                fail["nonminimal_patch"]+=1
+        changes=sum(max(i2-i1,j2-j1) for tag,i1,i2,j1,j2 in
+            difflib.SequenceMatcher(None,before_lines,after_lines,autojunk=False).get_opcodes()
+            if tag!="equal")
+        allowed_delta=max(3,len(before_lines)//2)
+        if changes>allowed_delta or len(after_lines)>len(before_lines)+allowed_delta:
+            fail["nonminimal_patch"]+=1
     except (SyntaxError,ValueError,TypeError,RecursionError):
         fail["invalid_python_syntax"]+=1
     if witness.get("vulnerable_reproduced") is not True or witness.get("fix_verified") is not True:
