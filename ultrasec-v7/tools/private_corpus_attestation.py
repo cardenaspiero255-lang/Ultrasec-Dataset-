@@ -51,8 +51,6 @@ def audit_rows(records, scratch_dir: Path | None = None) -> dict:
     Counts reflect *syntactic* uniqueness only, never causal independence.
     """
     errors: Counter[str] = Counter()
-    families: set[str] = set()
-    langs: set[str] = set()
     splits: Counter[str] = Counter()
     rows_count = 0
     unverified = 0
@@ -71,6 +69,8 @@ def audit_rows(records, scratch_dir: Path | None = None) -> dict:
             conn.executescript("""
                 CREATE TABLE record_ids (d BLOB PRIMARY KEY);
                 CREATE TABLE code_hashes (d BLOB PRIMARY KEY);
+                CREATE TABLE families (d BLOB PRIMARY KEY);
+                CREATE TABLE languages (d BLOB PRIMARY KEY);
                 CREATE TABLE templates (d BLOB PRIMARY KEY, split TEXT NOT NULL);
                 CREATE TABLE pairs (d BLOB PRIMARY KEY, identity BLOB NOT NULL,
                                     labels INTEGER NOT NULL);
@@ -105,8 +105,8 @@ def audit_rows(records, scratch_dir: Path | None = None) -> dict:
                     pending_rights += 1
                 if row["label_provenance"] == "generator_intent_unverified":
                     generator_labels += 1
-                families.add(row["family"])
-                langs.add(row["language"])
+                conn.execute("INSERT OR IGNORE INTO families VALUES (?)", (opaque(row["family"]),))
+                conn.execute("INSERT OR IGNORE INTO languages VALUES (?)", (opaque(row["language"]),))
                 splits[row["split"]] += 1
 
                 template = opaque(row["template_id"])
@@ -136,6 +136,8 @@ def audit_rows(records, scratch_dir: Path | None = None) -> dict:
             unique_record_ids = conn.execute("SELECT COUNT(*) FROM record_ids").fetchone()[0]
             unique_code_hashes = conn.execute("SELECT COUNT(*) FROM code_hashes").fetchone()[0]
             unique_templates = conn.execute("SELECT COUNT(*) FROM templates").fetchone()[0]
+            family_count = conn.execute("SELECT COUNT(*) FROM families").fetchone()[0]
+            language_count = conn.execute("SELECT COUNT(*) FROM languages").fetchone()[0]
             unique_pairs = conn.execute("SELECT COUNT(*) FROM pairs").fetchone()[0]
             complete_pairs = conn.execute("SELECT COUNT(*) FROM pairs WHERE labels=3").fetchone()[0]
             incomplete = unique_pairs - complete_pairs
@@ -155,8 +157,8 @@ def audit_rows(records, scratch_dir: Path | None = None) -> dict:
         "unique_pair_ids": unique_pairs,
         "template_ids": unique_templates,
         "exact_code_hashes": unique_code_hashes,
-        "family_count": len(families),
-        "language_count": len(langs),
+        "family_count": family_count,
+        "language_count": language_count,
         "unverified_records": unverified,
         "rights_pending_records": pending_rights,
         "generator_intent_labels": generator_labels,
