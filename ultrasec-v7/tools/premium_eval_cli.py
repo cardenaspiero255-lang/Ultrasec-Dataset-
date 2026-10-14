@@ -31,7 +31,11 @@ def _ratings(path:Path)->tuple[dict[str,str],int,set[str]]:
                     or row["reproduction"] not in {"pass","fail","not_run"}
                     or not isinstance(row["reviewer_id"],str) or not row["reviewer_id"]):
                 raise ValueError("Invalid review evidence")
-            complete+=1
+            if (row["vulnerability_evidence"]=="supported"
+                    and row["fix_evidence"]=="supported"
+                    and row["reproduction"]=="pass"
+                    and row["vulnerable_side"]!="uncertain"):
+                complete+=1
             identities.add(row["reviewer_id"])
         result[row["case_id"]]=row["vulnerable_side"]
     return result,complete,identities
@@ -58,7 +62,7 @@ def main(argv=None)->int:
         report["reviewer_signatures"]="NOT_VERIFIED"
         if evidence_a!=args.required_cases or evidence_b!=args.required_cases:
             report["agreement_gate_pass"]=False
-            report["failures"]["review_evidence_incomplete"]=1
+            report["failures"]["review_evidence_inadequate"]=1
         if not reviewer_a or not reviewer_b or reviewer_a & reviewer_b:
             report["agreement_gate_pass"]=False
             report["failures"]["reviewer_identity_not_independent"]=1
