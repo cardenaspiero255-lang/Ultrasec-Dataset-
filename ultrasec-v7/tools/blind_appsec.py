@@ -12,8 +12,10 @@ import hmac
 import json
 import os
 from pathlib import Path
+import sys
 import zipfile
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from premium_evidence import admission_report
 
 _RUBRIC = """UltraSec V7. Reviewer protocol (independent external AppSec):
