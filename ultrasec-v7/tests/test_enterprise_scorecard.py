@@ -47,6 +47,19 @@ class EnterpriseScorecardTests(unittest.TestCase):
         self.assertEqual(report["metrics"]["false_positive_rate"], 0.5)
         self.assertEqual(report["certification"], "NOT_CERTIFIED")
 
+    def test_buyer_thresholds_are_recorded_exactly(self):
+        report = module.evaluate_scorecard(self.gold, self.pred, min_recall=0.90000001, max_fpr=0.1)
+        self.assertEqual(report["buyer_thresholds"], {
+            "min_recall": 0.90000001, "max_fpr": 0.1,
+        })
+        self.assertEqual(report["threshold_comparison"], "raw_rates_inclusive")
+        self.assertEqual(report["confusion_matrix"], {"tp": 1, "fp": 1, "tn": 1, "fn": 1})
+
+    def test_thresholds_preserved_on_invalid_holdout(self):
+        report = module.evaluate_scorecard(self.gold, self.pred[:-1], 0.75, 0.25)
+        self.assertEqual(report["buyer_thresholds"], {"min_recall": 0.75, "max_fpr": 0.25})
+        self.assertIn("missing_prediction", report["failures"])
+
     def test_thresholds_are_enforced(self):
         report = module.evaluate_scorecard(self.gold, self.pred, min_recall=0.9, max_fpr=0.1)
         self.assertFalse(report["buyer_thresholds_pass"])
