@@ -101,4 +101,6 @@ jobs:
         run: python3 ultrasec-v7/tools/verify_public.py 07-ci-hardening-tests
       - name: Run public CI security regression suite
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_public_hardening.py' -v
+      - name: Validate audit evidence regressions
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_audit_register.py' -v
 
