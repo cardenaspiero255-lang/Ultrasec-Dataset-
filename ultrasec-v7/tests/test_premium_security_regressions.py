@@ -23,6 +23,19 @@ release=module("premium_release_gate")
 
 
 class PremiumSecurityRegressions(unittest.TestCase):
+    def test_two_perfect_scanner_predictions_cannot_pass_100_case_gate(self):
+        gold=[{"case_id":"v","cwe_id":"CWE-89","language":"python","vulnerable":True},
+              {"case_id":"n","cwe_id":"CWE-89","language":"python","vulnerable":False}]
+        rows=[{"case_id":case["case_id"],"tool":tool,
+               "detected":case["vulnerable"],"coverage":"rule_applied",
+               "rule_id":"example-rule","rule_cwe_id":"CWE-89"}
+              for case in gold for tool in ("semgrep","codeql")]
+        result=sast.summarize_sast(gold,rows)
+        self.assertFalse(result["benchmark_pass"])
+        self.assertIn("wrong_holdout_size",result["failures"])
+        self.assertEqual(result["metrics"]["submitted_cases"],2)
+        self.assertEqual(result["criteria"]["required_cases"],100)
+
     def test_codeql_missing_when_only_semgrep_reported_is_a_blocker(self):
         gold=[{"case_id":"v1","cwe_id":"CWE-89","language":"python","vulnerable":True},
               {"case_id":"n1","cwe_id":"CWE-89","language":"python","vulnerable":False}]
@@ -159,6 +172,14 @@ class PremiumSecurityRegressions(unittest.TestCase):
             result=json.loads(report.read_text())
             self.assertFalse(result["agreement_gate_pass"])
             self.assertIn("reviewer_identity_not_independent",result["failures"])
+
+    def test_reviewer_documentation_matches_accepted_six_field_schema(self):
+        guide=(TOOLS.parent/"verification"/"EXTERNAL_BLIND_100_ES.md").read_text()
+        self.assertIn("fix_evidence",guide)
+        self.assertNotIn("mitigation_evidence=",guide)
+        self.assertIn("reproduction",guide)
+        self.assertIn("reviewer_id",guide)
+        self.assertIn("evidencia firmada separada",guide.lower())
 
     def test_local_cli_accepts_full_reviewer_form_without_echoing_evidence(self):
         cases=[{"case_id":str(i),"vulnerable_side":side,
