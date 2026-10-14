@@ -80,6 +80,8 @@ class PremiumSecurityRegressions(unittest.TestCase):
             blind.create_reviewer_package([],Path("."),b"secret")
         with self.assertRaises(ValueError):
             blind.create_reviewer_package([],Path("."),b"x"*32)
+        with self.assertRaises(ValueError):
+            blind.create_reviewer_package([],Path("."),b"01234567"*4)
 
     def test_local_cli_accepts_full_reviewer_form_without_echoing_evidence(self):
         cases=[{"case_id":str(i),"vulnerable_side":side,
