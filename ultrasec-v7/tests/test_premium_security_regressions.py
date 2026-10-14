@@ -32,6 +32,17 @@ class PremiumSecurityRegressions(unittest.TestCase):
         self.assertFalse(report["benchmark_pass"])
         self.assertIn("missing_tool_results",report["failures"])
 
+    def test_invalid_gold_types_and_prediction_ids_fail_closed(self):
+        gold=[{"case_id":"ok","cwe_id":"CWE-89","language":"python","vulnerable":True},
+              {"case_id":"bad","cwe_id":"CWE-89","language":None,"vulnerable":False},
+              {"case_id":[],"cwe_id":"CWE-89","language":"python","vulnerable":True},
+              {"case_id":"bad2","cwe_id":[],"language":"python","vulnerable":False}]
+        predictions=[{"case_id":[],"tool":"semgrep","detected":False,"coverage":"no_rule"}]
+        result=sast.summarize_sast(gold,predictions)
+        self.assertFalse(result["benchmark_pass"])
+        self.assertIn("invalid_gold",result["failures"])
+        self.assertIn("invalid_tool_record",result["failures"])
+
     def test_irrelevant_rule_cwe_must_not_turn_into_tp(self):
         gold=[{"case_id":"v1","cwe_id":"CWE-89","language":"python","vulnerable":True}]
         rows=[{"case_id":"v1","tool":tool,"detected":True,"coverage":"rule_applied",
