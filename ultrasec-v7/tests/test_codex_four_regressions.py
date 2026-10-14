@@ -43,6 +43,13 @@ class CodexFourRegressions(unittest.TestCase):
         result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
         self.assertIn("nonminimal_patch",result["failures"])
 
+    def test_large_string_literal_rewrite_is_nonminimal(self):
+        gate=load("premium_evidence")
+        before="payload = "+repr("A"*10000)
+        after="payload = "+repr("B"*10000)
+        result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertIn("nonminimal_patch",result["failures"])
+
     def test_pattern_capture_renames_are_trivial(self):
         gate=load("premium_evidence")
         before='match obj:\n    case {"x": value}:\n        print(value)'
@@ -67,7 +74,7 @@ class CodexFourRegressions(unittest.TestCase):
                 z.writestr("owner_key.jsonl",json.dumps({"case_id":"x"})+"\n")
             data=bytearray(owner.read_bytes())
             # Replace ZIP method in local and central headers with unsupported 99.
-            for signature,offset in ((b"PK\\x03\\x04",8),(b"PK\\x01\\x02",10)):
+            for signature,offset in ((bytes.fromhex("504b0304"),8),(bytes.fromhex("504b0102"),10)):
                 pos=data.find(signature)
                 self.assertGreaterEqual(pos,0)
                 data[pos+offset:pos+offset+2]=(99).to_bytes(2,"little")
