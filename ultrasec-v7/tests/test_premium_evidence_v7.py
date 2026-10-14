@@ -28,8 +28,8 @@ mutations = load("semantic_mutations")
 
 def case(i, family=None, kind="real_world", split="test"):
     return {
-        "case_id": "c"+str(i), "family_id": family or "F"+str(i%12),
-        "cwe_id": "CWE-89", "language": "python", "split": split,
+        "case_id": "c"+str(i), "family_id": family or "CWE-"+str(100+i%12),
+        "cwe_id": "CWE-"+str(100+i%12), "language": "python", "split": split,
         "source_kind": kind,
         "source_url": "https://example.org/repo/commit/"+format(i+1,"040x"),
         "source_commit": format(i+1,"040x"), "fix_commit": format(i+1001,"040x"),
@@ -53,7 +53,7 @@ class PremiumEvidenceTDD(unittest.TestCase):
         records=[case(i) for i in range(100)]
         duplicate=dict(records[0])
         duplicate["case_id"]="alias-of-original"
-        duplicate["family_id"]="F11"
+        duplicate["family_id"]="CWE-111"
         records[1]=duplicate
         report=gates.admission_report(records,required_cases=100,required_families=12)
         self.assertFalse(report["admission_pass"])
@@ -66,6 +66,15 @@ class PremiumEvidenceTDD(unittest.TestCase):
         report=gates.admission_report(records,required_cases=100,required_families=12)
         self.assertFalse(report["admission_pass"])
         self.assertIn("duplicate_code_pair",report["failures"])
+
+    def test_twelve_family_aliases_for_one_cwe_are_not_independent(self):
+        records=[case(i) for i in range(100)]
+        for i,record in enumerate(records):
+            record["family_id"]="alias"+str(i%12)
+            record["cwe_id"]="CWE-89"
+        report=gates.admission_report(records,100,12)
+        self.assertFalse(report["admission_pass"])
+        self.assertIn("insufficient_distinct_cwe_families",report["failures"])
 
     def test_rejects_synthetic_corpus_even_with_provenance_claims(self):
         data = [case(i, kind="synthetic") for i in range(100)]
