@@ -54,6 +54,23 @@ class LexicalNoveltyTests(unittest.TestCase):
         self.assertIn("below_lexical_uniqueness_threshold", report["failures"])
         self.assertEqual(report["criteria"]["minimum_lexical_unique_fraction"], 0.9)
 
+    def test_invalid_records_do_not_count_as_duplicates(self):
+        report=module.screen_records([
+            row("x=1"),
+            {"code":"bad", "language":42, "family":"F"},
+        ],0.0)
+        self.assertFalse(report["lexical_screen_pass"])
+        self.assertEqual(report["metrics"]["records"],2)
+        self.assertEqual(report["metrics"]["valid_records"],1)
+        self.assertEqual(report["metrics"]["exact_duplicate_rows"],0)
+        self.assertEqual(report["metrics"]["total_redundant_rows"],0)
+
+    def test_common_numeric_literal_variants_have_same_shape(self):
+        examples=["mask = 0xff","mask = 0xaa","mask = 0b1111","mask = 0o77",
+                  "mask = 12_345","mask = 1.2e+3","mask = 9.8e+4"]
+        shapes={module.lexical_shape(x) for x in examples}
+        self.assertEqual(len(shapes),1)
+
     def test_empty_and_invalid_rows_fail_closed(self):
         report = module.screen_records([], 0.5)
         self.assertFalse(report["lexical_screen_pass"])
