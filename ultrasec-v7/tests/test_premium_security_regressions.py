@@ -200,6 +200,20 @@ class PremiumSecurityRegressions(unittest.TestCase):
             self.assertFalse(result["agreement_gate_pass"])
             self.assertIn("owner_holdout_manifest_missing",result["failures"])
 
+    def test_owner_manifest_is_not_reopened_after_digest_verification(self):
+        import ast
+        source=(TOOLS/"premium_eval_cli.py").read_text()
+        tree=ast.parse(source)
+        func=next(n for n in tree.body if isinstance(n,ast.FunctionDef)
+                  and n.name=="_owner_holdout_ids")
+        zip_calls=[n for n in ast.walk(func) if isinstance(n,ast.Call)
+                   and isinstance(n.func,ast.Attribute) and n.func.attr=="ZipFile"]
+        self.assertEqual(len(zip_calls),1)
+        self.assertIsInstance(zip_calls[0].args[0],ast.Call)
+        self.assertIsInstance(zip_calls[0].args[0].func,ast.Attribute)
+        self.assertEqual(zip_calls[0].args[0].func.attr,"BytesIO")
+        self.assertEqual(zip_calls[0].args[0].args[0].id,"verified_bytes")
+
     def test_owner_holdout_identity_commitment_enforces_exact_membership(self):
         with tempfile.TemporaryDirectory() as root:
             home=Path(root)
