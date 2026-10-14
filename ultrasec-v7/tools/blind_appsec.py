@@ -44,11 +44,11 @@ def create_reviewer_package(cases:list[dict], destination:Path,
     Admission is metadata screening; must independently verify all claims.
     The 100-case source must be owner-controlled and licensed before export.
     """
-    if secret is None:
-        secret=secrets.token_bytes(32)
-    if (not isinstance(secret,bytes) or len(secret)<32
-            or len(set(secret))<8):
-        raise ValueError("Blinding requires a high-entropy 32-byte secret generated privately")
+    # Caller-supplied keys cannot be proven random by checking length or byte diversity.
+    # A new secret is generated internally for each owner-controlled package.
+    if secret is not None:
+        raise ValueError("Caller-supplied HMAC keys are prohibited; use OS CSPRNG")
+    secret = secrets.token_bytes(32)
     if len(cases)!=100:
         raise ValueError("Exactly 100 cases required")
     report=admission_report(cases,required_cases=100,required_families=12)
