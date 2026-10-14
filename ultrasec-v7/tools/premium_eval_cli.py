@@ -55,7 +55,11 @@ def _owner_holdout_ids(path:Path,expected_sha256:str,required:int)->set[str]:
     with zipfile.ZipFile(io.BytesIO(verified_bytes)) as archive:
         if set(archive.namelist())!={"owner_key.jsonl"}:
             raise ValueError("Unexpected owner archive members")
-        raw=archive.read("owner_key.jsonl")
+        info=archive.getinfo("owner_key.jsonl")
+        if info.file_size>2_000_000:
+            raise ValueError("Owner manifest too large")
+        with archive.open(info) as member:
+            raw=member.read(2_000_001)
     if len(raw)>2_000_000:
         raise ValueError("Owner manifest too large")
     rows=[json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()]
