@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import copy
 import difflib
+import hashlib
 from collections import Counter
 import re
 
@@ -24,6 +25,11 @@ def admission_report(cases: list[dict], required_cases: int = 100,
     failures: Counter[str] = Counter()
     ids:set[str] = set()
     families:set[str] = set()
+    cwes:set[str] = set()
+    seen_source_pairs:set[tuple[str,str]] = set()
+    seen_code_pairs:set[tuple[bytes,bytes]] = set()
+    family_cwe:dict[str,str] = {}
+    cwe_family:dict[str,str] = {}
     for case in cases:
         if not isinstance(case,dict):
             failures["invalid_schema"] += 1
@@ -47,6 +53,26 @@ def admission_report(cases: list[dict], required_cases: int = 100,
             continue
         ids.add(case_id)
         families.add(family)
+        cwe=case["cwe_id"]
+        cwes.add(cwe)
+        if family in family_cwe and family_cwe[family]!=cwe:
+            failures["family_cwe_conflict"]+=1
+        if cwe in cwe_family and cwe_family[cwe]!=family:
+            failures["family_alias_for_same_cwe"]+=1
+        family_cwe[family]=cwe
+        cwe_family[cwe]=family
+        origin_pair=(case["source_commit"],case["fix_commit"])
+        if origin_pair in seen_source_pairs:
+            failures["duplicate_source_patch_pair"]+=1
+        seen_source_pairs.add(origin_pair)
+        vulnerable=case.get("vulnerable_code")
+        fixed=case.get("fixed_code")
+        if isinstance(vulnerable,str) and isinstance(fixed,str):
+            code_pair=(hashlib.sha256(vulnerable.encode("utf-8")).digest(),
+                       hashlib.sha256(fixed.encode("utf-8")).digest())
+            if code_pair in seen_code_pairs:
+                failures["duplicate_code_pair"]+=1
+            seen_code_pairs.add(code_pair)
         if case.get("source_kind")!="real_world":
             failures["not_real_world"]+=1
         if case.get("split")!="test":
@@ -65,6 +91,8 @@ def admission_report(cases: list[dict], required_cases: int = 100,
         failures["wrong_case_count"]+=1
     if len(families)<required_families:
         failures["insufficient_families"]+=1
+    if len(cwes)<required_families:
+        failures["insufficient_distinct_cwe_families"]+=1
     return {
         "schema":"ultrasec.enterprise-real-world-admission.v1",
         "scope":"OWNER_LOCAL_EVIDENCE_SCREEN_ONLY",
@@ -72,7 +100,9 @@ def admission_report(cases: list[dict], required_cases: int = 100,
         "external_legal_and_appsec_verification":"REQUIRED",
         "admission_pass":not bool(failures),
         "criteria":{"required_cases":required_cases,"required_families":required_families},
-        "metrics":{"submitted":len(cases),"unique_case_ids":len(ids),"families":len(families)},
+        "metrics":{"submitted":len(cases),"unique_case_ids":len(ids),"families":len(families),
+                   "distinct_cwe_ids":len(cwes),"unique_source_patch_pairs":len(seen_source_pairs),
+                   "unique_code_pairs":len(seen_code_pairs)},
         "failures":dict(sorted(failures.items())),
     }
 
