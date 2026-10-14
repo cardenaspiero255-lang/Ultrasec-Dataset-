@@ -107,6 +107,11 @@ def mutation_admission(proposal:dict,evidence:dict)->dict:
         failures["invalid_proposal_schema"]=1
     else:
         actual_digest=hashlib.sha256(proposal["source"].encode("utf-8")).hexdigest()
+        original=proposal.get("original_source")
+        if not isinstance(original,str) or not original.strip():
+            failures["unverifiable_mutation_origin"]=1
+        elif hashlib.sha256(original.encode("utf-8")).hexdigest()!=proposal.get("original_sha256"):
+            failures["unverifiable_mutation_origin"]=1
         if proposal.get("source_sha256")!=actual_digest:
             failures["tampered_proposal_digest"]=1
         if evidence.get("original_sha256")!=proposal.get("original_sha256"):
