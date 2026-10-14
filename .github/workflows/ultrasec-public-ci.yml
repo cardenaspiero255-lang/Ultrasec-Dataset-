@@ -117,4 +117,6 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_evidence_v7.py' -v
       - name: Enforce premium release cannot claim valuation without independent evidence
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_release_gate.py' -v
+      - name: Reject misleading premium PASS scenarios (Codex P1/P2 regression suite)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_security_regressions.py' -v
 
