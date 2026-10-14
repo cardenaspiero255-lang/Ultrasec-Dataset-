@@ -80,6 +80,13 @@ class PremiumEvidenceTDD(unittest.TestCase):
         self.assertFalse(r["causal_gate_pass"])
         self.assertIn("missing_executable_witness", r["failures"])
 
+    def test_extra_if_wrapper_remains_trivial_even_with_self_attested_witness(self):
+        result=gates.causal_patch_gate(
+            "run(input_data)", "if authorized(input_data):\n    run(input_data)",
+            {"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertFalse(result["causal_gate_pass"])
+        self.assertIn("trivial_guard_only_change",result["failures"])
+
     def test_patch_with_material_flow_change_and_witness_can_pass_screen(self):
         r = gates.causal_patch_gate("db.execute('Q'+user)",
                                     "db.execute('Q?', (user,))",
