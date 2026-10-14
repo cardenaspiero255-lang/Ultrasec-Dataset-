@@ -74,6 +74,9 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
                 limitations["wrong_cwe_rule"]+=1
         # No rule is never treated as tool success. When the true label
         # is vulnerable, its absence also contributes a false negative.
+        if coverage=="no_rule" and not actual["vulnerable"]:
+            group["no_rule_negative"]+=1
+            continue
         detected=row["detected"] if coverage=="rule_applied" else False
         group["tp" if detected and actual["vulnerable"] else
               "fp" if detected else
@@ -110,6 +113,7 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
                 "false_positive_rate":round(fp/(fp+tn),6) if fp+tn else None,
                 "no_applicable_rule_or_language":counts["not_applicable"],
                 "tool_failed":counts["tool_failed"],
+                "no_rule_negative":counts["no_rule_negative"],
             }
     if limitations:
         failures["coverage_not_complete"]+=1
