@@ -17,6 +17,7 @@ import sys
 import sqlite3
 import tempfile
 import zipfile
+import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sealed_evidence import _no_duplicates, public_receipt, write_private
@@ -215,7 +216,7 @@ def main(argv=None) -> int:
         if not matches:
             report["errors"]["sha256_mismatch"] = 1
             report["owner_integrity_pass"] = False
-    except (ValueError, OSError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, KeyError, RecursionError, RuntimeError, sqlite3.Error):
+    except (ValueError, OSError, UnicodeError, zipfile.BadZipFile, zipfile.LargeZipFile, EOFError, KeyError, RecursionError, RuntimeError, sqlite3.Error, zlib.error):
         report = empty_report()
         report["errors"] = {"input_parse_error": 1}
         report["integrity"] = {"sha256_matches_expected": False}
