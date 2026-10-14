@@ -174,6 +174,48 @@ class BlindEvaluationTDD(unittest.TestCase):
         self.assertIn("incomplete_review",r["failures"])
 
 
+class PrivateCLIRegressionTDD(unittest.TestCase):
+    def test_signed_human_rating_jsonl_can_be_scored_only_locally(self):
+        import subprocess
+        import sys
+        script=TOOLS/"premium_eval_cli.py"
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            ratings_a=root/"a.jsonl";ratings_b=root/"b.jsonl"
+            a=[{"case_id":str(i),"vulnerable_side":"A"} for i in range(100)]
+            b=[{"case_id":str(i),"vulnerable_side":"A" if i<90 else "B"} for i in range(100)]
+            ratings_a.write_text("".join(json.dumps(x)+"\\n" for x in a).replace("\\n","\n"),encoding="utf-8")
+            ratings_b.write_text("".join(json.dumps(x)+"\\n" for x in b).replace("\\n","\n"),encoding="utf-8")
+            out=root/"report.json"
+            proc=subprocess.run([sys.executable,str(script),"agreement",
+                "--reviewer-a",str(ratings_a),"--reviewer-b",str(ratings_b),
+                "--sealed-report",str(out),"--session-lock",str(root/"run.lock")],
+                capture_output=True,text=True)
+            self.assertEqual(proc.returncode,0,proc.stderr)
+            self.assertEqual(json.loads(proc.stdout),{"status":"SEALED"})
+            result=json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(result["observed_agreement"],0.9)
+            self.assertEqual(result["certification"],"NOT_CERTIFIED")
+            self.assertEqual(out.stat().st_mode & 0o777,0o600)
+
+    def test_duplicate_rating_ids_are_rejected_without_releasing_answers(self):
+        import subprocess
+        import sys
+        script=TOOLS/"premium_eval_cli.py"
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            (root/"a.jsonl").write_text('{"case_id":"x","vulnerable_side":"A"}\\n{"case_id":"x","vulnerable_side":"B"}\\n'.replace("\\n","\n"))
+            (root/"b.jsonl").write_text('{"case_id":"x","vulnerable_side":"A"}\\n'.replace("\\n","\n"))
+            out=root/"report.json"
+            proc=subprocess.run([sys.executable,str(script),"agreement",
+                "--reviewer-a",str(root/"a.jsonl"),"--reviewer-b",str(root/"b.jsonl"),
+                "--sealed-report",str(out),"--session-lock",str(root/"lock")],
+                capture_output=True,text=True)
+            self.assertEqual(json.loads(proc.stdout),{"status":"SEALED"})
+            self.assertIn("input_parse_error",json.loads(out.read_text())["failures"])
+            self.assertNotIn('"vulnerable_side"',proc.stdout)
+
+
 class AdversarialSASTTDD(unittest.TestCase):
     def test_tool_scoring_by_cwe(self):
         gold=[{"case_id":"v1","cwe_id":"CWE-89","language":"python","vulnerable":True},
