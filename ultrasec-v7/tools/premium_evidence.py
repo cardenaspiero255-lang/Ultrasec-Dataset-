@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 from collections import Counter
 import re
 
@@ -88,6 +89,19 @@ def _shape(code: str)->str:
     return ast.dump(_NameMask().visit(root),include_attributes=False)
 
 
+def _trivial_guard_wrapper(before_source:str,after_source:str)->bool:
+    before=ast.parse(before_source)
+    after=ast.parse(after_source)
+    normalized=ast.dump(_NameMask().visit(copy.deepcopy(before)),include_attributes=False)
+    for pos,node in enumerate(after.body):
+        if isinstance(node,ast.If) and not node.orelse:
+            candidate=ast.Module(body=after.body[:pos]+node.body+after.body[pos+1:],type_ignores=[])
+            candidate_shape=ast.dump(_NameMask().visit(copy.deepcopy(candidate)),include_attributes=False)
+            if candidate_shape==normalized:
+                return True
+    return False
+
+
 def causal_patch_gate(vulnerable_code: str, fixed_code: str,
                       witness: dict | None = None)->dict:
     """Screen nontrivial diffs; only independent executable/human proof establishes causality."""
@@ -98,6 +112,8 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
         after=_shape(fixed_code)
         if before==after:
             fail["trivial_identifier_only_change"]+=1
+        if _trivial_guard_wrapper(vulnerable_code,fixed_code):
+            fail["trivial_guard_only_change"]+=1
         if vulnerable_code.strip()==fixed_code.strip():
             fail["identical_patch"]+=1
     except (SyntaxError,ValueError,TypeError,RecursionError):
