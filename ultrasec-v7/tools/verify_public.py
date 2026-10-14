@@ -98,6 +98,57 @@ def workflows(root: pathlib.Path) -> None:
     assert_check('pull_request_target' not in text, 'Unsafe PR target configuration')
 
 
+
+MANDATORY_AUDITS = {
+    'Public repository security', 'Private corpus inventory', 'Semantic uniqueness',
+    '500 independent mechanisms', 'Label correctness', 'Executable fixes',
+    'Private Semgrep / CodeQL', 'Generalization / leakage', 'Reproducibility',
+    'Licensing and data rights', 'External security audit', 'Commercial appraisal',
+}
+
+
+def audit_register(root: pathlib.Path) -> None:
+    """Fail closed on unsubstantiated or missing audit status; syntax is not certification."""
+    path = root / 'ultrasec-v7' / 'verification' / 'FULL_AUDIT_REGISTER.md'
+    assert_check(path.is_file(), 'Missing evidence-based audit register')
+    text = path.read_text(encoding='utf-8')
+    rows = []
+    for line in text.splitlines():
+        if not line.startswith('|'):
+            continue
+        assert_check(line.endswith('|'), 'Malformed audit table row')
+        cells = [cell.strip() for cell in line.strip('|').split('|')]
+        assert_check(len(cells) == 4, 'Audit table must contain exactly four columns')
+        if cells == ['Audit', 'Evidence required', 'Status', 'Evidence / blocker']:
+            continue
+        if all(re.fullmatch(r':?-{3,}:?', cell) for cell in cells):
+            continue
+        rows.append(cells)
+
+    names = set()
+    for name, requirement, status, evidence in rows:
+        assert_check(name not in names, f'Duplicate audit: {name}')
+        names.add(name)
+        assert_check(bool(requirement), f'Audit missing acceptance requirement: {name}')
+        assert_check(status in {'PASS', 'BLOCKED', 'FAIL'}, f'Unknown audit status: {name}: {status}')
+        assert_check(bool(evidence) and evidence not in {'-', '—'}, f'Missing audit evidence/blocker: {name}')
+        if status == 'PASS':
+            assert_check(bool(re.search(r'commit:[0-9a-f]{40}\b', evidence)),
+                         f'PASS requires immutable commit hash: {name}')
+            assert_check(bool(re.search(r'20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ', evidence)),
+                         f'PASS requires timestamp: {name}')
+            assert_check(bool(re.search(r'https://\S+', evidence)),
+                         f'PASS requires linked evidence: {name}')
+            if name == 'Public repository security':
+                assert_check('PUBLIC-REFERENCE SCOPE ONLY' in evidence,
+                             'Public PASS must explicitly limit its scope')
+                runs = re.findall(r'https://github\.com/[^\s)]+/actions/runs/(\d+)', evidence)
+                assert_check(len(set(runs)) >= 3,
+                             'Public PASS requires distinct GitHub Actions evidence for all three workflows')
+    missing = MANDATORY_AUDITS - names
+    assert_check(not missing, f'Missing mandatory audits: {sorted(missing)}')
+    assert_check(names == MANDATORY_AUDITS, f'Unexpected audit names: {sorted(names - MANDATORY_AUDITS)}')
+
 def tests(root: pathlib.Path) -> None:
     # Unit checks enforce fail-closed behavior using precise negative cases.
     assert_check(bool(SECRET_PATTERN.search('ghp_'+'A'*40)), 'Secret detector not working')
@@ -106,6 +157,7 @@ def tests(root: pathlib.Path) -> None:
     assert_check('.jsonl' in FORBIDDEN_SUFFIXES and '.zst' in FORBIDDEN_SUFFIXES, 'Forbidden private artifact check missing')
     assert_check('NOT_CERTIFIED' in REQUIRED_STATUS.values(), 'Status check missing')
     workflows(root)
+    audit_register(root)
     public_assets(root); secrets(root); rights(root); claims(root); provenance(root); links(root)
 
 GATES = {
