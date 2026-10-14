@@ -23,6 +23,7 @@ def load(name):
 gates = load("premium_evidence")
 blind = load("blind_appsec")
 sast = load("adversarial_sast")
+mutations = load("semantic_mutations")
 
 
 def case(i, family=None, kind="real_world", split="test"):
@@ -92,6 +93,33 @@ class PremiumEvidenceTDD(unittest.TestCase):
         report = json.dumps(gates.admission_report(data, 100, 12))
         self.assertNotIn("OWNER-SECRET", report)
         self.assertNotIn("https://example.org", report)
+
+
+class SemanticMutationTDD(unittest.TestCase):
+    def test_mutations_cover_four_semantic_axes_but_remain_unvalidated(self):
+        fixture = {
+            "control_flow": "sink(user)",
+            "data_flow": "sink(user)",
+            "sanitization_order": "sink(sanitize(decode(user)))",
+            "boundary_conditions": "if len(user) < 10:\n    sink(user)",
+        }
+        for operator, source in fixture.items():
+            with self.subTest(operator=operator):
+                result = mutations.propose_mutation(source, operator, family_id="CWE-89")
+                self.assertNotEqual(result["source"], source)
+                self.assertEqual(result["operator"], operator)
+                self.assertEqual(result["validation_status"], "UNVALIDATED_CANDIDATE")
+                self.assertIn("executable_witness",result["required_before_admission"])
+
+    def test_unsupported_operator_fails_and_does_not_output_claim(self):
+        with self.assertRaises(ValueError):
+            mutations.propose_mutation("print('ok')","magic_increase_count",family_id="CWE-89")
+
+    def test_mutator_never_promotes_without_provenance_and_oracle(self):
+        changed=mutations.propose_mutation("sink(x)","control_flow",family_id="CWE-89")
+        r=mutations.mutation_admission(changed,{"vulnerable_reproduced":False,"fix_verified":True})
+        self.assertFalse(r["admitted"])
+        self.assertIn("missing_executable_witness",r["failures"])
 
 
 class BlindEvaluationTDD(unittest.TestCase):
