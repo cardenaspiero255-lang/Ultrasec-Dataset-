@@ -242,6 +242,23 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
             for tag,i1,i2,j1,j2 in difflib.SequenceMatcher(
                 None,old_tokens,new_tokens,autojunk=False).get_opcodes()
             if tag!="equal")
+        # A single STRING/NUMBER token may encode thousands of modified
+        # characters; weight its changed content without double-counting tokens.
+        literal_edits=0
+        for tag,i1,i2,j1,j2 in difflib.SequenceMatcher(
+                None,old_tokens,new_tokens,autojunk=False).get_opcodes():
+            if tag=="equal":
+                continue
+            old_slice=old_tokens[i1:i2]
+            new_slice=new_tokens[j1:j2]
+            for old,new in zip(old_slice,new_slice):
+                if old[0]==new[0] and old[0] in (_tokenize.STRING,_tokenize.NUMBER):
+                    literal_edits+=sum(max(a2-a1,b2-b1)
+                        for op,a1,a2,b1,b2 in difflib.SequenceMatcher(
+                            None,old[1],new[1],autojunk=False).get_opcodes()
+                        if op!="equal")
+        if literal_edits>max(64,len(vulnerable_code)//3):
+            fail["nonminimal_patch"]+=1
         if token_edits>max(6,len(old_tokens)//3):
             fail["nonminimal_patch"]+=1
         if changes>allowed_delta or len(after_lines)>len(before_lines)+allowed_delta:
