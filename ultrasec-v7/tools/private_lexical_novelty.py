@@ -17,6 +17,7 @@ import re
 import sqlite3
 import sys
 import tempfile
+import unicodedata
 import zipfile
 import zlib
 
@@ -36,7 +37,8 @@ def lexical_shape(code: str) -> str:
     """
     if not isinstance(code, str):
         raise TypeError("Code must be text")
-    masked = _TOKENS.sub(lambda match: "NUM" if (match.group()[0].isdigit() or match.group()[0] == ".") else "ID", code)
+    normalized = unicodedata.normalize("NFKC", code)
+    masked = _TOKENS.sub(lambda match: "NUM" if (match.group()[0].isdigit() or match.group()[0] == ".") else "ID", normalized)
     return _SPACES.sub(" ", masked).strip()
 
 
