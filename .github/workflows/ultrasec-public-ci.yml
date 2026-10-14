@@ -111,4 +111,6 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_enterprise_comparison.py' -v
       - name: Validate sealed holdout privacy, replay protection and strict JSON parsing
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_sealed_buyer_cli.py' -v
+      - name: Validate owner-local private corpus attestation on synthetic archives
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_private_corpus_attestation.py' -v
 
