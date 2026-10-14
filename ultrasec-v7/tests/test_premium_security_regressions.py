@@ -84,6 +84,7 @@ class PremiumSecurityRegressions(unittest.TestCase):
         evidence["artifact_sha256"]=candidate["source_sha256"]
         self.assertFalse(mut.mutation_admission(candidate,evidence)["admitted"])
         evidence["original_sha256"]=candidate["original_sha256"]
+        evidence["proposal_identity_sha256"]=candidate["proposal_identity_sha256"]
         self.assertTrue(mut.mutation_admission(candidate,evidence)["admitted"])
         candidate["source"]+="\n# tampered"
         self.assertFalse(mut.mutation_admission(candidate,evidence)["admitted"])
@@ -103,13 +104,17 @@ class PremiumSecurityRegressions(unittest.TestCase):
 
     def test_case_family_is_part_of_mutation_attestation(self):
         proposal=mut.propose_mutation("sink(user)","control_flow","CWE-89")
+        original_identity=proposal["proposal_identity_sha256"]
         proposal["family_id"]="CWE-79"
         evidence={"original_sha256":proposal["original_sha256"],
-          "artifact_sha256":proposal["source_sha256"],"vulnerable_reproduced":True,
+          "artifact_sha256":proposal["source_sha256"],
+          "proposal_identity_sha256":original_identity,"vulnerable_reproduced":True,
           "fix_verified":True,"independent_appsec_signed":True,
           "real_world_provenance_confirmed":True,"legal_rights_cleared":True,
           "holdout_no_leakage":True}
-        self.assertFalse(mut.mutation_admission(proposal,evidence)["admitted"])
+        result=mut.mutation_admission(proposal,evidence)
+        self.assertFalse(result["admitted"])
+        self.assertIn("unverifiable_mutation_origin",result["failures"])
 
     def test_blind_pack_rejects_low_entropy_hmac_secret(self):
         with self.assertRaises(ValueError):
