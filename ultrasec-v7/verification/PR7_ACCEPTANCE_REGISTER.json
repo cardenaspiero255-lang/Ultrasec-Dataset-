@@ -1,0 +1,46 @@
+{
+  "schema": "ultrasec.pr7-premium-acceptance-register.v1",
+  "scope": "PUBLIC_AGGREGATE_ONLY",
+  "certification": "NOT_CERTIFIED",
+  "commercial_value_usd_150k": "NOT_VERIFIED",
+  "historical_reference": {
+    "record_count": 1000000,
+    "unique_sha256": 1000000,
+    "incomplete_pairs": 0,
+    "cross_split_template_leaks": 0,
+    "template_ids": 5760,
+    "coarse_lexical_patterns": 11280,
+    "coarse_lexical_bucket_redundancy_fraction": 0.98872,
+    "case_type": "SYNTHETIC_EXPERIMENTAL",
+    "source": "owner-supplied internal audit; semantic independence not established"
+  },
+  "pr7_targets": {
+    "lexical_patterns_strictly_above": 200000,
+    "real_world_case_count": 100,
+    "independent_families_at_least": 12,
+    "independent_appsec_reviewers": 2,
+    "reviewer_raw_agreement_strictly_greater_than": 0.8,
+    "github_checks_required": 17,
+    "unresolved_codex_required": 0
+  },
+  "evidence_gates": {
+    "private_corpus_regenerated_and_semantically_validated": "BLOCKED",
+    "real_world_case_admission_100": "BLOCKED",
+    "external_reviewer_A_signed": "BLOCKED",
+    "external_reviewer_B_signed": "BLOCKED",
+    "inter_reviewer_agreement": "BLOCKED",
+    "all_disagreements_adjudicated": "BLOCKED",
+    "codeql_private_real_scans": "NOT_RUN",
+    "semgrep_private_real_scans": "NOT_RUN",
+    "slither_applicable_solidity_scans": "NOT_RUN",
+    "comparative_superiority_over_diversevul_primevul": "NOT_DEMONSTRATED",
+    "rights_authorized_for_resale": "BLOCKED",
+    "enterprise_buyer_offer_usd150k": "NOT_RECEIVED"
+  },
+  "limits": [
+    "The 5,000 V7.3 private pairs are explicitly synthetic and not externally certified.",
+    "Synthetic CI tests are validation of code paths, not results from human auditors.",
+    "No private training sources or owner-only gold labels are included.",
+    "Business price cannot be derived from hash count or structural tests."
+  ]
+}
