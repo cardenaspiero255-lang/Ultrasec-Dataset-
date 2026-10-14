@@ -95,6 +95,13 @@ class ComparisonTests(unittest.TestCase):
             checker.compare_to_baseline(self.gold, self.candidate, self.baseline,
                                        0.8, 0.1, float("nan"), 0.0)
 
+    def test_negative_recall_gain_cannot_certify_regression(self):
+        with self.assertRaises(ValueError):
+            checker.compare_to_baseline(
+                self.gold, self.baseline, self.candidate,
+                min_recall=0.5, max_fpr=0.5, min_recall_gain=-0.2,
+                max_fpr_increase=0.0)
+
     def test_cli_is_local_and_fails_closed_on_corrupt_prediction(self):
         with tempfile.TemporaryDirectory() as d:
             paths = [Path(d) / name for name in ("gold.jsonl", "candidate.jsonl", "baseline.jsonl")]
@@ -105,11 +112,14 @@ class ComparisonTests(unittest.TestCase):
                 sys.executable, str(SCRIPT), "--gold", str(paths[0]),
                 "--candidate", str(paths[1]), "--baseline", str(paths[2]),
                 "--min-recall", "0.75", "--max-fpr", "0.25",
-                "--min-recall-gain", "0.1", "--max-fpr-increase", "0"],
+                "--min-recall-gain", "0.1", "--max-fpr-increase", "0",
+                "--sealed-report", str(Path(d) / "evidence.json"),
+                "--session-lock", str(Path(d) / "session.lock")],
                 text=True, capture_output=True, check=False)
-            self.assertNotEqual(proc.returncode, 0)
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
             self.assertNotIn("invalid-local-data", proc.stdout + proc.stderr)
-            self.assertIn("input_parse_error", json.loads(proc.stdout)["failures"])
+            self.assertIn("input_parse_error", json.loads((Path(d) / "evidence.json").read_text())["failures"])
 
 
 if __name__ == "__main__":
