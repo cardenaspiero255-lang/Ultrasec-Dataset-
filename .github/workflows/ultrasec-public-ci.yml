@@ -115,4 +115,6 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_private_corpus_attestation.py' -v
       - name: Validate enterprise real-case evidence, blind reviews and adversarial SAST (synthetic contract tests)
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_evidence_v7.py' -v
+      - name: Enforce premium release cannot claim valuation without independent evidence
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_release_gate.py' -v
 
