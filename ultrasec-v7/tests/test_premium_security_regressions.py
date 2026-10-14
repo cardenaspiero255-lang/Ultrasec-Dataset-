@@ -98,6 +98,25 @@ class PremiumSecurityRegressions(unittest.TestCase):
         with self.assertRaises(ValueError):
             blind.create_reviewer_package([],Path("."),b"01234567"*4)
 
+    def test_unsupported_review_evidence_never_unlocks_agreement_gate(self):
+        cases=[{"case_id":str(i),"vulnerable_side":("A" if i%2 else "B"),
+                "vulnerability_evidence":"insufficient",
+                "fix_evidence":"insufficient","reproduction":"not_run"} for i in range(100)]
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            for suffix,name in (("a","expert-A"),("b","expert-B")):
+                (root/(suffix+".jsonl")).write_text("".join(
+                    json.dumps({**row,"reviewer_id":name})+"\\n" for row in cases).replace("\\n","\n"))
+            report=root/"report.json"
+            proc=subprocess.run([sys.executable,str(TOOLS/"premium_eval_cli.py"),"agreement",
+                "--reviewer-a",str(root/"a.jsonl"),"--reviewer-b",str(root/"b.jsonl"),
+                "--sealed-report",str(report),"--session-lock",str(root/"lock")],
+                capture_output=True,text=True)
+            self.assertEqual(proc.returncode,0,proc.stderr)
+            result=json.loads(report.read_text())
+            self.assertFalse(result["agreement_gate_pass"])
+            self.assertIn("review_evidence_inadequate",result["failures"])
+
     def test_local_cli_accepts_full_reviewer_form_without_echoing_evidence(self):
         cases=[{"case_id":str(i),"vulnerable_side":side,
            "vulnerability_evidence":"supported",
