@@ -45,3 +45,7 @@ The [enterprise buyer evaluation protocol](verification/ENTERPRISE_ACCEPTANCE.md
 ## Private historical corpus attestation (owner only)
 
 [Private corpus attestation](verification/PRIVATE_CORPUS_ATTESTATION.md) documents a local ZIP/JSONL.gz integrity verifier for **historical V4-style records**. The [tool](tools/private_corpus_attestation.py) checks pair completeness, exact code hashes, split contamination and owner-provided SHA-256 without exposing cases publicly. Its result is **only a structural/cryptographic screening**, never proof that one million independent vulnerabilities exist or that external rights/certification have been obtained. Public CI uses synthetic data exclusively.
+
+## Owner-only lexical novelty screen
+
+[Lexical novelty protocol](verification/LEXICAL_NOVELTY_SCREEN.md) describes a disk-backed, aggregate-only screening tool that distinguishes exact code hashes from coarse normalized lexical shapes. It is **not semantic or causal independence certification**. The corpus remains private and all public CI examples are synthetic.
