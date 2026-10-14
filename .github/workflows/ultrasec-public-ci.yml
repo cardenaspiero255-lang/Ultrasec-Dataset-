@@ -103,4 +103,6 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_public_hardening.py' -v
       - name: Validate audit evidence regressions
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_audit_register.py' -v
+      - name: Validate enterprise metadata quality contract (synthetic tests only)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_enterprise_metadata.py' -v
 
