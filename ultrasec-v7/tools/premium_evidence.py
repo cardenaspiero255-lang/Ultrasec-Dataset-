@@ -118,6 +118,36 @@ class _NameMask(ast.NodeTransformer):
     def visit_arg(self,node):
         node.arg="ID"
         return node
+    def visit_FunctionDef(self,node):
+        node.name="ID"
+        return self.generic_visit(node)
+    def visit_AsyncFunctionDef(self,node):
+        node.name="ID"
+        return self.generic_visit(node)
+    def visit_ClassDef(self,node):
+        node.name="ID"
+        return self.generic_visit(node)
+    def visit_Attribute(self,node):
+        node.attr="ID"
+        return self.generic_visit(node)
+    def visit_keyword(self,node):
+        if node.arg is not None:
+            node.arg="ID"
+        return self.generic_visit(node)
+    def visit_Global(self,node):
+        node.names=["ID" for _ in node.names]
+        return node
+    def visit_Nonlocal(self,node):
+        node.names=["ID" for _ in node.names]
+        return node
+    def visit_ExceptHandler(self,node):
+        if node.name is not None:
+            node.name="ID"
+        return self.generic_visit(node)
+    def visit_alias(self,node):
+        node.name="ID"
+        node.asname="ID" if node.asname is not None else None
+        return node
 
 
 def _shape(code: str)->str:
@@ -172,6 +202,17 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
             difflib.SequenceMatcher(None,before_lines,after_lines,autojunk=False).get_opcodes()
             if tag!="equal")
         allowed_delta=max(3,len(before_lines)//2)
+        # Physical lines alone miss semicolon-packed statements and huge expressions.
+        before_ast=ast.parse(vulnerable_code)
+        after_ast=ast.parse(fixed_code)
+        before_nodes=sum(1 for _ in ast.walk(before_ast))
+        after_nodes=sum(1 for _ in ast.walk(after_ast))
+        before_statements=sum(isinstance(n,ast.stmt) for n in ast.walk(before_ast))
+        after_statements=sum(isinstance(n,ast.stmt) for n in ast.walk(after_ast))
+        if (after_nodes>before_nodes+max(8,before_nodes//2)
+                or after_statements>before_statements+max(3,before_statements//2)
+                or len(fixed_code.encode("utf-8"))>len(vulnerable_code.encode("utf-8"))*2+256):
+            fail["nonminimal_patch"]+=1
         if changes>allowed_delta or len(after_lines)>len(before_lines)+allowed_delta:
             fail["nonminimal_patch"]+=1
     except (SyntaxError,ValueError,TypeError,RecursionError):
