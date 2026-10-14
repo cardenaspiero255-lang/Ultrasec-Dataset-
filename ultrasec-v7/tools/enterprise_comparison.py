@@ -14,6 +14,10 @@ from pathlib import Path
 import sys
 from typing import Iterable
 
+# Owner-only, shared strict reader and one-shot sealed reporting.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sealed_evidence import read_jsonl, write_private, public_receipt
+
 SCORECARD = Path(__file__).resolve().with_name("enterprise_scorecard.py")
 spec = importlib.util.spec_from_file_location("ultrasec_scorecard_for_comparison", SCORECARD)
 scorecard = importlib.util.module_from_spec(spec)
@@ -58,6 +62,8 @@ def compare_to_baseline(
             raise ValueError("Comparison criteria must be finite ratios from -1 to 1")
     if not (0 <= min_recall <= 1 and 0 <= max_fpr <= 1):
         raise ValueError("Absolute thresholds must be in [0, 1]")
+    if min_recall_gain < 0:
+        raise ValueError("Required recall gain must be nonnegative")
 
     report = _empty()
     report["criteria"] = {
@@ -114,9 +120,7 @@ def compare_to_baseline(
 
 
 def _rows(path: Path):
-    with path.open("r", encoding="utf-8") as file:
-        for line in file:
-            yield json.loads(line)
+    yield from read_jsonl(path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -128,6 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-fpr", type=float, required=True)
     parser.add_argument("--min-recall-gain", type=float, required=True)
     parser.add_argument("--max-fpr-increase", type=float, required=True)
+    parser.add_argument("--sealed-report", type=Path, required=True)
+    parser.add_argument("--session-lock", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         result = compare_to_baseline(
@@ -136,8 +142,19 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError):
         result = _empty()
         result["failures"] = {"input_parse_error": 1}
-    print(json.dumps(result, sort_keys=True, ensure_ascii=True))
-    return 0 if result["comparison_pass"] else 1
+        result["criteria"] = {
+            "min_recall": args.min_recall, "max_fpr": args.max_fpr,
+            "min_recall_gain": args.min_recall_gain,
+            "max_fpr_increase": args.max_fpr_increase,
+            "comparisons": "raw_confusion_counts_not_rounded_metrics",
+        }
+    try:
+        write_private(args.sealed_report, args.session_lock, result)
+    except (ValueError, OSError, UnicodeError):
+        print('{"status":"RECORDING_FAILED"}')
+        return 2
+    print(public_receipt())
+    return 0
 
 
 if __name__ == "__main__":
