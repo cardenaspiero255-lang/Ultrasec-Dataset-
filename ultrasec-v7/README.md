@@ -37,3 +37,7 @@ Los siete checks verifican límites de archivos públicos, posibles secretos, av
 - No publicar datasets completos, generadores propietarios, código ejecutable, respuestas de holdout, claves, credenciales ni material comercial reservado.
 - Mantener los componentes protegidos fuera del repositorio público.
 - Solicitar autorización expresa del propietario antes de incorporar workflows, binarios, código o datos al directorio.
+
+## Enterprise readiness workstream
+
+The [enterprise buyer evaluation protocol](verification/ENTERPRISE_ACCEPTANCE.md) defines procurement use cases, measurable evaluation criteria, independent audit requirements and safe owner-hosted metadata checks. The [local metadata screener](tools/enterprise_metadata.py) checks opaque inventory structure and split integrity with no network access and never runs automatically on the protected private corpus. It does **not** validate true semantic novelty, actual artifact hashes, correctness of labels, data rights or willingness to pay.
