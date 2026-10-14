@@ -204,7 +204,8 @@ def main(argv=None) -> int:
         if not SHA.fullmatch(args.expected_sha256):
             raise ValueError("Malformed SHA-256")
         sha = hashlib.sha256()
-        report = audit_rows(_archive_records(args.archive, args.member, sha),\n                            scratch_dir=args.sealed_report.parent)
+        report = audit_rows(_archive_records(args.archive, args.member, sha),
+                            scratch_dir=args.sealed_report.parent)
         matches = (sha.hexdigest() == args.expected_sha256)
         report["integrity"] = {"sha256_matches_expected": matches,
                                "digest_algorithm": "SHA-256",
