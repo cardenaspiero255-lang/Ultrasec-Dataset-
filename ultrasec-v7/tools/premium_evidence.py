@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import difflib
 from collections import Counter
 import re
 
@@ -116,6 +117,14 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
             fail["trivial_guard_only_change"]+=1
         if vulnerable_code.strip()==fixed_code.strip():
             fail["identical_patch"]+=1
+        before_lines=vulnerable_code.strip().splitlines()
+        after_lines=fixed_code.strip().splitlines()
+        if len(before_lines)>=8:
+            changes=sum(max(i2-i1,j2-j1) for tag,i1,i2,j1,j2 in
+                difflib.SequenceMatcher(None,before_lines,after_lines,autojunk=False).get_opcodes()
+                if tag!="equal")
+            if changes>max(3,len(before_lines)//2):
+                fail["nonminimal_patch"]+=1
     except (SyntaxError,ValueError,TypeError,RecursionError):
         fail["invalid_python_syntax"]+=1
     if witness.get("vulnerable_reproduced") is not True or witness.get("fix_verified") is not True:
