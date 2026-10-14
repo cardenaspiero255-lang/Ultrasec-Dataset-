@@ -15,6 +15,10 @@ import re
 import sys
 from typing import Iterable
 
+# Owner-only, shared strict reader and one-shot sealed reporting.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sealed_evidence import read_jsonl, write_private, public_receipt
+
 FIELDS = frozenset({
     "schema_version", "record_id", "pair_id", "variant", "cwe_id",
     "language", "mechanism_id", "project_id", "split",
@@ -158,9 +162,7 @@ def evaluate_records(rows: Iterable[object], minimum_records: int = 1,
 
 
 def _iter_jsonl(path: Path):
-    with path.open("r", encoding="utf-8") as stream:
-        for line in stream:
-            yield json.loads(line)
+    yield from read_jsonl(path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -168,6 +170,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input", required=True, type=Path, help="local metadata-only JSONL inventory")
     parser.add_argument("--minimum-records", type=int, required=True)
     parser.add_argument("--minimum-mechanisms", type=int, required=True)
+    parser.add_argument("--sealed-report", type=Path, required=True)
+    parser.add_argument("--session-lock", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         report = evaluate_records(_iter_jsonl(args.input), args.minimum_records,
@@ -175,8 +179,13 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError):
         report = _base_report()
         report["failures"] = {"input_parse_error": 1}
-    print(json.dumps(report, ensure_ascii=True, sort_keys=True))
-    return 0 if report["metadata_screening_pass"] else 1
+    try:
+        write_private(args.sealed_report, args.session_lock, report)
+    except (ValueError, OSError, UnicodeError):
+        print('{"status":"RECORDING_FAILED"}')
+        return 2
+    print(public_receipt())
+    return 0
 
 
 if __name__ == "__main__":
