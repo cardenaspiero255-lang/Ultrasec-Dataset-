@@ -181,6 +181,54 @@ class PremiumSecurityRegressions(unittest.TestCase):
         self.assertIn("reviewer_id",guide)
         self.assertIn("evidencia firmada separada",guide.lower())
 
+    def test_reviewers_cannot_claim_agreement_without_owner_holdout(self):
+        with tempfile.TemporaryDirectory() as root:
+            home=Path(root)
+            for suffix in ("a","b"):
+                rows=[{"case_id":f"{i:032x}","vulnerable_side":"A" if i%2 else "B",
+                    "vulnerability_evidence":"supported","fix_evidence":"supported",
+                    "reproduction":"pass","reviewer_id":"reviewer-"+suffix}
+                    for i in range(100)]
+                (home/(suffix+".jsonl")).write_text("".join(json.dumps(x)+"\\n" for x in rows).replace("\\n","\n"))
+            report=home/"report.json"
+            p=subprocess.run([sys.executable,str(TOOLS/"premium_eval_cli.py"),"agreement",
+                "--reviewer-a",str(home/"a.jsonl"),"--reviewer-b",str(home/"b.jsonl"),
+                "--sealed-report",str(report),"--session-lock",str(home/"lock")],
+                capture_output=True,text=True)
+            self.assertEqual(p.returncode,0,p.stderr)
+            result=json.loads(report.read_text())
+            self.assertFalse(result["agreement_gate_pass"])
+            self.assertIn("owner_holdout_manifest_missing",result["failures"])
+
+    def test_owner_holdout_identity_commitment_enforces_exact_membership(self):
+        with tempfile.TemporaryDirectory() as root:
+            home=Path(root)
+            owner=home/"owner_key.zip"
+            ids=[f"{i:032x}" for i in range(100)]
+            with zipfile.ZipFile(owner,"w") as z:
+                z.writestr("owner_key.jsonl","".join(
+                    json.dumps({"case_id":case_id,"vulnerable_side":"A"})+"\\n" for case_id in ids
+                ).replace("\\n","\n"))
+            digest=hashlib.sha256(owner.read_bytes()).hexdigest()
+            for suffix in ("a","b"):
+                rows=[{"case_id":case_id,"vulnerable_side":"A" if i%2 else "B",
+                    "vulnerability_evidence":"supported","fix_evidence":"supported",
+                    "reproduction":"pass","reviewer_id":"reviewer-"+suffix}
+                    for i,case_id in enumerate(ids)]
+                if suffix=="b":
+                    rows[0]["case_id"]="f"*32
+                (home/(suffix+".jsonl")).write_text("".join(json.dumps(x)+"\\n" for x in rows).replace("\\n","\n"))
+            report=home/"report.json"
+            p=subprocess.run([sys.executable,str(TOOLS/"premium_eval_cli.py"),"agreement",
+                "--reviewer-a",str(home/"a.jsonl"),"--reviewer-b",str(home/"b.jsonl"),
+                "--owner-key-zip",str(owner),"--owner-key-sha256",digest,
+                "--sealed-report",str(report),"--session-lock",str(home/"lock")],
+                capture_output=True,text=True)
+            self.assertEqual(p.returncode,0,p.stderr)
+            result=json.loads(report.read_text())
+            self.assertFalse(result["agreement_gate_pass"])
+            self.assertIn("owner_holdout_case_id_mismatch",result["failures"])
+
     def test_local_cli_accepts_full_reviewer_form_without_echoing_evidence(self):
         cases=[{"case_id":str(i),"vulnerable_side":side,
            "vulnerability_evidence":"supported",
