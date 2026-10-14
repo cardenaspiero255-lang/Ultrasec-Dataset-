@@ -8,7 +8,7 @@ COVERAGE={"rule_applied","no_rule","not_applicable","tool_failed","unsupported_l
 SLITHER_LANGUAGES={"solidity","vyper"}
 
 
-def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.20)->dict:
+def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.20, required_cases:int=100)->dict:
     """Count TP/FP/FN/TN per CWE and tool over explicit supplied gold labels.
 
     A missing detector/rule cannot be treated as a negative result proving safety.
@@ -17,7 +17,11 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
     """
     if not 0<=required_recall<=1:
         raise ValueError("required_recall outside [0,1]")
+    if type(required_cases) is not int or required_cases<1:
+        raise ValueError("required_cases must be a positive integer")
     failures=Counter()
+    if len(gold)!=required_cases:
+        failures["wrong_holdout_size"]+=1
     limitations=Counter()
     truth={}
     for row in gold:
@@ -115,6 +119,8 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
         "execution_status":"NO_REAL_EXECUTION" if not gold and not results else "INPUT_RECORDS_ONLY_NOT_VERIFIED_AS_REAL_TOOL_EXECUTION",
         "benchmark_pass":not bool(failures),
         "required_recall":required_recall,
+        "criteria":{"required_cases":required_cases},
+        "metrics":{"submitted_cases":len(gold),"eligible_gold_cases":len(truth)},
         "by_tool_cwe":summary,
         "limitations":dict(sorted(limitations.items())),
         "failures":dict(sorted(failures.items())),
