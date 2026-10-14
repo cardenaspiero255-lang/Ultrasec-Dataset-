@@ -86,7 +86,7 @@ python3 ultrasec-v7/tools/enterprise_comparison.py \
   --session-lock /secure-storage/comparison-session.lock
 ```
 
-- JSONL ingestion fails closed on duplicate JSON keys and nonfinite values, in addition to schema errors. Criteria are retained in the private report even on parse errors. Required recall improvement cannot be negative. Neither report nor CLI guarantees private corpus integrity or independent certification.
+- JSONL ingestion fails closed on duplicate JSON keys, nonfinite values and input lines larger than one million bytes **before full-line allocation**, in addition to schema errors. The sealed report retains exact finite acceptance criteria (including metadata minimums) on success and parse failure; rejected nonfinite criteria are marked `INVALID_NONFINITE` instead of emitting invalid JSON. Required recall improvement cannot be negative. Neither report nor CLI guarantees private corpus integrity or independent certification.
 
 ## Release candidate: mandatory evidence before any "premium certified" claim
 
