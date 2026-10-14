@@ -50,8 +50,22 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
             group["not_applicable"]+=1;continue
         if coverage=="tool_failed":
             group["tool_failed"]+=1;continue
-        # Count no_rule as false negative for positives and TN for negatives,
-        # but explicitly record the cause; the benchmark then FAILS.
+        # A detection of another CWE cannot be counted as TP for the target CWE.
+        # A rule_applied claim requires a concrete rule→CWE mapping, even if
+        # the tool did not alert on this particular case.
+        if coverage=="rule_applied":
+            mapped=row.get("rule_cwe_id")
+            rule=row.get("rule_id")
+            if not isinstance(rule,str) or not rule or not isinstance(mapped,str):
+                failures["unverifiable_rule_coverage"]+=1
+                coverage="no_rule"
+                limitations["no_rule"]+=1
+            elif mapped!=actual["cwe_id"]:
+                failures["mismatched_rule_cwe"]+=1
+                coverage="no_rule"
+                limitations["wrong_cwe_rule"]+=1
+        # No rule is never treated as tool success. When the true label
+        # is vulnerable, its absence also contributes a false negative.
         detected=row["detected"] if coverage=="rule_applied" else False
         group["tp" if detected and actual["vulnerable"] else
               "fp" if detected else
@@ -59,11 +73,15 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
     # Required per-tool predictions: any applicable test sample missing fails.
     if truth and not results:
         failures["missing_tool_results"]+=1
-    for tool in TOOLS:
-        if any(r.get("tool")==tool for r in results if isinstance(r,dict)):
-            for id_, gold_row in truth.items():
-                if (tool,id_) not in seen:
-                    failures["missing_tool_results"]+=1
+    for id_, gold_row in truth.items():
+        # Mandatory coverage is determined by language, NOT by which tool
+        # happened to appear in a vendor-controlled result file.
+        required={"semgrep","codeql"}
+        if str(gold_row.get("language","")).lower() in SLITHER_LANGUAGES:
+            required={"semgrep","slither"}
+        for tool in required:
+            if (tool,id_) not in seen:
+                failures["missing_tool_results"]+=1
     if not gold:
         failures["missing_real_holdout"]+=1
     summary={}
