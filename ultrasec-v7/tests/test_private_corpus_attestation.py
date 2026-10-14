@@ -167,6 +167,29 @@ class CorpusAttestationTests(unittest.TestCase):
             self.assertIn("input_parse_error", json.loads(reportpath.read_text())["errors"])
             self.assertNotIn("Traceback", p.stderr)
 
+    def test_corrupt_zip_lzma_is_sealed_without_traceback(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "broken-lzma.zip"
+            with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_LZMA) as archive:
+                archive.writestr("records.jsonl", '{"synthetic":"record"}\\n' * 200)
+            with zipfile.ZipFile(path) as archive:
+                info = archive.getinfo("records.jsonl")
+                begin = info.header_offset + 30 + len(info.filename.encode("utf-8")) + len(info.extra)
+                self.assertGreater(info.compress_size, 12)
+            damaged = bytearray(path.read_bytes())
+            damaged[begin + 9] ^= 0xFF
+            path.write_bytes(damaged)
+            report = Path(d) / "sealed.json"
+            cmd = [sys.executable, str(SCRIPT), "--archive", str(path),
+                   "--member", "records.jsonl", "--expected-sha256", "0" * 64,
+                   "--sealed-report", str(report),
+                   "--session-lock", str(Path(d) / "lock")]
+            result = subprocess.run(cmd, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout), {"status": "SEALED"})
+            self.assertIn("input_parse_error", json.loads(report.read_text())["errors"])
+            self.assertNotIn("Traceback", result.stderr)
+
     def test_corrupt_deflate_gzip_is_recorded_as_sealed_error(self):
         with tempfile.TemporaryDirectory() as d:
             zpath = Path(d) / "corrupt.zip"
