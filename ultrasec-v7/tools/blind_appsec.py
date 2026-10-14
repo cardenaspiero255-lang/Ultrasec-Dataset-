@@ -112,11 +112,13 @@ def agreement_report(review_a:dict[str,str],review_b:dict[str,str],
     if any(v not in labels for v in list(review_a.values())+list(review_b.values())):
         failures["invalid_review_label"]+=1
     disagreements=0; raw=0.; kappa=None
+    calculated=False
     if not failures:
         ids=set(review_a)
         n=len(ids)
         disagreements=sum(review_a[i]!=review_b[i] for i in ids)
         raw=(n-disagreements)/n
+        calculated=True
         left=Counter(review_a.values());right=Counter(review_b.values())
         expected=sum(left[label]*right[label] for label in labels)/(n*n)
         if expected>=1 or len(left)<2 or len(right)<2:
@@ -134,8 +136,8 @@ def agreement_report(review_a:dict[str,str],review_b:dict[str,str],
         "external_certification":"NOT_VERIFIED",
         "reviewer_identity_verification":"OUTSIDE_THIS_TOOL",
         "criteria":{"required_cases":required_cases,"agreement_strictly_greater_than":min_agreement},
-        "cases_compared":len(review_a) if not failures else 0,
-        "observed_agreement":round(raw,6) if not failures else None,
+        "cases_compared":len(review_a) if calculated else 0,
+        "observed_agreement":round(raw,6) if calculated else None,
         "cohens_kappa":kappa,
         "adjudication_required":disagreements if not failures else None,
         "agreement_gate_pass":not failures and raw>min_agreement,
