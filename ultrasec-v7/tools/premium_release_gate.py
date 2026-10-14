@@ -32,6 +32,9 @@ def evaluate_readiness(evidence:dict)->dict:
         problems.append("independent_review_missing")
     if number(independent,"reviewer_agreement")<=0.8:
         problems.append("reviewer_agreement_below_target")
+    if (independent.get("adjudication_unresolved")!=0
+            or independent.get("adjudication_complete_signed") is not True):
+        problems.append("unresolved_adjudication")
     if benchmark.get("baseline_real_executions") is not True or benchmark.get("low_recall_cwes")!=0:
         problems.append("real_sast_comparison_not_proven")
     if legal.get("redistribution_rights_verified") is not True:
