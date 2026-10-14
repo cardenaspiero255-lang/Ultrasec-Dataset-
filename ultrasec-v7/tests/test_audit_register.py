@@ -48,7 +48,7 @@ class AuditRegisterTests(unittest.TestCase):
     def test_public_pass_without_workflow_run_is_rejected(self):
         content = re.sub(r"https://github\.com/[^\s)]+/actions/runs/\d+", "no-execution", self.registry())
         self.assertNotEqual(content, self.registry())
-        with self.assertRaisesRegex(AssertionError, "Actions"):
+        with self.assertRaisesRegex(AssertionError, "linked evidence|Actions"):
             self.validate_modified(content)
 
     def test_public_pass_without_timestamp_is_rejected(self):
