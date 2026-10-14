@@ -167,6 +167,33 @@ class CorpusAttestationTests(unittest.TestCase):
             self.assertIn("input_parse_error", json.loads(reportpath.read_text())["errors"])
             self.assertNotIn("Traceback", p.stderr)
 
+    def test_stored_zip_remains_supported_without_optional_lzma(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "stored.zip"
+            data = "".join(json.dumps(item) + "\\n" for item in self.rows).encode("utf-8")
+            with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
+                archive.writestr("records.jsonl", data)
+            report = Path(d) / "sealed.json"
+            bootstrap = (
+                "import builtins,runpy,sys\\n"
+                "real_import=builtins.__import__\\n"
+                "def guard(name,*args,**kwargs):\\n"
+                "    if name=='lzma': raise ImportError('optional _lzma unavailable')\\n"
+                "    return real_import(name,*args,**kwargs)\\n"
+                "builtins.__import__=guard\\n"
+                "script=sys.argv.pop(1)\\n"
+                "sys.argv[0]=script\\n"
+                "runpy.run_path(script,run_name='__main__')\\n"
+            ).replace("\\n", "\n")
+            cmd = [sys.executable, "-c", bootstrap, str(SCRIPT), "--archive", str(path),
+                   "--member", "records.jsonl",
+                   "--expected-sha256", hashlib.sha256(data).hexdigest(),
+                   "--sealed-report", str(report), "--session-lock", str(Path(d) / "lock")]
+            run = subprocess.run(cmd, text=True, capture_output=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(json.loads(run.stdout), {"status": "SEALED"})
+            self.assertTrue(json.loads(report.read_text())["owner_integrity_pass"])
+
     def test_corrupt_zip_lzma_is_sealed_without_traceback(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "broken-lzma.zip"
