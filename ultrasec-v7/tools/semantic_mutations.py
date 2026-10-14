@@ -80,7 +80,9 @@ def propose_mutation(source:str,operator:str,family_id:str)->dict:
         raise ValueError("No AST-level change")
     return {
         "source":candidate,
+        "original_source":source,
         "source_sha256":hashlib.sha256(candidate.encode("utf-8")).hexdigest(),
+        "original_sha256":hashlib.sha256(source.encode("utf-8")).hexdigest(),
         "operator":operator,
         "family_id":family_id,
         "validation_status":"UNVALIDATED_CANDIDATE",
