@@ -83,8 +83,12 @@ def evaluate_scorecard(gold_rows: Iterable[object], prediction_rows: Iterable[ob
         failures["empty_holdout"] += 1
     if gold and (not any(gold.values()) or all(gold.values())):
         failures["single_class_holdout"] += 1
-    failures["missing_prediction"] += len(gold.keys() - pred.keys())
-    failures["unknown_prediction"] += len(pred.keys() - gold.keys())
+    missing = len(gold.keys() - pred.keys())
+    unknown = len(pred.keys() - gold.keys())
+    if missing:
+        failures["missing_prediction"] += missing
+    if unknown:
+        failures["unknown_prediction"] += unknown
 
     report = _report()
     if failures:
