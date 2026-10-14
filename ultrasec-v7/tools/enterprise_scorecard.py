@@ -17,7 +17,7 @@ from typing import Iterable
 
 # Owner-only, shared strict reader and one-shot sealed reporting.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sealed_evidence import read_jsonl, write_private, public_receipt
+from sealed_evidence import read_jsonl, write_private, public_receipt, safe_ratio
 
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 GOLD_FIELDS = frozenset({"record_id", "split", "expected_vulnerable"})
@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError):
         report = _report()
         report["failures"] = {"input_parse_error": 1}
-        report["buyer_thresholds"] = {"min_recall": args.min_recall, "max_fpr": args.max_fpr}
+        report["buyer_thresholds"] = {"min_recall": safe_ratio(args.min_recall), "max_fpr": safe_ratio(args.max_fpr)}
         report["threshold_comparison"] = "raw_rates_inclusive"
     try:
         write_private(args.sealed_report, args.session_lock, report)
