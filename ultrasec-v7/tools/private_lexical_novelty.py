@@ -24,8 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sealed_evidence import write_private, public_receipt, safe_ratio
 from private_corpus_attestation import _archive_records, _LzmaError, _ZstdError
 
-_IDENT = re.compile(r"\b[A-Za-z_][\w]*\b")
-_NUMBER = re.compile(r"\b\d+(?:\.\d+)?\b")
+_TOKENS = re.compile(r"0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|\d[\d_]*(?:\.[\d_]+)?(?:[Ee][+-]?\d[\d_]*)?|[A-Za-z_]\w*")
 _SPACES = re.compile(r"\s+")
 
 
@@ -37,7 +36,8 @@ def lexical_shape(code: str) -> str:
     """
     if not isinstance(code, str):
         raise TypeError("Code must be text")
-    return _SPACES.sub(" ", _NUMBER.sub("NUM", _IDENT.sub("ID", code))).strip()
+    masked = _TOKENS.sub(lambda match: "NUM" if match.group()[0].isdigit() else "ID", code)
+    return _SPACES.sub(" ", masked).strip()
 
 
 def _empty() -> dict:
@@ -69,6 +69,7 @@ def screen_records(records, minimum_lexical_unique_fraction: float,
 
     errors: Counter[str] = Counter()
     count = 0
+    valid = 0
     with tempfile.TemporaryDirectory(prefix="ultrasec-lexical-", dir=scratch_dir) as temp:
         conn = sqlite3.connect(str(Path(temp) / "fingerprints.sqlite3"))
         try:
@@ -88,6 +89,7 @@ def screen_records(records, minimum_lexical_unique_fraction: float,
                                    for k in ("code", "family", "language"))):
                     errors["invalid_record_schema"] += 1
                     continue
+                valid += 1
                 raw = hashlib.sha256(item["code"].encode("utf-8")).digest()
                 shape = hashlib.sha256(lexical_shape(item["code"]).encode("utf-8")).digest()
                 family = hashlib.sha256(item["family"].encode("utf-8")).digest()
@@ -105,21 +107,22 @@ def screen_records(records, minimum_lexical_unique_fraction: float,
 
     if not count:
         errors["empty_corpus"] += 1
-    fraction = forms / count if count else 0.0
+    fraction = forms / valid if valid else 0.0
     if fraction < minimum_lexical_unique_fraction:
         errors["below_lexical_uniqueness_threshold"] += 1
     report = _empty()
     report["criteria"] = {
         "minimum_lexical_unique_fraction": minimum_lexical_unique_fraction,
-        "threshold_comparison": "unrounded_distinct_lexical_forms_over_total_records",
+        "threshold_comparison": "unrounded_distinct_lexical_forms_over_valid_records",
     }
     report["metrics"] = {
         "records": count,
+        "valid_records": valid,
         "exact_unique_code": codes,
         "lexical_patterns": forms,
-        "exact_duplicate_rows": count - codes,
+        "exact_duplicate_rows": valid - codes,
         "additional_lexical_collisions": codes - forms,
-        "total_redundant_rows": count - forms,
+        "total_redundant_rows": valid - forms,
         "unique_fraction_display": round(fraction, 6),
         "family_categories": families,
         "language_categories": languages,
@@ -157,7 +160,7 @@ def main(argv=None) -> int:
         report = _empty()
         report["criteria"] = {
             "minimum_lexical_unique_fraction": safe_ratio(args.minimum_lexical_unique_fraction),
-            "threshold_comparison": "unrounded_distinct_lexical_forms_over_total_records",
+            "threshold_comparison": "unrounded_distinct_lexical_forms_over_valid_records",
         }
         report["failures"] = {"input_parse_error": 1}
     try:
