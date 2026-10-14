@@ -220,8 +220,8 @@ class AdversarialSASTTDD(unittest.TestCase):
     def test_tool_scoring_by_cwe(self):
         gold=[{"case_id":"v1","cwe_id":"CWE-89","language":"python","vulnerable":True},
               {"case_id":"s1","cwe_id":"CWE-89","language":"python","vulnerable":False}]
-        records=[{"case_id":"v1","tool":"semgrep","detected":True,"coverage":"rule_applied"},
-                 {"case_id":"s1","tool":"semgrep","detected":False,"coverage":"rule_applied"}]
+        records=[{"case_id":"v1","tool":"semgrep","detected":True,"coverage":"rule_applied","rule_id":"test-sql","rule_cwe_id":"CWE-89"},
+                 {"case_id":"s1","tool":"semgrep","detected":False,"coverage":"rule_applied","rule_id":"test-sql","rule_cwe_id":"CWE-89"}]
         report=sast.summarize_sast(gold,records)
         c=report["by_tool_cwe"]["semgrep"]["CWE-89"]
         self.assertEqual(c["tp"],1)
