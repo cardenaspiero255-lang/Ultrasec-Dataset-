@@ -9,11 +9,17 @@ from __future__ import annotations
 import ast
 import copy
 import hashlib
+import json
 import re
 
 OPERATORS=frozenset({
     "control_flow","data_flow","sanitization_order","boundary_conditions",
 })
+
+
+def _proposal_identity_digest(original_hash:str, transformed_hash:str, operator:str, family_id:str)->str:
+    content=json.dumps([original_hash,transformed_hash,operator,family_id],separators=(",",":"),ensure_ascii=True)
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def propose_mutation(source:str,operator:str,family_id:str)->dict:
