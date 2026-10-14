@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sealed_evidence import write_private, public_receipt, safe_ratio
 from private_corpus_attestation import _archive_records, _LzmaError, _ZstdError
 
-_TOKENS = re.compile(r"0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|(?:\d[\d_]*\.(?:\d[\d_]*)?|\.\d[\d_]+|\d[\d_]*)(?:[Ee][+-]?\d[\d_]*)?|[A-Za-z_]\w*")
+_TOKENS = re.compile(r"0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|(?:\d[\d_]*\.(?:\d[\d_]*)?|\.\d[\d_]*|\d[\d_]*)(?:[Ee][+-]?\d[\d_]*)?|[A-Za-z_]\w*")
 _SPACES = re.compile(r"\s+")
 
 
@@ -36,7 +36,7 @@ def lexical_shape(code: str) -> str:
     """
     if not isinstance(code, str):
         raise TypeError("Code must be text")
-    masked = _TOKENS.sub(lambda match: "NUM" if match.group()[0].isdigit() else "ID", code)
+    masked = _TOKENS.sub(lambda match: "NUM" if (match.group()[0].isdigit() or match.group()[0] == ".") else "ID", code)
     return _SPACES.sub(" ", masked).strip()
 
 
