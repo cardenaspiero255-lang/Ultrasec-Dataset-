@@ -11,17 +11,30 @@ from blind_appsec import agreement_report
 from sealed_evidence import read_jsonl, public_receipt, write_private
 
 
-def _ratings(path:Path)->dict[str,str]:
+def _ratings(path:Path)->tuple[dict[str,str],int,set[str]]:
     result={}
+    complete=0
+    identities=set()
+    full={"case_id","vulnerable_side","vulnerability_evidence",
+          "fix_evidence","reproduction","reviewer_id"}
+    minimal={"case_id","vulnerable_side"}
     for row in read_jsonl(path):
-        if (not isinstance(row,dict) or set(row)!={"case_id","vulnerable_side"}
-                or not isinstance(row["case_id"],str) or not row["case_id"]
-                or row["vulnerable_side"] not in {"A","B","uncertain"}):
+        if (not isinstance(row,dict) or set(row) not in (full,minimal)
+                or not isinstance(row.get("case_id"),str) or not row["case_id"]
+                or row.get("vulnerable_side") not in {"A","B","uncertain"}):
             raise ValueError("Invalid reviewer row")
         if row["case_id"] in result:
             raise ValueError("Duplicate case rating")
+        if set(row)==full:
+            if (row["vulnerability_evidence"] not in {"supported","refuted","insufficient"}
+                    or row["fix_evidence"] not in {"supported","refuted","insufficient"}
+                    or row["reproduction"] not in {"pass","fail","not_run"}
+                    or not isinstance(row["reviewer_id"],str) or not row["reviewer_id"]):
+                raise ValueError("Invalid review evidence")
+            complete+=1
+            identities.add(row["reviewer_id"])
         result[row["case_id"]]=row["vulnerable_side"]
-    return result
+    return result,complete,identities
 
 
 def main(argv=None)->int:
@@ -36,8 +49,19 @@ def main(argv=None)->int:
     agree.add_argument("--session-lock",type=Path,required=True)
     args=parser.parse_args(argv)
     try:
-        report=agreement_report(_ratings(args.reviewer_a),_ratings(args.reviewer_b),
+        ratings_a,evidence_a,reviewer_a=_ratings(args.reviewer_a)
+        ratings_b,evidence_b,reviewer_b=_ratings(args.reviewer_b)
+        report=agreement_report(ratings_a,ratings_b,
                                 args.required_cases,args.min_agreement)
+        report["evidence_records"]={"reviewer_a":evidence_a,"reviewer_b":evidence_b}
+        # A text reviewer ID is NOT an authenticated cryptographic signature.
+        report["reviewer_signatures"]="NOT_VERIFIED"
+        if evidence_a!=args.required_cases or evidence_b!=args.required_cases:
+            report["agreement_gate_pass"]=False
+            report["failures"]["review_evidence_incomplete"]=1
+        if not reviewer_a or not reviewer_b or reviewer_a & reviewer_b:
+            report["agreement_gate_pass"]=False
+            report["failures"]["reviewer_identity_not_independent"]=1
     except (ValueError,OSError,UnicodeError,RecursionError,KeyError,TypeError):
         report={
             "schema":"ultrasec.blind-appsec-agreement.v1",
