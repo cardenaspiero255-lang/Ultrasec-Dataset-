@@ -88,6 +88,27 @@ class LexicalNoveltyTests(unittest.TestCase):
                module.lexical_shape("código=3"),module.lexical_shape("nombre=4")]
         self.assertEqual(len(set(forms)),1)
 
+    def test_decomposed_and_composed_unicode_identifiers_normalize_equally(self):
+        cases = [
+            "cafe\u0301=2",
+            "caf\u00e9=1",
+            "nombre=3",
+            "\u03b1=4",
+            "\u03b2=5",
+        ]
+        shapes = {module.lexical_shape(code) for code in cases}
+        self.assertEqual(len(shapes), 1)
+
+    def test_unicode_identifiers_do_not_inflate_uniqueness_gate(self):
+        report = module.screen_records([
+            row("cafe\u0301=2"), row("caf\u00e9=1"),
+            row("\u03b1=3"), row("\u03b2=4"),
+        ], 0.5)
+        self.assertFalse(report["lexical_screen_pass"])
+        self.assertEqual(report["metrics"]["lexical_patterns"], 1)
+        self.assertEqual(report["metrics"]["exact_unique_code"], 4)
+        self.assertIn("below_lexical_uniqueness_threshold", report["failures"])
+
     def test_unsupported_thresholds_rejected(self):
         for value in (float("nan"), float("inf"), -0.1, 1.01):
             with self.subTest(value=value), self.assertRaises(ValueError):
