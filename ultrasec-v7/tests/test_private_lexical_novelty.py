@@ -109,6 +109,18 @@ class LexicalNoveltyTests(unittest.TestCase):
         self.assertEqual(report["metrics"]["exact_unique_code"], 4)
         self.assertIn("below_lexical_uniqueness_threshold", report["failures"])
 
+    def test_full_python_unicode_identifier_sequences(self):
+        cases=["℘=1","℮=2","कु=3","की=4","name=5"]
+        self.assertTrue(all(text.split("=")[0].isidentifier() for text in cases))
+        self.assertEqual(len({module.lexical_shape(text) for text in cases}),1)
+
+    def test_unicode_combining_marks_do_not_inflate_novelty(self):
+        report=module.screen_records([
+            row("कु=1"),row("की=2"),row("℘=3"),row("℮=4"),
+        ],0.5)
+        self.assertEqual(report["metrics"]["lexical_patterns"],1)
+        self.assertFalse(report["lexical_screen_pass"])
+
     def test_unsupported_thresholds_rejected(self):
         for value in (float("nan"), float("inf"), -0.1, 1.01):
             with self.subTest(value=value), self.assertRaises(ValueError):
