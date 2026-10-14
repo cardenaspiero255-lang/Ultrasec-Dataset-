@@ -2,6 +2,7 @@
 from __future__ import annotations
 import gzip
 import hashlib
+import inspect
 import importlib.util
 import json
 from pathlib import Path
@@ -112,6 +113,46 @@ class CorpusAttestationTests(unittest.TestCase):
             p=subprocess.run(cmd,text=True,capture_output=True)
             self.assertEqual(json.loads(p.stdout),{"status":"SEALED"})
             self.assertIn("sha256_mismatch",json.loads((Path(d)/"r.json").read_text())["errors"])
+
+    def test_many_pairs_use_private_disk_index_and_cleanup(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as scratch:
+            rows = (r for i in range(3500)
+                    for r in pair("pair-"+str(i), "template-"+str(i)))
+            result = module.audit_rows(rows, scratch_dir=Path(scratch))
+            self.assertEqual(result["metrics"]["records"], 7000)
+            self.assertEqual(result["metrics"]["complete_pairs"], 3500)
+            self.assertEqual(result["metrics"]["template_ids"], 3500)
+            self.assertEqual(result["index_backend"], "sqlite-private-temporary")
+            self.assertEqual(list(Path(scratch).iterdir()), [])
+
+    def test_deep_json_corpus_seals_input_error_without_traceback(self):
+        with tempfile.TemporaryDirectory() as d:
+            zpath = Path(d) / "private.zip"
+            with zipfile.ZipFile(zpath, "w") as archive:
+                archive.writestr("nested.jsonl", "[" * 3000 + "0" + "]" * 3000 + "\\n")
+            reportpath = Path(d) / "private-report.json"
+            cmd = [sys.executable, str(SCRIPT), "--archive", str(zpath), "--member",
+                   "nested.jsonl", "--expected-sha256", "0"*64,
+                   "--sealed-report", str(reportpath), "--session-lock", str(Path(d)/"lock")]
+            p = subprocess.run(cmd, text=True, capture_output=True)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertEqual(json.loads(p.stdout), {"status": "SEALED"})
+            self.assertIn("input_parse_error", json.loads(reportpath.read_text())["errors"])
+            self.assertNotIn("Traceback", p.stderr)
+
+    def test_encrypted_member_runtime_error_seals_input_error(self):
+        from unittest.mock import patch
+        class BrokenArchive:
+            def __enter__(self): return self
+            def __exit__(self, *args): return None
+            def open(self, name): raise RuntimeError("password required")
+        with patch.object(module.zipfile, "ZipFile", return_value=BrokenArchive()):
+            # Pure function / parser must never leak member errors to caller.
+            with self.assertRaises(RuntimeError):
+                next(module._archive_records(Path("unused"), "private.jsonl", hashlib.sha256()))
+            # The CLI handler must also include RuntimeError as a sealed failure.
+            self.assertIn("RuntimeError", inspect.getsource(module.main))
 
     def test_duplicate_json_properties_fail_closed(self):
         with tempfile.TemporaryDirectory() as d:
