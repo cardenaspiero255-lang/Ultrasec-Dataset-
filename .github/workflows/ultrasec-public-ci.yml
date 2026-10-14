@@ -105,4 +105,6 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_audit_register.py' -v
       - name: Validate enterprise metadata quality contract (synthetic tests only)
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_enterprise_metadata.py' -v
+      - name: Validate blind enterprise benchmark scorecard (synthetic tests only)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_enterprise_scorecard.py' -v
 
