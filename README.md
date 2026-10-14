@@ -27,3 +27,7 @@ Read the [exact scope and remaining certification requirements](ultrasec-v7/veri
 **Do not interpret green documentation/reference CI as an external certificate or as a guarantee of resale value.**
 
 The proprietary corpus, executable core, reserved challenges, tokens and buyer deliverables are intentionally **not published**. The restricted license does not physically prevent download/cloning of public files.
+
+## Enterprise quality screening (proposed)
+
+A local [metadata-only enterprise screening tool](ultrasec-v7/tools/enterprise_metadata.py) and [buyer acceptance protocol](ultrasec-v7/verification/ENTERPRISE_ACCEPTANCE.md) define repeatable input integrity checks, project/mechanism split isolation and the evidence buyers need to evaluate commercial utility. The tool is executed privately against an **owner-supplied inventory**; only synthetic examples are tested by public CI. Passing metadata checks is **not proof** of a certified million-record product or commercial demand.
