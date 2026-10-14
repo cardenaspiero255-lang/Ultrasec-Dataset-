@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import os
+import math
 from pathlib import Path
 import stat
 
@@ -16,15 +17,25 @@ def _no_duplicates(pairs):
 
 
 def read_jsonl(path: Path):
-    """Reject duplicate properties, nonfinite values, huge rows and blank lines."""
-    with path.open("r", encoding="utf-8") as stream:
-        for line in stream:
+    """Enforce a true byte limit before allocating/parsing untrusted JSONL."""
+    with path.open("rb") as stream:
+        while True:
+            line = stream.readline(1_000_001)
+            if not line:
+                break
             if len(line) > 1_000_000:
                 raise ValueError("Overlong metadata line")
             yield json.loads(
-                line, object_pairs_hook=_no_duplicates,
+                line.decode("utf-8"), object_pairs_hook=_no_duplicates,
                 parse_constant=lambda _: (_ for _ in ()).throw(ValueError("Nonfinite JSON")),
             )
+
+
+def safe_ratio(value: float) -> float | str:
+    """Retain the fact that criteria were invalid without emitting NaN JSON."""
+    if not math.isfinite(value):
+        return "INVALID_NONFINITE"
+    return value
 
 
 def _exclusive(path: Path) -> int:
