@@ -147,6 +147,7 @@ def evaluate_records(rows: Iterable[object], minimum_records: int = 1,
         errors["insufficient_mechanisms"] += 1
 
     result = _base_report()
+    result["acceptance_thresholds"] = {"minimum_records": minimum_records, "minimum_mechanisms": minimum_mechanisms}
     result["metrics"] = {
         "records": valid,
         "complete_pairs": complete,
@@ -179,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError):
         report = _base_report()
         report["failures"] = {"input_parse_error": 1}
+        report["acceptance_thresholds"] = {"minimum_records": args.minimum_records, "minimum_mechanisms": args.minimum_mechanisms}
     try:
         write_private(args.sealed_report, args.session_lock, report)
     except (ValueError, OSError, UnicodeError):
