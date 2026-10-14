@@ -108,11 +108,15 @@ class EnterpriseMetadataTests(unittest.TestCase):
             path = Path(d) / "input.jsonl"
             path.write_text("unexpected input row", encoding="utf-8")
             proc = subprocess.run([sys.executable, str(SCRIPT), "--input", str(path),
-                "--minimum-records", "4", "--minimum-mechanisms", "2"],
+                "--minimum-records", "4", "--minimum-mechanisms", "2",
+                "--sealed-report", str(Path(d) / "evidence.json"),
+                "--session-lock", str(Path(d) / "session.lock")],
                 text=True, capture_output=True, check=False)
-            self.assertNotEqual(proc.returncode, 0)
-            self.assertEqual(json.loads(proc.stdout)["certification"], "NOT_CERTIFIED")
-            self.assertIn("input_parse_error", json.loads(proc.stdout)["failures"])
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+            report = json.loads((Path(d) / "evidence.json").read_text())
+            self.assertEqual(report["certification"], "NOT_CERTIFIED")
+            self.assertIn("input_parse_error", report["failures"])
             self.assertNotIn("unexpected input row", proc.stdout + proc.stderr)
 
     def test_cli_accepts_local_synthetic_metadata(self):
@@ -120,10 +124,13 @@ class EnterpriseMetadataTests(unittest.TestCase):
             path = Path(d) / "input.jsonl"
             path.write_text("".join(json.dumps(row) + "\n" for row in self.rows), encoding="utf-8")
             proc = subprocess.run([sys.executable, str(SCRIPT), "--input", str(path),
-                "--minimum-records", "4", "--minimum-mechanisms", "2"],
+                "--minimum-records", "4", "--minimum-mechanisms", "2",
+                "--sealed-report", str(Path(d) / "evidence.json"),
+                "--session-lock", str(Path(d) / "session.lock")],
                 text=True, capture_output=True, check=False)
             self.assertEqual(proc.returncode, 0, proc.stderr)
-            self.assertTrue(json.loads(proc.stdout)["metadata_screening_pass"])
+            self.assertEqual(json.loads(proc.stdout), {"status": "SEALED"})
+            self.assertTrue(json.loads((Path(d) / "evidence.json").read_text())["metadata_screening_pass"])
 
 
 if __name__ == "__main__":
