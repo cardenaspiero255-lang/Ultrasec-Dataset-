@@ -31,13 +31,13 @@ def case(i, family=None, kind="real_world", split="test"):
         "case_id": "c"+str(i), "family_id": family or "F"+str(i%12),
         "cwe_id": "CWE-89", "language": "python", "split": split,
         "source_kind": kind,
-        "source_url": "https://example.org/repo/commit/"+("a"*40),
-        "source_commit": "a"*40, "fix_commit": "b"*40,
+        "source_url": "https://example.org/repo/commit/"+format(i+1,"040x"),
+        "source_commit": format(i+1,"040x"), "fix_commit": format(i+1001,"040x"),
         "provenance_reviewed": True, "rights_clearance": "cleared",
         "independent_label_status": "expert_adjudicated",
         "vulnerable_reproduced": True, "fix_verified": True,
-        "vulnerable_code": "query = input()\ndb.execute('SELECT ' + query)",
-        "fixed_code": "query = input()\ndb.execute('SELECT ?', (query,))",
+        "vulnerable_code": "query = input()\ndb.execute('SELECT ' + query)\n# sample "+str(i),
+        "fixed_code": "query = input()\ndb.execute('SELECT ?', (query,))\n# sample "+str(i),
     }
 
 
@@ -48,6 +48,24 @@ class PremiumEvidenceTDD(unittest.TestCase):
         self.assertTrue(report["admission_pass"])
         self.assertEqual(report["metrics"]["families"], 12)
         self.assertEqual(report["certification"], "NOT_CERTIFIED")
+
+    def test_rejects_same_real_pair_with_new_case_id_and_family(self):
+        records=[case(i) for i in range(100)]
+        duplicate=dict(records[0])
+        duplicate["case_id"]="alias-of-original"
+        duplicate["family_id"]="F11"
+        records[1]=duplicate
+        report=gates.admission_report(records,required_cases=100,required_families=12)
+        self.assertFalse(report["admission_pass"])
+        self.assertIn("duplicate_source_patch_pair",report["failures"])
+
+    def test_rejects_identical_code_pair_with_altered_commit_identifiers(self):
+        records=[case(i) for i in range(100)]
+        records[1]["vulnerable_code"]=records[0]["vulnerable_code"]
+        records[1]["fixed_code"]=records[0]["fixed_code"]
+        report=gates.admission_report(records,required_cases=100,required_families=12)
+        self.assertFalse(report["admission_pass"])
+        self.assertIn("duplicate_code_pair",report["failures"])
 
     def test_rejects_synthetic_corpus_even_with_provenance_claims(self):
         data = [case(i, kind="synthetic") for i in range(100)]
@@ -91,6 +109,22 @@ class PremiumEvidenceTDD(unittest.TestCase):
         original="\\n".join("value"+str(i)+" = "+str(i) for i in range(12)).replace("\\n","\n")
         replacement="\\n".join("other"+str(i)+" = sanitize("+str(i)+")" for i in range(12)).replace("\\n","\n")
         report=gates.causal_patch_gate(original,replacement,
+            {"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertFalse(report["causal_gate_pass"])
+        self.assertIn("nonminimal_patch",report["failures"])
+
+    def test_rejects_guard_only_inside_function_body(self):
+        before="def f():\n    run(user)"
+        after="def f():\n    if allowed(user):\n        run(user)"
+        report=gates.causal_patch_gate(before,after,
+            {"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertFalse(report["causal_gate_pass"])
+        self.assertIn("trivial_guard_only_change",report["failures"])
+
+    def test_rejects_large_rewrite_from_one_line(self):
+        before="sink(user)"
+        after="\n".join("step_"+str(i)+"="+str(i) for i in range(120))
+        report=gates.causal_patch_gate(before,after,
             {"vulnerable_reproduced":True,"fix_verified":True})
         self.assertFalse(report["causal_gate_pass"])
         self.assertIn("nonminimal_patch",report["failures"])
