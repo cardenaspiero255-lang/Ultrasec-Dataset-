@@ -245,6 +245,20 @@ class AdversarialSASTTDD(unittest.TestCase):
         self.assertFalse(r["benchmark_pass"])
         self.assertIn("not_applicable",r["limitations"])
 
+    def test_sast_one_class_cannot_pass_even_if_every_case_is_negative(self):
+        gold=[{"case_id":"n1","cwe_id":"CWE-89","language":"python","vulnerable":False}]
+        records=[{"case_id":"n1","tool":"semgrep","detected":False,"coverage":"rule_applied"}]
+        r=sast.summarize_sast(gold,records)
+        self.assertFalse(r["benchmark_pass"])
+        self.assertIn("unmeasurable_cwe_class_balance",r["failures"])
+
+    def test_sast_no_safe_controls_cannot_claim_low_false_positive_rate(self):
+        gold=[{"case_id":"v1","cwe_id":"CWE-89","language":"python","vulnerable":True}]
+        records=[{"case_id":"v1","tool":"semgrep","detected":True,"coverage":"rule_applied"}]
+        r=sast.summarize_sast(gold,records)
+        self.assertFalse(r["benchmark_pass"])
+        self.assertIn("unmeasurable_cwe_class_balance",r["failures"])
+
     def test_scorecard_rejects_partial_tool_results(self):
         gold=[{"case_id":"v1","cwe_id":"CWE-89","language":"python","vulnerable":True}]
         r=sast.summarize_sast(gold,[])
