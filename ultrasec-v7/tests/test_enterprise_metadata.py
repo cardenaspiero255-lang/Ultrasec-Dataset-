@@ -50,6 +50,12 @@ class EnterpriseMetadataTests(unittest.TestCase):
         self.assertEqual(report["metrics"]["complete_pairs"], 2)
         self.assertEqual(report["metrics"]["mechanisms"], 2)
 
+    def test_acceptance_thresholds_are_in_evidence(self):
+        report = module.evaluate_records(self.rows, 4, 2)
+        self.assertEqual(report["acceptance_thresholds"], {
+            "minimum_records": 4, "minimum_mechanisms": 2,
+        })
+
     def test_duplicate_id_is_rejected(self):
         self.check_issue(self.rows + [dict(self.rows[0])], "duplicate_record_id")
 
