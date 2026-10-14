@@ -2,6 +2,8 @@
 """Owner-only review agreement CLI. Never copies private answers to stdout."""
 from __future__ import annotations
 import argparse
+import hashlib
+import zipfile
 import json
 from pathlib import Path
 import sys
@@ -41,6 +43,27 @@ def _ratings(path:Path)->tuple[dict[str,str],int,set[str]]:
     return result,complete,identities
 
 
+def _owner_holdout_ids(path:Path,expected_sha256:str,required:int)->set[str]:
+    """Bind reviewer answers to the exact owner-held ZIP committed out of band."""
+    if not isinstance(expected_sha256,str) or len(expected_sha256)!=64:
+        raise ValueError("Missing SHA-256 commitment")
+    digest=hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest!=expected_sha256.lower():
+        raise ValueError("Owner manifest commitment mismatch")
+    with zipfile.ZipFile(path) as archive:
+        if set(archive.namelist())!={"owner_key.jsonl"}:
+            raise ValueError("Unexpected owner archive members")
+        raw=archive.read("owner_key.jsonl")
+    if len(raw)>2_000_000:
+        raise ValueError("Owner manifest too large")
+    rows=[json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()]
+    ids=[row["case_id"] for row in rows if isinstance(row,dict)]
+    if (len(rows)!=required or len(ids)!=required or len(set(ids))!=required
+            or any(not isinstance(i,str) or not i for i in ids)):
+        raise ValueError("Owner manifest case IDs invalid")
+    return set(ids)
+
+
 def main(argv=None)->int:
     parser=argparse.ArgumentParser(description="Private blind-review agreement calculator")
     commands=parser.add_subparsers(dest="command",required=True)
@@ -51,6 +74,8 @@ def main(argv=None)->int:
     agree.add_argument("--required-cases",type=int,default=100)
     agree.add_argument("--sealed-report",type=Path,required=True)
     agree.add_argument("--session-lock",type=Path,required=True)
+    agree.add_argument("--owner-key-zip",type=Path)
+    agree.add_argument("--owner-key-sha256",type=str)
     args=parser.parse_args(argv)
     try:
         ratings_a,evidence_a,reviewer_a=_ratings(args.reviewer_a)
@@ -58,6 +83,18 @@ def main(argv=None)->int:
         report=agreement_report(ratings_a,ratings_b,
                                 args.required_cases,args.min_agreement)
         report["evidence_records"]={"reviewer_a":evidence_a,"reviewer_b":evidence_b}
+        if args.owner_key_zip is None or args.owner_key_sha256 is None:
+            report["agreement_gate_pass"]=False
+            report["failures"]["owner_holdout_manifest_missing"]=1
+        else:
+            try:
+                expected=_owner_holdout_ids(args.owner_key_zip,args.owner_key_sha256,args.required_cases)
+                if set(ratings_a)!=expected or set(ratings_b)!=expected:
+                    report["agreement_gate_pass"]=False
+                    report["failures"]["owner_holdout_case_id_mismatch"]=1
+            except (ValueError,OSError,KeyError,TypeError,zipfile.BadZipFile,UnicodeError):
+                report["agreement_gate_pass"]=False
+                report["failures"]["owner_holdout_manifest_invalid"]=1
         # A text reviewer ID is NOT an authenticated cryptographic signature.
         report["reviewer_signatures"]="NOT_VERIFIED"
         if evidence_a!=args.required_cases or evidence_b!=args.required_cases:
