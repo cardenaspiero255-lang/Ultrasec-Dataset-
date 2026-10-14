@@ -91,6 +91,8 @@ def evaluate_scorecard(gold_rows: Iterable[object], prediction_rows: Iterable[ob
         failures["unknown_prediction"] += unknown
 
     report = _report()
+    report["buyer_thresholds"] = {"min_recall": min_recall, "max_fpr": max_fpr}
+    report["threshold_comparison"] = "raw_rates_inclusive"
     if failures:
         report["failures"] = dict(sorted((key, n) for key, n in failures.items() if n))
         return report
