@@ -90,3 +90,9 @@ Record results **per language, CWE, mechanism family and project-held-out cohort
 Track claim-by-claim source SHA, assessor, dated artifact hash, sample size and storage location in the [V7 full audit register](FULL_AUDIT_REGISTER.md). Private blockers remain blocked until evidence is independently available. Public CI gates verify **only code and synthetic scenarios in this repository**, never the proprietary dataset.
 
 **Potential future deliverables (not in this PR):** secure blind-holdout scoring service, executable security harnesses, semantic-dedup pipelines, signed inventory manifests, independent expert review and commercial buyer pilots.
+
+## Additional buyer proof artifacts
+
+- [Blind same-holdout comparison](../tools/enterprise_comparison.py) calculates candidate and incumbent recall/FPR differences and refuses missing/mismatched predictions; it is **not** a measure of statistical significance or real-world ROI.
+- [US$150k evidence gates](BUYER_VALUE_150K.md) define objective price/delivery conditions without claiming current valuation.
+- [Prompt Engineer assisted blind AppSec review rubric](BLIND_REVIEW_RUBRIC.md) defines cautious annotation behavior and adversarial test cases; qualified independent human review remains mandatory.
