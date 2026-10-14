@@ -21,17 +21,21 @@ def summarize_sast(gold:list[dict], results:list[dict], required_recall:float=0.
     limitations=Counter()
     truth={}
     for row in gold:
-        if not isinstance(row,dict) or not all(k in row for k in ("case_id","cwe_id","language","vulnerable")):
+        if (not isinstance(row,dict)
+                or not all(isinstance(row.get(k),str) and bool(row[k].strip())
+                           for k in ("case_id","cwe_id","language"))
+                or type(row.get("vulnerable")) is not bool):
             failures["invalid_gold"]+=1
             continue
-        if type(row["vulnerable"]) is not bool or row["case_id"] in truth:
+        if row["case_id"] in truth:
             failures["invalid_gold"]+=1
             continue
         truth[row["case_id"]]=row
     classified=defaultdict(lambda:defaultdict(Counter))
     seen=set()
     for row in results:
-        if not isinstance(row,dict) or row.get("case_id") not in truth or row.get("tool") not in TOOLS:
+        if (not isinstance(row,dict) or not isinstance(row.get("case_id"),str)
+                or row["case_id"] not in truth or row.get("tool") not in TOOLS):
             failures["invalid_tool_record"]+=1;continue
         if row.get("coverage") not in COVERAGE or type(row.get("detected")) is not bool:
             failures["invalid_tool_record"]+=1;continue
