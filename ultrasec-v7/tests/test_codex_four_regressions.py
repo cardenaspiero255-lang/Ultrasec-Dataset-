@@ -26,6 +26,23 @@ class CodexFourRegressions(unittest.TestCase):
         self.assertFalse(result["causal_gate_pass"])
         self.assertIn("nonminimal_patch",result["failures"])
 
+    def test_deeply_nested_small_fix_is_not_nonminimal(self):
+        gate=load("premium_evidence")
+        before="sink(user)"
+        after="sink(sanitize(user))"
+        for i in range(8):
+            before="if allowed:\n"+ "\n".join("    "+line for line in before.splitlines())
+            after="if allowed:\n"+ "\n".join("    "+line for line in after.splitlines())
+        result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertNotIn("nonminimal_patch",result["failures"])
+
+    def test_large_expression_operator_rewrite_is_nonminimal(self):
+        gate=load("premium_evidence")
+        before="x = "+" + ".join(str(i) for i in range(200))
+        after="x = "+" * ".join(str(i) for i in range(200))
+        result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertIn("nonminimal_patch",result["failures"])
+
     def test_pattern_capture_renames_are_trivial(self):
         gate=load("premium_evidence")
         before='match obj:\n    case {"x": value}:\n        print(value)'
