@@ -132,6 +132,13 @@ def mutation_admission(proposal:dict,evidence:dict)->dict:
             failures["tampered_proposal_digest"]=1
         if evidence.get("original_sha256")!=proposal.get("original_sha256"):
             failures["missing_original_bound_witness"]=1
+        identity=_proposal_identity_digest(
+            proposal.get("original_sha256",""),actual_digest,
+            proposal["operator"],proposal["family_id"])
+        if proposal.get("proposal_identity_sha256")!=identity:
+            failures["unverifiable_mutation_origin"]=1
+        if evidence.get("proposal_identity_sha256")!=identity:
+            failures["missing_proposal_metadata_witness"]=1
         if evidence.get("artifact_sha256")!=actual_digest:
             failures["missing_artifact_bound_witness"]=1
     if (evidence.get("vulnerable_reproduced") is not True
