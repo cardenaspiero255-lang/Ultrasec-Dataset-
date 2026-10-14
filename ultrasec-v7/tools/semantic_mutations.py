@@ -89,6 +89,9 @@ def propose_mutation(source:str,operator:str,family_id:str)->dict:
         "original_source":source,
         "source_sha256":hashlib.sha256(candidate.encode("utf-8")).hexdigest(),
         "original_sha256":hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        "proposal_identity_sha256":_proposal_identity_digest(
+            hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            hashlib.sha256(candidate.encode("utf-8")).hexdigest(),operator,family_id),
         "operator":operator,
         "family_id":family_id,
         "validation_status":"UNVALIDATED_CANDIDATE",
