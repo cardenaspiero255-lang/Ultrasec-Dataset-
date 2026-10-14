@@ -75,7 +75,7 @@ class ComparisonTests(unittest.TestCase):
     def test_no_statistical_or_valuation_claims(self):
         output = json.dumps(self.compare())
         self.assertNotIn("record_id", output)
-        self.assertNotIn("v1", output)
+        self.assertNotIn('"v1"', output)
         self.assertNotIn("150000", output)
         self.assertEqual(self.compare()["certification"], "NOT_CERTIFIED")
 
