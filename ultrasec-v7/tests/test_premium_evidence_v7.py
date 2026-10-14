@@ -26,10 +26,14 @@ sast = load("adversarial_sast")
 mutations = load("semantic_mutations")
 
 
+KNOWN_MITRE_CWES=("CWE-79","CWE-89","CWE-352","CWE-862","CWE-787","CWE-22",
+                  "CWE-416","CWE-125","CWE-78","CWE-94","CWE-120","CWE-434")
+
+
 def case(i, family=None, kind="real_world", split="test"):
     return {
-        "case_id": "c"+str(i), "family_id": family or "CWE-"+str(100+i%12),
-        "cwe_id": "CWE-"+str(100+i%12), "language": "python", "split": split,
+        "case_id": "c"+str(i), "family_id": family or KNOWN_MITRE_CWES[i%12],
+        "cwe_id": KNOWN_MITRE_CWES[i%12], "language": "python", "split": split,
         "source_kind": kind,
         "source_url": "https://example.org/repo/commit/"+format(i+1,"040x"),
         "source_commit": format(i+1,"040x"), "fix_commit": format(i+1001,"040x"),
@@ -75,6 +79,16 @@ class PremiumEvidenceTDD(unittest.TestCase):
         report=gates.admission_report(records,100,12)
         self.assertFalse(report["admission_pass"])
         self.assertIn("insufficient_distinct_cwe_families",report["failures"])
+
+    def test_unknown_but_well_formed_fake_cwe_ids_are_not_admissible(self):
+        records=[case(i) for i in range(100)]
+        for i,row in enumerate(records):
+            row["cwe_id"]="CWE-"+str(900000+i%12)
+            row["family_id"]=row["cwe_id"]
+        report=gates.admission_report(records,100,12)
+        self.assertFalse(report["admission_pass"])
+        self.assertIn("unknown_cwe_id",report["failures"])
+        self.assertEqual(report["certification"],"NOT_CERTIFIED")
 
     def test_rejects_synthetic_corpus_even_with_provenance_claims(self):
         data = [case(i, kind="synthetic") for i in range(100)]
