@@ -45,6 +45,26 @@ python3 ultrasec-v7/tools/enterprise_metadata.py \
 
 This is a **proposed acceptance target** corresponding to the project ambition, not a verified count or evidence that one million distinct useful cases exist. The command does not make a network request or copy input to GitHub. A \`metadata_screening_pass\` means **only that supplied metadata passed structural checks**; digests are not recomputed from code, no semantic near-duplicate search is performed, and self-declared rights or mechanism IDs are not independently verified. \`certification\` is **always \`NOT_CERTIFIED\`**.
 
+## Owner-hosted blind binary benchmark scorecard
+
+A second non-proprietary tool, [enterprise_scorecard.py](../tools/enterprise_scorecard.py), calculates **binary vulnerability detection** metrics against a gold holdout retained by the owner. The buyer/model only supplies predictions keyed by opaque record IDs, not the gold labels.
+
+- Gold JSONL: exact fields \`record_id\` (opaque string), \`split\` (must be \`test\`) and \`expected_vulnerable\` (JSON boolean).
+- Prediction JSONL: exact fields \`record_id\` and \`predicted_vulnerable\` (JSON boolean).
+- Both files remain **local**; duplicate/missing/unknown predictions, non-test splits, one-class holdouts and invalid schemas fail closed.
+- The report contains TP, FP, TN, FN, precision, recall, F1, specificity, FPR, FNR and balanced accuracy, but **no IDs, labels or source material**. In the degenerate case with no positive predictions, precision is defined as zero.
+- Ratios are compared to **buyer-negotiated** thresholds using full precision; the displayed scores are rounded to six decimals. No thresholds prove statistical significance.
+
+\`\`\`bash
+python3 ultrasec-v7/tools/enterprise_scorecard.py \
+  --gold /secure-storage/sealed-test-gold.jsonl \
+  --predictions /secure-storage/vendor-predictions.jsonl \
+  --min-recall 0.80 --max-fpr 0.05 \
+  > /secure-storage/buyer-scorecard.json
+\`\`\`
+
+The numerical thresholds above are **illustrative contract inputs**, not passed benchmarks or real measurements for UltraSec V7. Results remain \`NOT_CERTIFIED\` even when \`buyer_thresholds_pass\` is true. This version evaluates binary detection only; confidence intervals, fix-success metrics, blind custody and baseline comparisons require further evidence and work.
+
 ## Release candidate: mandatory evidence before any "premium certified" claim
 
 1. **Inventory and ownership:** count distinct usable primary records/pairs, publish an immutable signed manifest, provenance and chain of custody; counsel verifies redistribution rights and warranties.
