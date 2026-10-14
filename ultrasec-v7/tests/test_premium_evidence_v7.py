@@ -126,7 +126,7 @@ class BlindEvaluationTDD(unittest.TestCase):
     def test_all_100_have_separate_reviewer_and_owner_artifacts(self):
         data = [case(i) for i in range(100)]
         with tempfile.TemporaryDirectory() as d:
-            out = blind.create_reviewer_package(data, Path(d), secret=bytes(range(32)))
+            out = blind.create_reviewer_package(data, Path(d))
             self.assertEqual(out["count"], 100)
             self.assertNotEqual(out["reviewers_path"], out["owner_key_path"])
             import zipfile
@@ -146,7 +146,7 @@ class BlindEvaluationTDD(unittest.TestCase):
         data = [case(i, kind="synthetic") for i in range(100)]
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(ValueError):
-                blind.create_reviewer_package(data, Path(d), secret=bytes(range(32)))
+                blind.create_reviewer_package(data, Path(d))
 
     def test_80_percent_agreement_is_not_strictly_greater(self):
         a = {str(i):"A" for i in range(100)}
