@@ -112,6 +112,13 @@ def mutation_admission(proposal:dict,evidence:dict)->dict:
             failures["unverifiable_mutation_origin"]=1
         elif hashlib.sha256(original.encode("utf-8")).hexdigest()!=proposal.get("original_sha256"):
             failures["unverifiable_mutation_origin"]=1
+        elif original:
+            try:
+                rebuilt=propose_mutation(original,proposal["operator"],proposal["family_id"])
+                if rebuilt["source_sha256"]!=actual_digest:
+                    failures["unverifiable_mutation_origin"]=1
+            except (ValueError,TypeError,SyntaxError,RecursionError):
+                failures["unverifiable_mutation_origin"]=1
         if proposal.get("source_sha256")!=actual_digest:
             failures["tampered_proposal_digest"]=1
         if evidence.get("original_sha256")!=proposal.get("original_sha256"):
