@@ -31,7 +31,7 @@ Every row of the **owner-controlled** inventory is a JSON object with **exactly*
 | `content_sha256` | Lowercase 64-character SHA-256 digest of the corresponding code artifact |
 | `rights_status` | `cleared`, `pending`, or `restricted`; **self-declared until legal verification** |
 
-The report rejects malformed schemas, duplicate record IDs, exact duplicate hashes, duplicate variants, incomplete pairs, inconsistent pair metadata, cross-split project/mechanism leakage, uncleared rights declarations and unmet inventory thresholds. It prints **only aggregate counts and standardized error codes**, not IDs, hashes, code or input lines. Memory usage is O(number of distinct records/projects/mechanisms); run million-scale inventories on adequate owner-controlled hardware.
+The report rejects malformed schemas, duplicate record IDs, exact duplicate hashes, duplicate variants, incomplete pairs, inconsistent pair metadata, cross-split project/mechanism leakage, uncleared rights declarations and unmet inventory thresholds. The owner-only **sealed report** contains aggregate counts and standardized error codes, not IDs, hashes, code or input lines. The process stdout is deliberately a fixed, non-informative receipt. Memory usage is O(number of distinct records/projects/mechanisms); run million-scale inventories on adequate owner-controlled hardware.
 
 Run on the owner's private workstation, isolated runner or controlled storage:
 
@@ -40,7 +40,8 @@ python3 ultrasec-v7/tools/enterprise_metadata.py \
   --input /secure-storage/inventory.jsonl \
   --minimum-records 1000000 \
   --minimum-mechanisms 500 \
-  > /secure-storage/screening-report.json
+  --sealed-report /secure-storage/screening-report.json \
+  --session-lock /secure-storage/screening-session.lock
 ```
 
 This is a **proposed acceptance target** corresponding to the project ambition, not a verified count or evidence that one million distinct useful cases exist. The command does not make a network request or copy input to GitHub. A `metadata_screening_pass` means **only that supplied metadata passed structural checks**; digests are not recomputed from code, no semantic near-duplicate search is performed, and self-declared rights or mechanism IDs are not independently verified. `certification` is **always `NOT_CERTIFIED`**.
@@ -52,7 +53,7 @@ A second non-proprietary tool, [enterprise_scorecard.py](../tools/enterprise_sco
 - Gold JSONL: exact fields `record_id` (opaque string), `split` (must be `test`) and `expected_vulnerable` (JSON boolean).
 - Prediction JSONL: exact fields `record_id` and `predicted_vulnerable` (JSON boolean).
 - Both files remain **local**; duplicate/missing/unknown predictions, non-test splits, one-class holdouts and invalid schemas fail closed.
-- The report contains TP, FP, TN, FN, precision, recall, F1, specificity, FPR, FNR and balanced accuracy, but **no IDs, labels or source material**. In the degenerate case with no positive predictions, precision is defined as zero.
+- **Only the owner-held sealed report**, never vendor-facing stdout, contains TP, FP, TN, FN, precision, recall, F1, specificity, FPR, FNR and balanced accuracy. Revealing an exact confusion matrix even without IDs can reveal gold labels via a single-case probe. In the degenerate case with no positive predictions, precision is defined as zero.
 - Ratios are compared to **buyer-negotiated** thresholds using full precision; the displayed scores are rounded to six decimals. No thresholds prove statistical significance.
 
 ```bash
@@ -60,10 +61,32 @@ python3 ultrasec-v7/tools/enterprise_scorecard.py \
   --gold /secure-storage/sealed-test-gold.jsonl \
   --predictions /secure-storage/vendor-predictions.jsonl \
   --min-recall 0.80 --max-fpr 0.05 \
-  > /secure-storage/buyer-scorecard.json
+  --sealed-report /secure-storage/buyer-scorecard.json \
+  --session-lock /secure-storage/buyer-session.lock
 ```
 
 The numerical thresholds above are **illustrative contract inputs**, not passed benchmarks or real measurements for UltraSec V7. Results remain `NOT_CERTIFIED` even when `buyer_thresholds_pass` is true. This version evaluates binary detection only; confidence intervals, fix-success metrics, blind custody and baseline comparisons require further evidence and work.
+
+## Sealed one-shot benchmark protocol
+
+- Execute the tools **only inside an owner-controlled security boundary**. The provider never receives the gold file, evaluator executable on the private runner, the private report, or the exit/error details of label-sensitive evaluation.
+- A `--session-lock` is created exclusively (mode `0600`), and the private report is written exclusively (mode `0600`). Both paths **must be on protected local owner-controlled storage**. The lock is intentionally retained; a second invocation using the same lock fails, preventing accidental adaptive resubmission. Do not reset or rename a lock to give a provider more probing attempts. Filesystem permission controls, protected backups, and owner-side monitoring remain operational responsibilities; command-line locks alone do not prove strong anti-probing security.
+- Standard output is always `{"status":"SEALED"}` on a recorded run, **regardless of candidate success/failure**. Exit code 0 means the sealed report was recorded, *not* that the model passed. Internal CI tests use fabricated labels only.
+- The owner reads the report after **predictions are irrevocably committed** and the evaluation is closed. Any vendor-facing score release is a **separate, owner-approved action**, preferably signed aggregate attestation after blind holdout retirement, with rate-limiting, minimum cohort sizes and independent privacy assessment.
+- For a same-holdout buyer comparison use [enterprise_comparison.py](../tools/enterprise_comparison.py):
+
+```bash
+python3 ultrasec-v7/tools/enterprise_comparison.py \
+  --gold /secure-storage/sealed-test-gold.jsonl \
+  --candidate /secure-storage/candidate.jsonl \
+  --baseline /secure-storage/incumbent.jsonl \
+  --min-recall 0.80 --max-fpr 0.05 \
+  --min-recall-gain 0.05 --max-fpr-increase 0.00 \
+  --sealed-report /secure-storage/comparison-report.json \
+  --session-lock /secure-storage/comparison-session.lock
+```
+
+- JSONL ingestion fails closed on duplicate JSON keys and nonfinite values, in addition to schema errors. Criteria are retained in the private report even on parse errors. Required recall improvement cannot be negative. Neither report nor CLI guarantees private corpus integrity or independent certification.
 
 ## Release candidate: mandatory evidence before any "premium certified" claim
 
