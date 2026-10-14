@@ -12,6 +12,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+import secrets
 import sys
 import zipfile
 
@@ -37,12 +38,14 @@ def _exclusive(path: Path):
 
 
 def create_reviewer_package(cases:list[dict], destination:Path,
-                            secret:bytes)->dict:
+                            secret:bytes | None = None)->dict:
     """Create two private ZIPs. Only admitted 100-case real-world evidence accepted.
 
     Admission is metadata screening; must independently verify all claims.
     The 100-case source must be owner-controlled and licensed before export.
     """
+    if secret is None:
+        secret=secrets.token_bytes(32)
     if (not isinstance(secret,bytes) or len(secret)<32
             or len(set(secret))<8):
         raise ValueError("Blinding requires a high-entropy 32-byte secret generated privately")
