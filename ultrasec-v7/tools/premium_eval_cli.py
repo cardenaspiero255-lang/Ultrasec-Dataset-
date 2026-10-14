@@ -63,7 +63,7 @@ def main(argv=None)->int:
         if evidence_a!=args.required_cases or evidence_b!=args.required_cases:
             report["agreement_gate_pass"]=False
             report["failures"]["review_evidence_inadequate"]=1
-        if not reviewer_a or not reviewer_b or reviewer_a & reviewer_b:
+        if len(reviewer_a)!=1 or len(reviewer_b)!=1 or reviewer_a==reviewer_b:
             report["agreement_gate_pass"]=False
             report["failures"]["reviewer_identity_not_independent"]=1
     except (ValueError,OSError,UnicodeError,RecursionError,KeyError,TypeError):
