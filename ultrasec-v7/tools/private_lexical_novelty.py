@@ -29,6 +29,30 @@ _TOKENS = re.compile(r"0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|(?:\d[\d_]*\.
 _SPACES = re.compile(r"\s+")
 
 
+def _unicode_lexical_shape(code: str) -> str:
+    # Python XID_Start / XID_Continue, including Unicode combining marks
+    # and exceptional identifier starters not captured by the regex shortcut.
+    chunks = []
+    pos = 0
+    while pos < len(code):
+        token = _TOKENS.match(code, pos)
+        if token is not None and (token.group()[0].isdecimal() or token.group()[0] == "."):
+            chunks.append("NUM")
+            pos = token.end()
+            continue
+        ch = code[pos]
+        if ch.isidentifier() and not ch.isdecimal():
+            end = pos + 1
+            while end < len(code) and ("a" + code[end]).isidentifier():
+                end += 1
+            chunks.append("ID")
+            pos = end
+            continue
+        chunks.append(ch)
+        pos += 1
+    return "".join(chunks)
+
+
 def lexical_shape(code: str) -> str:
     """A deliberately coarse, language-agnostic lexical abstraction.
 
@@ -38,7 +62,8 @@ def lexical_shape(code: str) -> str:
     if not isinstance(code, str):
         raise TypeError("Code must be text")
     normalized = unicodedata.normalize("NFKC", code)
-    masked = _TOKENS.sub(lambda match: "NUM" if (match.group()[0].isdigit() or match.group()[0] == ".") else "ID", normalized)
+    masked = (_TOKENS.sub(lambda match: "NUM" if (match.group()[0].isdigit() or match.group()[0] == ".") else "ID", normalized)
+              if normalized.isascii() else _unicode_lexical_shape(normalized))
     return _SPACES.sub(" ", masked).strip()
 
 
