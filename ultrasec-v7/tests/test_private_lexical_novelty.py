@@ -83,6 +83,11 @@ class LexicalNoveltyTests(unittest.TestCase):
         shapes={module.lexical_shape(text) for text in variants}
         self.assertEqual(len(shapes),1)
 
+    def test_unicode_identifier_starts_are_normalized(self):
+        forms=[module.lexical_shape("α=1"),module.lexical_shape("β=2"),
+               module.lexical_shape("código=3"),module.lexical_shape("nombre=4")]
+        self.assertEqual(len(set(forms)),1)
+
     def test_unsupported_thresholds_rejected(self):
         for value in (float("nan"), float("inf"), -0.1, 1.01):
             with self.subTest(value=value), self.assertRaises(ValueError):
