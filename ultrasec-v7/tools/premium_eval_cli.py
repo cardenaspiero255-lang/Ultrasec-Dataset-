@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import io
 import zipfile
 import json
 from pathlib import Path
@@ -47,10 +48,11 @@ def _owner_holdout_ids(path:Path,expected_sha256:str,required:int)->set[str]:
     """Bind reviewer answers to the exact owner-held ZIP committed out of band."""
     if not isinstance(expected_sha256,str) or len(expected_sha256)!=64:
         raise ValueError("Missing SHA-256 commitment")
-    digest=hashlib.sha256(path.read_bytes()).hexdigest()
+    verified_bytes=path.read_bytes()
+    digest=hashlib.sha256(verified_bytes).hexdigest()
     if digest!=expected_sha256.lower():
         raise ValueError("Owner manifest commitment mismatch")
-    with zipfile.ZipFile(path) as archive:
+    with zipfile.ZipFile(io.BytesIO(verified_bytes)) as archive:
         if set(archive.namelist())!={"owner_key.jsonl"}:
             raise ValueError("Unexpected owner archive members")
         raw=archive.read("owner_key.jsonl")
