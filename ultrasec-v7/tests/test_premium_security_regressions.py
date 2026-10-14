@@ -127,6 +127,23 @@ class PremiumSecurityRegressions(unittest.TestCase):
             self.assertFalse(result["agreement_gate_pass"])
             self.assertIn("review_evidence_inadequate",result["failures"])
 
+    def test_one_reviewer_identity_is_required_per_rating_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            for suffix in ("a","b"):
+                rows=[{"case_id":str(i),"vulnerable_side":("A" if i%2 else "B"),
+                     "vulnerability_evidence":"supported","fix_evidence":"supported",
+                     "reproduction":"pass","reviewer_id":("A-"+str(i) if suffix=="a" else "B")} for i in range(100)]
+                (root/(suffix+".jsonl")).write_text("".join(json.dumps(row)+"\\n" for row in rows).replace("\\n","\n"))
+            report=root/"report.json"
+            run=subprocess.run([sys.executable,str(TOOLS/"premium_eval_cli.py"),"agreement",
+                "--reviewer-a",str(root/"a.jsonl"),"--reviewer-b",str(root/"b.jsonl"),
+                "--sealed-report",str(report),"--session-lock",str(root/"lock")],capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stderr)
+            result=json.loads(report.read_text())
+            self.assertFalse(result["agreement_gate_pass"])
+            self.assertIn("reviewer_identity_not_independent",result["failures"])
+
     def test_local_cli_accepts_full_reviewer_form_without_echoing_evidence(self):
         cases=[{"case_id":str(i),"vulnerable_side":side,
            "vulnerability_evidence":"supported",
