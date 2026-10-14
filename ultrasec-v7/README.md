@@ -41,3 +41,7 @@ Los siete checks verifican límites de archivos públicos, posibles secretos, av
 ## Enterprise readiness workstream
 
 The [enterprise buyer evaluation protocol](verification/ENTERPRISE_ACCEPTANCE.md) defines procurement use cases, measurable evaluation criteria, independent audit requirements and safe owner-hosted metadata checks. The [local metadata screener](tools/enterprise_metadata.py) checks opaque inventory structure and split integrity with no network access and never runs automatically on the protected private corpus. It does **not** validate true semantic novelty, actual artifact hashes, correctness of labels, data rights or willingness to pay.
+
+## Private historical corpus attestation (owner only)
+
+[Private corpus attestation](verification/PRIVATE_CORPUS_ATTESTATION.md) documents a local ZIP/JSONL.gz integrity verifier for **historical V4-style records**. The [tool](tools/private_corpus_attestation.py) checks pair completeness, exact code hashes, split contamination and owner-provided SHA-256 without exposing cases publicly. Its result is **only a structural/cryptographic screening**, never proof that one million independent vulnerabilities exist or that external rights/certification have been obtained. Public CI uses synthetic data exclusively.
