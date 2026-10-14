@@ -109,6 +109,8 @@ def mutation_admission(proposal:dict,evidence:dict)->dict:
         actual_digest=hashlib.sha256(proposal["source"].encode("utf-8")).hexdigest()
         if proposal.get("source_sha256")!=actual_digest:
             failures["tampered_proposal_digest"]=1
+        if evidence.get("original_sha256")!=proposal.get("original_sha256"):
+            failures["missing_original_bound_witness"]=1
         if evidence.get("artifact_sha256")!=actual_digest:
             failures["missing_artifact_bound_witness"]=1
     if (evidence.get("vulnerable_reproduced") is not True
