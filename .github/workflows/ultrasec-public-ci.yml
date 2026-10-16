@@ -124,3 +124,5 @@ jobs:
       - name: Validate Codex four security findings and variants
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_codex_four_regressions.py' -v
 
+      - name: Screen public CVE source metadata without claiming licensed gold (synthetic tests only)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_real_case_candidate_triage.py' -v
