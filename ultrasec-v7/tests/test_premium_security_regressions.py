@@ -81,7 +81,7 @@ class PremiumSecurityRegressions(unittest.TestCase):
                 "adjudication_unresolved":10,"adjudication_complete_signed":False},
             "benchmark":{"baseline_real_executions":True,"low_recall_cwes":0},
             "legal":{"redistribution_rights_verified":True},
-            "ci":{"total":17,"passed":17,"unresolved_codex":0}}
+            "ci":{"total":17,"passed":17,"unresolved_security_findings":0}}
         r=release.evaluate_readiness(evidence)
         self.assertFalse(r["technical_release_ready"])
         self.assertIn("unresolved_adjudication",r["blockers"])
