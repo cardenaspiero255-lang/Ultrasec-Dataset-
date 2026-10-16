@@ -32,3 +32,20 @@ Después de ejecutar, el propietario convierte evidencias a la entrada de advers
 - No comparar directamente métricas entre lenguajes/distribuciones distintas de DiverseVul y PrimeVul. Debe repetirse sobre un holdout común, con gold revisado y sin fuga.
 
 **Estado esperado del PR #7:** CI puede demostrar que el calculador falla de manera conservadora ante no_rule, no_aplicable y missing_result, pero las métricas reales de CodeQL/Slither/Semgrep sobre 100 casos siguen NOT_RUN hasta que existan casos externos elegibles.
+
+## Fase previa: selección de CVE candidatas (investigación del 16-10-2026)
+
+Fuentes públicas identificadas:
+- MoreFixes v4 (20-06-2026): https://zenodo.org/records/20776007 — aproximadamente 43.357 CVE y 47.616 commits de corrección referenciados; descargables como dump SQL de 3,5 GB y parches de 3,0 GB. El **propio productor** avisa que las licencias de los repositorios de origen varían: NO hay una autorización general de reventa.
+- CVEfixes v1.0.8 (hasta 23-07-2024): https://github.com/secureIT-project/CVEfixes y https://zenodo.org/records/13118970 — fuente complementaria, no fuente de derechos comerciales.
+- Tareas, exclusiones y estado de evidencias: https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/9
+
+### Importar referencias *sin* publicar el dataset
+1. En un entorno **local y privado**, obtener de una fuente confiable una exportación JSONL de referencias CVE→repositorio/commits. No cargar código privado, gold, credenciales o llaves al PR.
+2. Cada fila debe tener `cve_id`, `cwe_id`, `repo_url` (URL HTTPS de GitHub con owner y repo), `source_commit` y `fix_commit` (SHA completos de 40 caracteres), `source_dataset` (`MoreFixes v4` o `CVEfixes v1.0.8`). Para MoreFixes se exige además `score` numérico ≥65 conforme a la recomendación del proyecto original; esta puntuación es una **heurística**, no prueba causal.
+3. Ejecutar en privado `python3 ultrasec-v7/tools/real_case_candidate_triage.py PRIVATE_CANDIDATES.jsonl`. El programa selecciona hasta 100 proyectos distintos y da prioridad a 12 CWE; solo emite conteos sanitizados, nunca vulnerabilidades ni licencias inventadas. El PASS significa **metadatos candidatos completos, no casos admitidos**.
+4. Verificar **cada una** de las referencias con advisory/CVE, SHA origen y parche, reproducción segura, árbol de dependencias, licencia y permisos del titular. Rechazar falsos fix commits, CVE aliases, versiones incorrectas, forks duplicados y proyectos con filtración hacia train.
+5. Solo entonces crear el archivo privado de 100 casos para `premium_evidence.admission_report`. Los campos de verificación autodeclarados de esta API también necesitan evidencia independiente real y custodia sellada.
+6. Ejecutar scanner real **solo sobre código autorizado**, con salida privada por CWE y herramienta, versiones y reglas fijadas; validar firmas y roles de revisores independientes mediante un proceso separado.
+
+**Estado al 16-10-2026:** fuentes investigadas, 0/100 casos externamente admitidos en este PR, 0/2 firmas independientes, 0 escaneos reales sobre esa cohorte, redistribución/reventa NO VERIFICADA. No confundir esto con 16 jobs verdes del verificador público ni con certificación comercial.
