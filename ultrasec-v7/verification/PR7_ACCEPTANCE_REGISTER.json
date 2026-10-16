@@ -67,5 +67,28 @@
     "real_holdout_sast_execution": "NOT_RUN",
     "license_resale_evidence": "NOT_VERIFIED",
     "note": "CVE references and publicly accessible patch data are candidates, not independently established gold or sublicensing rights. No private corpus artifacts were added."
+  },
+  "signature_verification": {
+    "status": "IMPLEMENTED_AND_TESTED_ON_EPHEMERAL_SYNTHETIC_KEYS",
+    "tool": "ultrasec-v7/tools/external_signed_evidence.py",
+    "supported_integrity_checks": [
+      "owner_manifest_sha256",
+      "exact_100_holdout_membership",
+      "distinct_ed25519_public_keys",
+      "binary_signature_verification",
+      "reviewer_report_sha256",
+      "bounded_safe_private_paths"
+    ],
+    "required_for_external_completion": [
+      "100_origin_cases_reproduced_with_rights",
+      "2_external_qualified_reviewers_with_out_of_band_verified_keys",
+      "2_authentic_signed_reports",
+      "signed_adjudication",
+      "real_sast_outputs_and_rule_provenance",
+      "per_source_legal_permission"
+    ],
+    "authentic_signed_reports_received": 0,
+    "independently_authenticated_reviewer_identities": 0,
+    "note": "Ephemeral CI signers prove tooling only. A valid signature does not demonstrate reviewer credentials, independent expert adjudication, source-code rights or gold truth."
   }
 }
