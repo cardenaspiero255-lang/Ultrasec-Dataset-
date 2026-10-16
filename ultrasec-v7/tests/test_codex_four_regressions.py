@@ -95,6 +95,39 @@ class CodexFourRegressions(unittest.TestCase):
             {"vulnerable_reproduced":True,"fix_verified":True})
         self.assertNotIn("nonminimal_patch",report["failures"])
 
+    def test_implicit_adjacent_literals_cannot_fragment_large_rewrite(self):
+        gate=load("premium_evidence")
+        unchanged_padding=" + ".join(f"x{i}" for i in range(150))
+        before=(
+            "small = "+repr("A"*5000)+"\\n"
+            +"padding = "+unchanged_padding+"\\n"
+            +"payload = ("+" ".join([repr("C"*60)]*20)+")"
+        )
+        after=(
+            "small = "+repr("A"*4999+"Z")+"\\n"
+            +"padding = "+unchanged_padding+"\\n"
+            +"payload = ("+" ".join([repr("D"*60)]*20)+")"
+        )
+        result=gate.causal_patch_gate(
+            before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertIn("nonminimal_patch",result["failures"])
+
+    def test_large_repeated_literal_single_char_edit_does_not_stall(self):
+        # Run the gate in a subprocess so a regressed quadratic diff cannot
+        # lock up CI indefinitely.
+        script=(
+            "import importlib.util, pathlib; "
+            "p=pathlib.Path("+repr(str("ultrasec-v7/tools/premium_evidence.py"))+"); "
+            "spec=importlib.util.spec_from_file_location('premium_evidence',p); "
+            "m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m); "
+            "a='payload = '+repr('A'*10000); "
+            "b='payload = '+repr('A'*9999+'Z'); "
+            "r=m.causal_patch_gate(a,b,{'vulnerable_reproduced':True,'fix_verified':True}); "
+            "assert 'nonminimal_patch' not in r['failures']"
+        )
+        subprocess.run([sys.executable,"-c",script],
+            cwd=TOOLS.parents[1],check=True,capture_output=True,timeout=5)
+
     def test_pattern_capture_renames_are_trivial(self):
         gate=load("premium_evidence")
         before='match obj:\n    case {"x": value}:\n        print(value)'
