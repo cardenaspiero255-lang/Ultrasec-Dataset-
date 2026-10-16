@@ -8,6 +8,7 @@ All output is aggregate, never copies case IDs, code, or review contents.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -171,3 +172,30 @@ def audit(root: Path, manifest: dict) -> dict:
         "failures":sorted(set(failures)),
         "warning":"Manifest fingerprints MUST be authenticated out-of-band; signatures do not establish reviewer qualifications or gold truth.",
     }
+
+
+def main(argv=None) -> int:
+    parser=argparse.ArgumentParser(description="Offline private Ed25519 evidence integrity verifier")
+    parser.add_argument("--root",type=Path,required=True,
+                        help="Owner-controlled private evidence directory")
+    parser.add_argument("--manifest",type=Path,required=True,
+                        help="Manifest JSON stored inside --root")
+    args=parser.parse_args(argv)
+    try:
+        root=args.root.resolve(strict=True)
+        manifest=args.manifest.resolve(strict=True)
+        if not manifest.is_relative_to(root) or manifest.stat().st_size>65536:
+            raise ValueError("manifest_not_in_private_directory")
+        with manifest.open("rb") as handle:
+            m=json.loads(handle.read(65537))
+        result=audit(root,m)
+        print(json.dumps(result,sort_keys=True))
+        return 0 if result["signatures_valid"] and result["membership_verified"] else 1
+    except (OSError,ValueError,UnicodeError,TypeError,json.JSONDecodeError):
+        print(json.dumps({"error":"PRIVATE_EVIDENCE_INVALID",
+                          "externally_certified":False},sort_keys=True))
+        return 2
+
+
+if __name__=="__main__":
+    raise SystemExit(main())
