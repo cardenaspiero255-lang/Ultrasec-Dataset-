@@ -40,7 +40,7 @@ def evaluate_readiness(evidence:dict)->dict:
     if legal.get("redistribution_rights_verified") is not True:
         problems.append("commercial_rights_not_cleared")
     if (ci.get("total")!=17 or ci.get("passed")!=17
-            or ci.get("unresolved_codex")!=0):
+            or ci.get("unresolved_security_findings")!=0):
         problems.append("ci_or_independent_code_review_incomplete")
 
     commercial=[]
