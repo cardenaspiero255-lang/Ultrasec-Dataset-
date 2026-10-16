@@ -231,11 +231,37 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
         import io as _io
         import tokenize as _tokenize
         def tokens(source):
-            return [(t.type,t.string) for t in _tokenize.generate_tokens(
+            raw=[(t.type,t.string) for t in _tokenize.generate_tokens(
                 _io.StringIO(source).readline)
                 if t.type not in (_tokenize.ENCODING,_tokenize.NL,
                                   _tokenize.NEWLINE,_tokenize.INDENT,
                                   _tokenize.DEDENT,_tokenize.ENDMARKER)]
+            # Implicitly concatenated STRING tokens are one logical literal.
+            # Without grouping, many small replacement fragments evade the
+            # per-literal edit budget despite replacing the entire value.
+            merged=[]
+            for kind,value in raw:
+                if kind==_tokenize.STRING and merged and merged[-1][0]==kind:
+                    merged[-1]=(kind,merged[-1][1]+"\\0"+value)
+                else:
+                    merged.append((kind,value))
+            return merged
+        def literal_changed_span(before_literal,after_literal):
+            # Conservative linear-time edit span. SequenceMatcher with
+            # autojunk=False is quadratic for long repetitive strings.
+            if before_literal==after_literal:
+                return 0
+            common=min(len(before_literal),len(after_literal))
+            start=0
+            while start<common and before_literal[start]==after_literal[start]:
+                start+=1
+            end=0
+            while (end<common-start
+                    and before_literal[len(before_literal)-end-1]
+                        ==after_literal[len(after_literal)-end-1]):
+                end+=1
+            return max(len(before_literal)-start-end,
+                       len(after_literal)-start-end)
         old_tokens=tokens(vulnerable_code)
         new_tokens=tokens(fixed_code)
         token_edits=sum(max(i2-i1,j2-j1)
@@ -268,10 +294,7 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
                     if old[0]!=new[0]:
                         changed_bytes=max(len(old[1]),len(new[1]))
                     else:
-                        changed_bytes=sum(max(p2-p1,q2-q1)
-                            for op,p1,p2,q1,q2 in difflib.SequenceMatcher(
-                                None,old[1],new[1],autojunk=False).get_opcodes()
-                            if op!="equal")
+                        changed_bytes=literal_changed_span(old[1],new[1])
                     literal_edits+=changed_bytes
                     if changed_bytes>max(64,len(old[1])//3):
                         oversized_literal_change=True
