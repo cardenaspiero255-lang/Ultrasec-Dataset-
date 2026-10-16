@@ -251,12 +251,22 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
                 continue
             old_slice=old_tokens[i1:i2]
             new_slice=new_tokens[j1:j2]
-            for old,new in zip(old_slice,new_slice):
-                if old[0]==new[0] and old[0] in (_tokenize.STRING,_tokenize.NUMBER):
-                    literal_edits+=sum(max(a2-a1,b2-b1)
-                        for op,a1,a2,b1,b2 in difflib.SequenceMatcher(
-                            None,old[1],new[1],autojunk=False).get_opcodes()
-                        if op!="equal")
+            # Align literal tokens independently of grouping punctuation,
+            # e.g. STRING -> '(' STRING ')' must not evade the byte budget.
+            literal_kinds=(_tokenize.STRING,_tokenize.NUMBER)
+            old_literals=[t for t in old_slice if t[0] in literal_kinds]
+            new_literals=[t for t in new_slice if t[0] in literal_kinds]
+            # Inserted/deleted literals count by their whole size.
+            if len(old_literals)!=len(new_literals):
+                literal_edits+=sum(len(t[1]) for t in old_literals+new_literals)
+            for old,new in zip(old_literals,new_literals):
+                if old[0]!=new[0]:
+                    literal_edits+=max(len(old[1]),len(new[1]))
+                    continue
+                literal_edits+=sum(max(a2-a1,b2-b1)
+                    for op,a1,a2,b1,b2 in difflib.SequenceMatcher(
+                        None,old[1],new[1],autojunk=False).get_opcodes()
+                    if op!="equal")
         if literal_edits>max(64,len(vulnerable_code)//3):
             fail["nonminimal_patch"]+=1
         if token_edits>max(6,len(old_tokens)//3):
