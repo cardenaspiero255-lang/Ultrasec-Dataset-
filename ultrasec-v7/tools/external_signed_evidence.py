@@ -21,8 +21,14 @@ def _read_private(root: Path, name: str, limit: int) -> tuple[bytes, Path]:
     if not isinstance(name, str) or not name or Path(name).is_absolute():
         raise ValueError("invalid_path")
     base=root.resolve(strict=True)
-    path=(base/name).resolve(strict=True)
-    if not path.is_relative_to(base) or path.is_symlink() or not path.is_file():
+    relative=Path(name)
+    if ".." in relative.parts:
+        raise ValueError("invalid_path")
+    candidate=base/relative
+    if candidate.is_symlink():
+        raise ValueError("invalid_path")
+    path=candidate.resolve(strict=True)
+    if not path.is_relative_to(base) or not path.is_file():
         raise ValueError("invalid_path")
     if path.stat().st_size>limit:
         raise ValueError("oversized_evidence")
