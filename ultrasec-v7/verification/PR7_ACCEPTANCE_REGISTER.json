@@ -21,7 +21,7 @@
     "independent_appsec_reviewers": 2,
     "reviewer_raw_agreement_strictly_greater_than": 0.8,
     "github_checks_required": 17,
-    "unresolved_codex_required": 0
+    "unresolved_security_findings_required": 0
   },
   "evidence_gates": {
     "private_corpus_regenerated_and_semantically_validated": "BLOCKED",
