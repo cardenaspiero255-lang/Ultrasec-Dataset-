@@ -93,6 +93,22 @@ class SignedEvidenceContracts(unittest.TestCase):
         self.assertFalse(result["membership_verified"])
         self.assertIn("b:holdout_membership_invalid",result["failures"])
 
+    def test_path_swapped_after_read_cannot_change_verified_bytes(self):
+        # Simulated TOCTOU: a file can change after it was read for hashing,
+        # but signature verification must use those exact captured bytes.
+        from unittest import mock
+        tool=load()
+        original=tool._read_private
+        def swap(root,name,limit):
+            result=original(root,name,limit)
+            if name=="a.sig":
+                (self.root/"a.jsonl").write_text("tampered after read")
+            return result
+        with mock.patch.object(tool,"_read_private",side_effect=swap):
+            outcome=tool.audit(self.root,self.manifest)
+        self.assertTrue(outcome["signatures_valid"])
+        self.assertTrue(outcome["membership_verified"])
+
     def test_traversal_outside_private_directory_fails_closed(self):
         self.manifest["reviewers"]["a"]["report"]="../../secret"
         result=load().audit(self.root,self.manifest)
