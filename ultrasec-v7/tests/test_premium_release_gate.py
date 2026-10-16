@@ -17,7 +17,7 @@ class PremiumReleaseGates(unittest.TestCase):
                          "qualified_independent_reviewers":0,"reviewer_agreement":None},
           "benchmark":{"baseline_real_executions":False,"low_recall_cwes":12},
           "legal":{"redistribution_rights_verified":False},
-          "ci":{"total":17,"passed":17,"unresolved_codex":0},
+          "ci":{"total":17,"passed":17,"unresolved_security_findings":0},
           "buyer":{"signed_150k_offer":False},
         })
         self.assertFalse(report["technical_release_ready"])
@@ -34,7 +34,7 @@ class PremiumReleaseGates(unittest.TestCase):
                          "adjudication_unresolved":0,"adjudication_complete_signed":True},
           "benchmark":{"baseline_real_executions":True,"low_recall_cwes":0},
           "legal":{"redistribution_rights_verified":True},
-          "ci":{"total":17,"passed":17,"unresolved_codex":0},
+          "ci":{"total":17,"passed":17,"unresolved_security_findings":0},
           "buyer":{"signed_150k_offer":False},
         })
         self.assertTrue(r["technical_release_ready"])
@@ -45,6 +45,26 @@ class PremiumReleaseGates(unittest.TestCase):
         r=module.evaluate_readiness({"independent":{"confirmed_real_world_cases":100,
                      "qualified_independent_reviewers":2,"reviewer_agreement":0.8}})
         self.assertIn("reviewer_agreement_below_target",r["blockers"])
+
+    def test_generic_security_findings_replace_vendor_specific_gate(self):
+        evidence={
+          "corpus":{"records":1000000,"exact_sha256_unique":1000000,
+                    "split_leaks":0,"lexical_patterns":250000},
+          "independent":{"confirmed_real_world_cases":100,
+                         "qualified_independent_reviewers":2,
+                         "reviewer_agreement":0.86,
+                         "adjudication_unresolved":0,
+                         "adjudication_complete_signed":True},
+          "benchmark":{"baseline_real_executions":True,"low_recall_cwes":0},
+          "legal":{"redistribution_rights_verified":True},
+          "ci":{"total":17,"passed":17,"unresolved_security_findings":1,
+                "unresolved_codex":0},
+        }
+        report=module.evaluate_readiness(evidence)
+        self.assertFalse(report["technical_release_ready"])
+        self.assertIn("ci_or_independent_code_review_incomplete",report["blockers"])
+        evidence["ci"]["unresolved_security_findings"]=0
+        self.assertTrue(module.evaluate_readiness(evidence)["technical_release_ready"])
 
     def test_cannot_misrepresent_missing_data_as_pass(self):
         r=module.evaluate_readiness({})
