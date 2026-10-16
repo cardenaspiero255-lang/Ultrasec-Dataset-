@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 
 
 def _read_private(root: Path, name: str, limit: int) -> tuple[bytes, Path]:
@@ -124,15 +125,29 @@ def audit(root: Path, manifest: dict) -> dict:
             failures.append(label+":crypto_verifier_unavailable")
             continue
         try:
-            command=["openssl","pkeyutl","-verify","-rawin","-pubin",
-                     "-inkey",str(pub_path),"-in",str(data_path),
-                     "-sigfile",str(sig_path)]
-            proc=subprocess.run(command,capture_output=True,timeout=10,check=False)
+            # Verify only the exact bytes read and hashed above. Reopening
+            # owner-supplied paths introduces a TOCTOU replacement window.
+            # TemporaryDirectory mode 0700; all temporary artifacts remain in
+            # the owner's private evidence directory and are cleaned up.
+            with tempfile.TemporaryDirectory(prefix=".ultrasec-sig-",
+                                             dir=root.resolve(strict=True)) as tmp:
+                staging=Path(tmp)
+                report_copy=staging/"report.bin"
+                signature_copy=staging/"signature.bin"
+                key_copy=staging/"key.pub.pem"
+                report_copy.write_bytes(data)
+                signature_copy.write_bytes(sig)
+                key_copy.write_bytes(pub)
+                command=["openssl","pkeyutl","-verify","-rawin","-pubin",
+                         "-inkey",str(key_copy),"-in",str(report_copy),
+                         "-sigfile",str(signature_copy)]
+                proc=subprocess.run(command,capture_output=True,timeout=10,
+                                    check=False)
             if proc.returncode!=0:
                 failures.append(label+":invalid_signature")
             else:
                 verified_count+=1
-        except (OSError,subprocess.TimeoutExpired):
+        except (OSError,ValueError,subprocess.TimeoutExpired):
             failures.append(label+":crypto_verification_failed")
     if len(key_hashes)==2 and key_hashes[0]==key_hashes[1]:
         failures.append("reviewers:same_public_key")
