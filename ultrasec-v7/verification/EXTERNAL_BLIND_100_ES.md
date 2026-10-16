@@ -37,25 +37,25 @@ Probar el formulario y el prompt antes del holdout con ejemplos controlados: ren
 
 ## Verificación criptográfica local (Ed25519)
 
-Se incorpora \`tools/external_signed_evidence.py\` como **prueba de integridad**, no como reemplazo de la revisión humana ni de la comprobación legal.
+Se incorpora `tools/external_signed_evidence.py` como **prueba de integridad**, no como reemplazo de la revisión humana ni de la comprobación legal.
 
 Para utilizarla, mantener en un mismo directorio **privado** los siguientes archivos, sin publicarlos en GitHub:
 
-- \`owner_ids.json\`: lista JSON de 100 ID opacos únicos del conjunto ciego; registrar su SHA-256 al crear el paquete.
-- \`a.jsonl\` / \`b.jsonl\`: exactamente 100 respuestas por revisor, en JSONL con \`case_id\` y \`vulnerable_side\` (A/B/uncertain); cada informe debe estar firmado **sobre sus bytes exactos** con la clave privada Ed25519 del firmante.
-- \`a.sig\` / \`b.sig\`: firmas binarias originales; \`a.pub.pem\` / \`b.pub.pem\`: claves públicas de los dos revisores, cuyo fingerprint SHA-256 debe autenticarse por un canal *separado* y registrado.
-- \`manifest.json\`: incluye \`owner_ids\`, \`owner_ids_sha256\` y el objeto \`reviewers\` con claves \`a\` y \`b\`. Cada uno contiene \`report\`, \`signature\`, \`public_key\`, \`report_sha256\`, \`trusted_public_key_sha256\`. Las rutas deben ser locales al directorio privado.
+- `owner_ids.json`: lista JSON de 100 ID opacos únicos del conjunto ciego; registrar su SHA-256 al crear el paquete.
+- `a.jsonl` / `b.jsonl`: exactamente 100 respuestas por revisor, en JSONL con `case_id` y `vulnerable_side` (A/B/uncertain); cada informe debe estar firmado **sobre sus bytes exactos** con la clave privada Ed25519 del firmante.
+- `a.sig` / `b.sig`: firmas binarias originales; `a.pub.pem` / `b.pub.pem`: claves públicas de los dos revisores, cuyo fingerprint SHA-256 debe autenticarse por un canal *separado* y registrado.
+- `manifest.json`: incluye `owner_ids`, `owner_ids_sha256` y el objeto `reviewers` con claves `a` y `b`. Cada uno contiene `report`, `signature`, `public_key`, `report_sha256`, `trusted_public_key_sha256`. Las rutas deben ser locales al directorio privado.
 
 Comando:
 
-\`\`\`bash
+```bash
 python3 ultrasec-v7/tools/external_signed_evidence.py \
   --root /RUTA/PRIVADA/CUSTODIA \
   --manifest /RUTA/PRIVADA/CUSTODIA/manifest.json
-\`\`\`
+```
 
 El verificador usa OpenSSL, coteja los SHA-256 y verifica ambas firmas contra los bytes capturados, exige claves distintas y comprueba membresía exacta con los 100 ID del manifiesto. Su salida solo contiene indicadores agregados. Fallará si faltan archivos, están alterados, el hash no coincide, hay sustitución de identidades o una firma no verifica.
 
-**Límites fundamentales:** que la firma sea válida prueba posesión de una clave, **no** que el firmante sea realmente un experto AppSec cualificado, ni que los informes sean independientes, que el gold sea verdadero, que los 100 CVE sean reproducibles o que exista autorización de reventa. La autenticación de clave/identidad se realiza fuera de la herramienta, con constancias verificables; los resultados continúan \`NOT_VERIFIED\` y \`NOT_CERTIFIED\` hasta completar esas evidencias.
+**Límites fundamentales:** que la firma sea válida prueba posesión de una clave, **no** que el firmante sea realmente un experto AppSec cualificado, ni que los informes sean independientes, que el gold sea verdadero, que los 100 CVE sean reproducibles o que exista autorización de reventa. La autenticación de clave/identidad se realiza fuera de la herramienta, con constancias verificables; los resultados continúan `NOT_VERIFIED` y `NOT_CERTIFIED` hasta completar esas evidencias.
 
 **No aceptar** dos claves generadas por el mismo operador como dos revisores independientes. Las claves efímeras de la suite de tests son únicamente simulaciones para comprobar la robustez del parser y del verificador.
