@@ -245,8 +245,10 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
         # A single STRING/NUMBER token may encode thousands of modified
         # characters; weight its changed content without double-counting tokens.
         literal_edits=0
-        # The budget is derived ONLY from literals that changed. Unmodified
-        # neighbouring strings must not hide a complete rewrite of one literal.
+        # A budget for the total edit is insufficient: a 1-byte change in
+        # one giant literal must not hide a complete rewrite of another.
+        # Count every changed literal separately as well as in aggregate.
+        oversized_literal_change=False
         modified_literal_bytes=0
         literal_kinds=(_tokenize.STRING,_tokenize.NUMBER)
         for tag,i1,i2,j1,j2 in difflib.SequenceMatcher(
@@ -264,19 +266,26 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
                 for old,new in zip(old_changed,new_changed):
                     modified_literal_bytes+=len(old[1])
                     if old[0]!=new[0]:
-                        literal_edits+=max(len(old[1]),len(new[1]))
+                        changed_bytes=max(len(old[1]),len(new[1]))
                     else:
-                        literal_edits+=sum(max(p2-p1,q2-q1)
+                        changed_bytes=sum(max(p2-p1,q2-q1)
                             for op,p1,p2,q1,q2 in difflib.SequenceMatcher(
                                 None,old[1],new[1],autojunk=False).get_opcodes()
                             if op!="equal")
+                    literal_edits+=changed_bytes
+                    if changed_bytes>max(64,len(old[1])//3):
+                        oversized_literal_change=True
                 # Extra inserted or removed tokens count as full edits.
                 for old in old_changed[len(new_changed):]:
                     modified_literal_bytes+=len(old[1])
                     literal_edits+=len(old[1])
+                    if len(old[1])>64:
+                        oversized_literal_change=True
                 for new in new_changed[len(old_changed):]:
                     literal_edits+=len(new[1])
-        if literal_edits>max(64,modified_literal_bytes//3):
+                    if len(new[1])>64:
+                        oversized_literal_change=True
+        if oversized_literal_change or literal_edits>max(64,modified_literal_bytes//3):
             fail["nonminimal_patch"]+=1
         if token_edits>max(6,len(old_tokens)//3):
             fail["nonminimal_patch"]+=1
