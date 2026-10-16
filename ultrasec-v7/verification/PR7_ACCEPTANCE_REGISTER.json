@@ -42,5 +42,30 @@
     "Synthetic CI tests are validation of code paths, not results from human auditors.",
     "No private training sources or owner-only gold labels are included.",
     "Business price cannot be derived from hash count or structural tests."
-  ]
+  ],
+  "source_discovery": {
+    "status": "PUBLIC_SOURCES_IDENTIFIED_NO_CASES_ADMITTED",
+    "issue": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/9",
+    "candidate_datasets": [
+      {
+        "name": "MoreFixes v4",
+        "record_url": "https://zenodo.org/records/20776007",
+        "released": "2026-06-20",
+        "source_status": "PUBLIC_METADATA_VERIFIED_DUMP_NOT_INGESTED",
+        "origin_projects_licensing": "MIXED_REQUIRES_INDIVIDUAL_RIGHTS_REVIEW"
+      },
+      {
+        "name": "CVEfixes v1.0.8",
+        "record_url": "https://zenodo.org/records/13118970",
+        "covered_through": "2024-07-23",
+        "source_status": "PUBLIC_METADATA_VERIFIED_DUMP_NOT_INGESTED",
+        "origin_projects_licensing": "REQUIRES_INDIVIDUAL_RIGHTS_REVIEW"
+      }
+    ],
+    "cases_externally_admitted_in_pr": 0,
+    "signed_independent_appsec_reviews_in_pr": 0,
+    "real_holdout_sast_execution": "NOT_RUN",
+    "license_resale_evidence": "NOT_VERIFIED",
+    "note": "CVE references and publicly accessible patch data are candidates, not independently established gold or sublicensing rights. No private corpus artifacts were added."
+  }
 }
