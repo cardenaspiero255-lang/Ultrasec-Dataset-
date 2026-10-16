@@ -99,13 +99,13 @@ class CodexFourRegressions(unittest.TestCase):
         gate=load("premium_evidence")
         unchanged_padding=" + ".join(f"x{i}" for i in range(150))
         before=(
-            "small = "+repr("A"*5000)+"\\n"
-            +"padding = "+unchanged_padding+"\\n"
+            "small = "+repr("A"*5000)+"\n"
+            +"padding = "+unchanged_padding+"\n"
             +"payload = ("+" ".join([repr("C"*60)]*20)+")"
         )
         after=(
-            "small = "+repr("A"*4999+"Z")+"\\n"
-            +"padding = "+unchanged_padding+"\\n"
+            "small = "+repr("A"*4999+"Z")+"\n"
+            +"padding = "+unchanged_padding+"\n"
             +"payload = ("+" ".join([repr("D"*60)]*20)+")"
         )
         result=gate.causal_patch_gate(
