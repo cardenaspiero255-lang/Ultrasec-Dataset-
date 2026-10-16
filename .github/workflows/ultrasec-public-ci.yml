@@ -126,3 +126,5 @@ jobs:
 
       - name: Screen public CVE source metadata without claiming licensed gold (synthetic tests only)
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_real_case_candidate_triage.py' -v
+      - name: Reject unsigned or unbound blind reviewer reports (ephemeral key tests only)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_external_signed_evidence.py' -v
