@@ -46,6 +46,10 @@ The [enterprise buyer evaluation protocol](verification/ENTERPRISE_ACCEPTANCE.md
 
 [Private corpus attestation](verification/PRIVATE_CORPUS_ATTESTATION.md) documents a local ZIP/JSONL.gz integrity verifier for **historical V4-style records**. The [tool](tools/private_corpus_attestation.py) checks pair completeness, exact code hashes, split contamination and owner-provided SHA-256 without exposing cases publicly. Its result is **only a structural/cryptographic screening**, never proof that one million independent vulnerabilities exist or that external rights/certification have been obtained. Public CI uses synthetic data exclusively.
 
+## Enterprise real-case admission and commercial valuation evidence (PR #7)
+
+The [US$150,000 evidence dossier](verification/ENTERPRISE_150K_EVIDENCE.md) distinguishes structural counts from independent security proof, compares the methodology fairly with DiverseVul/PrimeVul and enumerates the blocked release gates. The [two-reviewer blind 100-case protocol](verification/EXTERNAL_BLIND_100_ES.md) requires **real external provenance, two genuinely independent signed experts and strictly >80% agreement**; the [local CodeQL/Semgrep/Slither study plan](verification/REAL_100_SAST_PLAN_ES.md) records missing rules and limits. The [draft rights authorization](verification/TEMPLATE_COMMERCIAL_AUTHORIZATION_ES.md) requires qualified legal review. The automated gates are **preliminary evidence-screening tools, not proof of authenticity, certification, semantic diversity or US$150k commercial valuation**.
+
 ## Owner-only lexical novelty screen
 
 [Lexical novelty protocol](verification/LEXICAL_NOVELTY_SCREEN.md) describes a disk-backed, aggregate-only screening tool that distinguishes exact code hashes from coarse normalized lexical shapes. It is **not semantic or causal independence certification**. The corpus remains private and all public CI examples are synthetic.

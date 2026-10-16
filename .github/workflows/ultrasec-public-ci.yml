@@ -115,4 +115,16 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_private_corpus_attestation.py' -v
       - name: Validate lexical diversity screen on synthetic samples only
         run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_private_lexical_novelty.py' -v
+      - name: Validate enterprise real-case evidence, blind reviews and adversarial SAST (synthetic contract tests)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_evidence_v7.py' -v
+      - name: Enforce premium release cannot claim valuation without independent evidence
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_release_gate.py' -v
+      - name: Reject misleading premium PASS scenarios (Codex P1/P2 regression suite)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_premium_security_regressions.py' -v
+      - name: Validate Codex four security findings and variants
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_codex_four_regressions.py' -v
 
+      - name: Screen public CVE source metadata without claiming licensed gold (synthetic tests only)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_real_case_candidate_triage.py' -v
+      - name: Reject unsigned or unbound blind reviewer reports (ephemeral key tests only)
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_external_signed_evidence.py' -v

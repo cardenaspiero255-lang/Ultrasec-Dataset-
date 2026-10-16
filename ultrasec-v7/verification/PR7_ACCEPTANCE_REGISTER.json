@@ -1,0 +1,94 @@
+{
+  "schema": "ultrasec.pr7-premium-acceptance-register.v1",
+  "scope": "PUBLIC_AGGREGATE_ONLY",
+  "certification": "NOT_CERTIFIED",
+  "commercial_value_usd_150k": "NOT_VERIFIED",
+  "historical_reference": {
+    "record_count": 1000000,
+    "unique_sha256": 1000000,
+    "incomplete_pairs": 0,
+    "cross_split_template_leaks": 0,
+    "template_ids": 5760,
+    "coarse_lexical_patterns": 11280,
+    "coarse_lexical_bucket_redundancy_fraction": 0.98872,
+    "case_type": "SYNTHETIC_EXPERIMENTAL",
+    "source": "owner-supplied internal audit; semantic independence not established"
+  },
+  "pr7_targets": {
+    "lexical_patterns_strictly_above": 200000,
+    "real_world_case_count": 100,
+    "independent_families_at_least": 12,
+    "independent_appsec_reviewers": 2,
+    "reviewer_raw_agreement_strictly_greater_than": 0.8,
+    "github_checks_required": 17,
+    "unresolved_security_findings_required": 0
+  },
+  "evidence_gates": {
+    "private_corpus_regenerated_and_semantically_validated": "BLOCKED",
+    "real_world_case_admission_100": "BLOCKED",
+    "external_reviewer_A_signed": "BLOCKED",
+    "external_reviewer_B_signed": "BLOCKED",
+    "inter_reviewer_agreement": "BLOCKED",
+    "all_disagreements_adjudicated": "BLOCKED",
+    "codeql_private_real_scans": "NOT_RUN",
+    "semgrep_private_real_scans": "NOT_RUN",
+    "slither_applicable_solidity_scans": "NOT_RUN",
+    "comparative_superiority_over_diversevul_primevul": "NOT_DEMONSTRATED",
+    "rights_authorized_for_resale": "BLOCKED",
+    "enterprise_buyer_offer_usd150k": "NOT_RECEIVED"
+  },
+  "limits": [
+    "The 5,000 V7.3 private pairs are explicitly synthetic and not externally certified.",
+    "Synthetic CI tests are validation of code paths, not results from human auditors.",
+    "No private training sources or owner-only gold labels are included.",
+    "Business price cannot be derived from hash count or structural tests."
+  ],
+  "source_discovery": {
+    "status": "PUBLIC_SOURCES_IDENTIFIED_NO_CASES_ADMITTED",
+    "issue": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/9",
+    "candidate_datasets": [
+      {
+        "name": "MoreFixes v4",
+        "record_url": "https://zenodo.org/records/20776007",
+        "released": "2026-06-20",
+        "source_status": "PUBLIC_METADATA_VERIFIED_DUMP_NOT_INGESTED",
+        "origin_projects_licensing": "MIXED_REQUIRES_INDIVIDUAL_RIGHTS_REVIEW"
+      },
+      {
+        "name": "CVEfixes v1.0.8",
+        "record_url": "https://zenodo.org/records/13118970",
+        "covered_through": "2024-07-23",
+        "source_status": "PUBLIC_METADATA_VERIFIED_DUMP_NOT_INGESTED",
+        "origin_projects_licensing": "REQUIRES_INDIVIDUAL_RIGHTS_REVIEW"
+      }
+    ],
+    "cases_externally_admitted_in_pr": 0,
+    "signed_independent_appsec_reviews_in_pr": 0,
+    "real_holdout_sast_execution": "NOT_RUN",
+    "license_resale_evidence": "NOT_VERIFIED",
+    "note": "CVE references and publicly accessible patch data are candidates, not independently established gold or sublicensing rights. No private corpus artifacts were added."
+  },
+  "signature_verification": {
+    "status": "IMPLEMENTED_AND_TESTED_ON_EPHEMERAL_SYNTHETIC_KEYS",
+    "tool": "ultrasec-v7/tools/external_signed_evidence.py",
+    "supported_integrity_checks": [
+      "owner_manifest_sha256",
+      "exact_100_holdout_membership",
+      "distinct_ed25519_public_keys",
+      "binary_signature_verification",
+      "reviewer_report_sha256",
+      "bounded_safe_private_paths"
+    ],
+    "required_for_external_completion": [
+      "100_origin_cases_reproduced_with_rights",
+      "2_external_qualified_reviewers_with_out_of_band_verified_keys",
+      "2_authentic_signed_reports",
+      "signed_adjudication",
+      "real_sast_outputs_and_rule_provenance",
+      "per_source_legal_permission"
+    ],
+    "authentic_signed_reports_received": 0,
+    "independently_authenticated_reviewer_identities": 0,
+    "note": "Ephemeral CI signers prove tooling only. A valid signature does not demonstrate reviewer credentials, independent expert adjudication, source-code rights or gold truth."
+  }
+}
