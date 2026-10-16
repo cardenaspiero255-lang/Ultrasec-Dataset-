@@ -245,29 +245,38 @@ def causal_patch_gate(vulnerable_code: str, fixed_code: str,
         # A single STRING/NUMBER token may encode thousands of modified
         # characters; weight its changed content without double-counting tokens.
         literal_edits=0
+        # The budget is derived ONLY from literals that changed. Unmodified
+        # neighbouring strings must not hide a complete rewrite of one literal.
+        modified_literal_bytes=0
+        literal_kinds=(_tokenize.STRING,_tokenize.NUMBER)
         for tag,i1,i2,j1,j2 in difflib.SequenceMatcher(
                 None,old_tokens,new_tokens,autojunk=False).get_opcodes():
             if tag=="equal":
                 continue
-            old_slice=old_tokens[i1:i2]
-            new_slice=new_tokens[j1:j2]
-            # Align literal tokens independently of grouping punctuation,
-            # e.g. STRING -> '(' STRING ')' must not evade the byte budget.
-            literal_kinds=(_tokenize.STRING,_tokenize.NUMBER)
-            old_literals=[t for t in old_slice if t[0] in literal_kinds]
-            new_literals=[t for t in new_slice if t[0] in literal_kinds]
-            # Inserted/deleted literals count by their whole size.
-            if len(old_literals)!=len(new_literals):
-                literal_edits+=sum(len(t[1]) for t in old_literals+new_literals)
-            for old,new in zip(old_literals,new_literals):
-                if old[0]!=new[0]:
-                    literal_edits+=max(len(old[1]),len(new[1]))
+            old_literals=[t for t in old_tokens[i1:i2] if t[0] in literal_kinds]
+            new_literals=[t for t in new_tokens[j1:j2] if t[0] in literal_kinds]
+            for change,a1,a2,b1,b2 in difflib.SequenceMatcher(
+                    None,old_literals,new_literals,autojunk=False).get_opcodes():
+                if change=="equal":
                     continue
-                literal_edits+=sum(max(a2-a1,b2-b1)
-                    for op,a1,a2,b1,b2 in difflib.SequenceMatcher(
-                        None,old[1],new[1],autojunk=False).get_opcodes()
-                    if op!="equal")
-        if literal_edits>max(64,len(vulnerable_code)//3):
+                old_changed=old_literals[a1:a2]
+                new_changed=new_literals[b1:b2]
+                for old,new in zip(old_changed,new_changed):
+                    modified_literal_bytes+=len(old[1])
+                    if old[0]!=new[0]:
+                        literal_edits+=max(len(old[1]),len(new[1]))
+                    else:
+                        literal_edits+=sum(max(p2-p1,q2-q1)
+                            for op,p1,p2,q1,q2 in difflib.SequenceMatcher(
+                                None,old[1],new[1],autojunk=False).get_opcodes()
+                            if op!="equal")
+                # Extra inserted or removed tokens count as full edits.
+                for old in old_changed[len(new_changed):]:
+                    modified_literal_bytes+=len(old[1])
+                    literal_edits+=len(old[1])
+                for new in new_changed[len(old_changed):]:
+                    literal_edits+=len(new[1])
+        if literal_edits>max(64,modified_literal_bytes//3):
             fail["nonminimal_patch"]+=1
         if token_edits>max(6,len(old_tokens)//3):
             fail["nonminimal_patch"]+=1
