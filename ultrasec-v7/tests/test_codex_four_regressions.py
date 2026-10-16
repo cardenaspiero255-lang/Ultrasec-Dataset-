@@ -57,6 +57,25 @@ class CodexFourRegressions(unittest.TestCase):
         result=gate.causal_patch_gate(before,after,{"vulnerable_reproduced":True,"fix_verified":True})
         self.assertIn("nonminimal_patch",result["failures"])
 
+    def test_unchanged_large_literals_cannot_dilute_another_rewrite(self):
+        gate=load("premium_evidence")
+        before_values=["A"*10000,"B"*10000,"C"*10000,"D"*10000]
+        after_values=["A"*10000,"X"*10000,"C"*10000,"D"*10000]
+        before="payload = ("+", ".join(map(repr,before_values))+")"
+        after="payload = ("+", ".join(map(repr,after_values))+")"
+        result=gate.causal_patch_gate(
+            before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertFalse(result["causal_gate_pass"])
+        self.assertIn("nonminimal_patch",result["failures"])
+
+    def test_small_literal_edit_near_large_unchanged_literal_remains_minimal(self):
+        gate=load("premium_evidence")
+        before="payload = ("+repr("A"*10000)+", 'unsafe')"
+        after="payload = ("+repr("A"*10000)+", 'safe')"
+        result=gate.causal_patch_gate(
+            before,after,{"vulnerable_reproduced":True,"fix_verified":True})
+        self.assertNotIn("nonminimal_patch",result["failures"])
+
     def test_pattern_capture_renames_are_trivial(self):
         gate=load("premium_evidence")
         before='match obj:\n    case {"x": value}:\n        print(value)'
