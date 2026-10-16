@@ -46,7 +46,7 @@ class SignedEvidenceContracts(unittest.TestCase):
             run("openssl","pkey","-in",str(key),"-pubout","-out",str(pub))
             rows=[{"case_id":i,"vulnerable_side":"A" if n%2 else "B"}
                   for n,i in enumerate(ids)]
-            report.write_text("".join(json.dumps(r,sort_keys=True)+"\\n" for r in rows))
+            report.write_text("".join(json.dumps(r,sort_keys=True)+"\n" for r in rows))
             run("openssl","pkeyutl","-sign","-rawin","-inkey",str(key),
                 "-in",str(report),"-out",str(sig))
             self.manifest["reviewers"][name]={
@@ -87,7 +87,7 @@ class SignedEvidenceContracts(unittest.TestCase):
         source=self.root/"b.jsonl"
         rows=[json.loads(s) for s in source.read_text().splitlines()]
         rows[-1]["case_id"]=rows[0]["case_id"]
-        source.write_text("".join(json.dumps(x)+"\\n" for x in rows))
+        source.write_text("".join(json.dumps(x)+"\n" for x in rows))
         # Cryptographic integrity fails too; membership must be checked independently.
         result=load().audit(self.root,self.manifest)
         self.assertFalse(result["membership_verified"])
