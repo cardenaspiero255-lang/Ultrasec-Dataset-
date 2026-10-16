@@ -7,6 +7,7 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import sys
 import subprocess
 import tempfile
 import unittest
@@ -63,6 +64,19 @@ class SignedEvidenceContracts(unittest.TestCase):
         self.assertEqual(result["human_independence"],"NOT_VERIFIED")
         self.assertEqual(result["commercial_rights"],"NOT_VERIFIED")
         self.assertNotIn("opaque-",str(result))
+
+    def test_cli_reports_only_aggregate_signature_state(self):
+        manifest=self.root/"manifest.json"
+        manifest.write_text(json.dumps(self.manifest),encoding="utf-8")
+        proc=subprocess.run([sys.executable,str(SCRIPT),"--root",
+            str(self.root),"--manifest",str(manifest)],
+            capture_output=True,text=True,timeout=10)
+        self.assertEqual(proc.returncode,0,proc.stderr)
+        body=json.loads(proc.stdout)
+        self.assertTrue(body["signatures_valid"])
+        self.assertTrue(body["membership_verified"])
+        self.assertFalse(body["externally_certified"])
+        self.assertNotIn("opaque-",proc.stdout)
 
     def test_tampered_review_is_rejected(self):
         with (self.root/"a.jsonl").open("ab") as stream:
