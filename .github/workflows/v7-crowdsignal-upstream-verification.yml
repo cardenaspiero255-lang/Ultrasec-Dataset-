@@ -139,11 +139,27 @@ jobs:
           set -euo pipefail
           cd upstream
           phpunit --version
+          set +e
           phpunit --configuration phpunit.xml --colors=never 2>&1 | tee ../phpunit-${{ matrix.version }}.log
+          test_exit="${PIPESTATUS[0]}"
+          set -e
           cd ..
-          sha256sum upstream/phpunit.xml phpunit-${{ matrix.version }}.log upstream_commit.txt wp_version.txt | tee checksums-${{ matrix.version }}.txt
+          echo "UPSTREAM_FULL_SUITE_EXIT=$test_exit" | tee upstream_suite_verdict.txt
+          if test "${{ matrix.version }}" = '1.7.2'; then
+            # Historical upstream test references a method absent in this revision.
+            # Preserve its real ERROR and require the exact known result; never call full suite PASS.
+            test "$test_exit" -ne 0
+            grep -Fq 'Account_Controller_Test::test_get_capabilities' phpunit-1.7.2.log
+            grep -Fq 'Tests: 23, Assertions: 50, Errors: 1.' phpunit-1.7.2.log
+            echo 'FULL_SUITE=EXPECTED_LEGACY_ERROR_NOT_PASS' | tee -a upstream_suite_verdict.txt
+          else
+            test "$test_exit" -eq 0
+            grep -Fq 'OK (98 tests, 191 assertions)' phpunit-1.8.0.log
+            echo 'FULL_SUITE=PASS' | tee -a upstream_suite_verdict.txt
+          fi
+          sha256sum upstream/phpunit.xml phpunit-${{ matrix.version }}.log upstream_commit.txt wp_version.txt upstream_suite_verdict.txt | tee checksums-${{ matrix.version }}.txt
       - name: Run legacy REST polls unit tests separately (keep full-suite failure)
-        if: ${{ failure() && matrix.version == '1.7.2' }}
+        if: ${{ matrix.version == '1.7.2' }}
         shell: bash
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
@@ -163,6 +179,7 @@ jobs:
             upstream_commit.txt
             wp_version.txt
             checksums-${{ matrix.version }}.txt
+            upstream_suite_verdict.txt
             legacy_test_only_compatibility_sha256.txt
             phpunit-polls-1.7.2.log
             legacy-focused-sha256.txt
