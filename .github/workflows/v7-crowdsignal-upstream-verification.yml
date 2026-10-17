@@ -36,6 +36,8 @@ jobs:
           --health-timeout=5s
           --health-retries=15
     steps:
+      - name: Checkout public research test (read-only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Set up PHP 8.1, Composer and PHPUnit 9.6
         uses: shivammathur/setup-php@v2
         with:
