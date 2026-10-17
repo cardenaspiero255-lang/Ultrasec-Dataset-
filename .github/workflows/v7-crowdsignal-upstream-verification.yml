@@ -142,6 +142,17 @@ jobs:
           phpunit --configuration phpunit.xml --colors=never 2>&1 | tee ../phpunit-${{ matrix.version }}.log
           cd ..
           sha256sum upstream/phpunit.xml phpunit-${{ matrix.version }}.log upstream_commit.txt wp_version.txt | tee checksums-${{ matrix.version }}.txt
+      - name: Run legacy REST polls unit tests separately (keep full-suite failure)
+        if: ${{ failure() && matrix.version == '1.7.2' }}
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: |
+          set -euo pipefail
+          cd upstream
+          phpunit --configuration phpunit.xml --colors=never tests/unit-tests/includes/rest-api/controllers/test-class.polls-controller.php 2>&1 | tee ../phpunit-polls-1.7.2.log
+          cd ..
+          sha256sum phpunit-polls-1.7.2.log | tee legacy-focused-sha256.txt
       - name: Publish only public test logs (not code or datasets)
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,6 +164,8 @@ jobs:
             wp_version.txt
             checksums-${{ matrix.version }}.txt
             legacy_test_only_compatibility_sha256.txt
+            phpunit-polls-1.7.2.log
+            legacy-focused-sha256.txt
           if-no-files-found: warn
           retention-days: 14
 
