@@ -12,8 +12,8 @@ class UltraSec_V7_Rest_Author_Test extends WP_UnitTestCase {
         $classname = 'Crowdsignal_Forms\\Rest_Api\\Controllers\\' .
             ( $kind === 'nps' ? 'Nps_Controller' : 'Feedback_Controller' );
         $this->assertTrue( class_exists( $classname ) );
-        $controller = new $classname();
-        $controller->register_routes();
+        // rest_get_server() invokes rest_api_init and registers upstream routes exactly once.
+        // Calling register_routes() here would trigger WordPress's incorrect-usage detector.
         $routes = rest_get_server()->get_routes();
         $response_route = '/crowdsignal-forms/v1/' . $kind . '/(?P<survey_id>\\d+)/response';
         $this->assertArrayHasKey( $response_route, $routes, 'Plugin routes must be loaded' );
@@ -28,7 +28,7 @@ class UltraSec_V7_Rest_Author_Test extends WP_UnitTestCase {
             }
             $methods = is_array( $handler['methods'] )
                 ? $handler['methods'] : explode( ',', $handler['methods'] );
-            if ( ! in_array( $method, $methods, true ) ) {
+            if ( ! in_array( $method, $methods, true ) && ! array_key_exists( $method, $methods ) ) {
                 continue;
             }
             $found = true;
