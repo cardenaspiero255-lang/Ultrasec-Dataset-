@@ -1,0 +1,31 @@
+# PUBLIC research metadata only. Does not certify any commercial dataset.
+name: V7 Candidate Research - Fail-Closed
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-candidate-cohort-research.yml'
+      - 'ultrasec-v7/tools/verify_candidate_cohort.py'
+      - 'ultrasec-v7/tests/test_verify_candidate_cohort.py'
+      - 'ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-research-invariants:
+    name: "Cohort: 18 research-only checks (NOT gold)"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact PR revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install fixed public test framework
+        run: python3 -m pip install --disable-pip-version-check 'pytest==8.4.2'
+      - name: Test fail-closed manifest validation
+        run: python3 -m pytest -q ultrasec-v7/tests/test_verify_candidate_cohort.py
+      - name: Print truthful metadata-only report
+        run: |
+          python3 ultrasec-v7/tools/verify_candidate_cohort.py \
+            ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json
+          echo 'This job checks public metadata consistency only. It does not verify real licensing, independent expert labels, private holdout, commercial resale rights or SAST on source pairs.' >> "$GITHUB_STEP_SUMMARY"
