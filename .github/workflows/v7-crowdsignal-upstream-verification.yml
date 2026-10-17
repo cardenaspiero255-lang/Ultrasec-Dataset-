@@ -225,6 +225,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
+      - name: Checkout public guard test (read-only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fetch official WordPress SVN tags at fixed revision
         shell: bash
         run: |
@@ -321,6 +323,47 @@ jobs:
           pathlib.Path('authorization_context_public_metadata.json').write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n')
           PY
           sha256sum authorization_context_public_metadata.json > authorization_context_sha256.txt
+      - name: Execute exact fixed PHP guard in a sandbox (no provider requests)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, hashlib
+          original=Path('snapshots/after/app/functions.php').read_text()
+          older=Path('snapshots/before/app/functions.php').read_text()
+          signature='function woo_bg_check_admin_label_actions()'
+          assert original.count(signature)==1, 'Guard must occur exactly once in official 3.0.15'
+          assert signature not in older, 'Old release unexpectedly contains same guard'
+          start=original.index(signature)
+          opened=original.index('{',start)
+          count=0
+          end=None
+          for i in range(opened,len(original)):
+              if original[i]=='{': count+=1
+              if original[i]=='}':
+                  count-=1
+                  if count==0:
+                      end=i+1
+                      break
+          assert end is not None
+          function=original[start:end]
+          assert 'wp_verify_nonce' in function and 'current_user_can' in function
+          p=Path('original_fixed_admin_guard.php')
+          p.write_text('<?php\n'+function+'\n')
+          print('ORIGINAL_PHP_GUARD_SHA256='+hashlib.sha256(p.read_bytes()).hexdigest())
+          observed={}
+          for name in ('CVC','Econt','Speedy'):
+              src=Path('snapshots/after/app/Admin/'+name+'.php').read_text()
+              observed[name]=src.count('woo_bg_check_admin_label_actions(')
+              assert observed[name]>=2, 'Missing call sites in original '+name
+          print('GUARD_CALLS_PER_PROVIDER='+json.dumps(observed))
+          PY
+          php -v | head -2
+          php ultrasec-v7/verification/research/bulgarisation_admin_guard_harness.php original_fixed_admin_guard.php 2>&1 | tee bulgarisation-guard-behavior.log
+          grep -Fq 'SUMMARY 4/4' bulgarisation-guard-behavior.log
+          sha256sum original_fixed_admin_guard.php ultrasec-v7/verification/research/bulgarisation_admin_guard_harness.php bulgarisation-guard-behavior.log > bulgarisation_guard_sha256.txt
+          echo 'ISOLATED_TEST_ONLY=YES; WP_E2E=NOT_RUN; LEGAL_RIGHTS=NOT_VERIFIED'
       - name: Export hashes and metadata only
         if: always()
         uses: actions/upload-artifact@v4
@@ -334,5 +377,7 @@ jobs:
             svn_manifest_sha256.txt
             authorization_context_public_metadata.json
             authorization_context_sha256.txt
+            bulgarisation-guard-behavior.log
+            bulgarisation_guard_sha256.txt
           if-no-files-found: warn
           retention-days: 14
