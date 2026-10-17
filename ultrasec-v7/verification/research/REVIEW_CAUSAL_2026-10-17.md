@@ -44,7 +44,7 @@ Con `node --test` se ejecutó el módulo original en un contexto `vm` con su ún
 | MISP cti-transmute | `LICENSE` `0ad25db4bd1d86c452db3f9602ccdbe172438f52` | AGPL-3.0 | RIGHTS_NOT_VERIFIED |
 | Gladys | `LICENSE` `7af6969976f3d720a8d7f6329fd76ebc0cfd4af9` | Apache-2.0 | RIGHTS_NOT_VERIFIED |
 | Leptonica | `leptonica-license.txt` `73d44c601c0746534128804c3fb0b93772897f82` | licencia permisiva propia con obligaciones de atribución | RIGHTS_NOT_VERIFIED |
-| Linux | [reglas de licencia oficiales](https://docs.kernel.org/process/license-rules.html) | GPL-2.0-only para el conjunto; SPDX por archivo a examinar | RIGHTS_NOT_VERIFIED |
+| Linux | `COPYING` histórico blob `a635a38ef9405fdfcfe97f3a435393c1e9cae971`; `df_v1_7.c` blob `5dfab80ffff213f11d5de27dd7e5c90faa06545e` | Kernel bajo GPL-2.0-only con Linux-syscall-note; el archivo AMD tiene cabecera de licencia permisiva propia; reconciliar derechos y atribución por archivo | RIGHTS_NOT_VERIFIED |
 
 **Advertencia:** localizar y leer licencias históricas no demuestra permiso para vender un dataset concreto sin revisar alcance, terceros, atribución y naturaleza de derivados.
 
