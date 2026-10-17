@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   isolated-parser:
-    if: \${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
     runs-on: ubuntu-22.04
     timeout-minutes: 12
     strategy:
@@ -24,7 +24,7 @@ jobs:
       - name: Resolve exact upstream commit
         shell: bash
         env:
-          SOURCE_SHA: \${{ matrix.sha }}
+          SOURCE_SHA: ${{ matrix.sha }}
         run: |
           set -euo pipefail
           mkdir upstream
@@ -38,7 +38,7 @@ jobs:
       - name: Extract exact static parser to isolated C harness
         shell: bash
         env:
-          VARIANT: \${{ matrix.version }}
+          VARIANT: ${{ matrix.version }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -71,7 +71,7 @@ jobs:
       - name: Assert ASan RED on vulnerable and GREEN on patched
         shell: bash
         env:
-          VARIANT: \${{ matrix.version }}
+          VARIANT: ${{ matrix.version }}
         run: |
           set -euo pipefail
           set +e
@@ -93,7 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: moonlight-public-\${{ matrix.version }}
+          name: moonlight-public-${{ matrix.version }}
           path: |
             original_commit.txt
             original_blob.txt
