@@ -150,7 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           cd upstream
-          phpunit --configuration phpunit.xml --colors=never tests/unit-tests/includes/rest-api/controllers/test-class.polls-controller.php 2>&1 | tee ../phpunit-polls-1.7.2.log
+          phpunit --configuration phpunit.xml --colors=never --filter '^Polls_Controller_Test' 2>&1 | tee ../phpunit-polls-1.7.2.log
           cd ..
           sha256sum phpunit-polls-1.7.2.log | tee legacy-focused-sha256.txt
       - name: Publish only public test logs (not code or datasets)
