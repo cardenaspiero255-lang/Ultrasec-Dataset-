@@ -57,6 +57,8 @@ Con `node --test` se ejecutó el módulo original en un contexto `vm` con su ún
 - **CVE-2025-60109 (CWE-89):** plugin comercial WordPress LambertGroup; solo aviso disponible, sin parche/licencia de redistribución acreditados. `BLOCKED_PROVENANCE_AND_RIGHTS`.
 - **CVE-2026-63048 (CWE-434):** extensión Joomla Page Builder CK; ausencia de fuente/patch verificables para el uso solicitado. `BLOCKED_PROVENANCE_AND_RIGHTS`.
 
+- **CVE-2024-38638 (CWE-787):** comunicado de seguridad QNAP para QTS/QuTS hero (https://www.qnap.com/en/security-advisory/qsa-24-52). No se ha conseguido el código fuente y un diff reparador reproducible: `BLOCKED_NO_PUBLIC_SOURCE`.
+
 Ningún caso bloqueado se descuenta silenciosamente: hay **100 IDs como inventario de descubrimiento**, pero **NO 100 casos potencialmente reproducibles demostrados**, y deberán sustituirse los que no cumplan los requisitos.
 
 ## Requisitos siguientes
