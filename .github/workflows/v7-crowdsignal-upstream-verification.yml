@@ -169,6 +169,34 @@ jobs:
           phpunit --configuration phpunit.xml --colors=never --filter '^Polls_Controller_Test' 2>&1 | tee ../phpunit-polls-1.7.2.log
           cd ..
           sha256sum phpunit-polls-1.7.2.log | tee legacy-focused-sha256.txt
+      - name: Execute original WordPress permission callbacks under author role
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          VER: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          cp ultrasec-v7/verification/research/crowdsignal_rest_author_permissions_test.php upstream/tests/unit-tests/
+          sha256sum upstream/tests/unit-tests/crowdsignal_rest_author_permissions_test.php > rest_test_sha256.txt
+          cd upstream
+          set +e
+          phpunit --configuration phpunit.xml --colors=never --filter '^UltraSec_V7_Rest_Author_Test::test_' > ../rest-author-$VER.log 2>&1
+          code=$?
+          set -e
+          cd ..
+          cat "rest-author-$VER.log"
+          echo "REST_TEST_EXIT=$code" > rest_author_verdict.txt
+          if test "$VER" = '1.7.2'; then
+            test "$code" -ne 0
+            grep -Fq 'Tests: 4' rest-author-1.7.2.log
+            grep -Fq 'Failures: 4' rest-author-1.7.2.log
+            echo "EXPECTED_RED_AUTHOR_PERMISSIONS=true" >> rest_author_verdict.txt
+          else
+            test "$code" -eq 0
+            grep -Eq 'OK \(4 tests,' rest-author-1.8.0.log
+            echo "EXPECTED_GREEN_AUTHOR_PERMISSIONS=true" >> rest_author_verdict.txt
+          fi
+          sha256sum "rest-author-$VER.log" rest_author_verdict.txt > rest_author_hashes.txt
       - name: Publish only public test logs (not code or datasets)
         if: always()
         uses: actions/upload-artifact@v4
@@ -183,6 +211,9 @@ jobs:
             legacy_test_only_compatibility_sha256.txt
             phpunit-polls-1.7.2.log
             legacy-focused-sha256.txt
+            rest_test_sha256.txt
+            rest_author_verdict.txt
+            rest_author_hashes.txt
           if-no-files-found: warn
           retention-days: 14
 
