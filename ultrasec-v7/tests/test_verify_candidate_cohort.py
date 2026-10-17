@@ -1,12 +1,10 @@
-"""Negative security controls: public research must never be promoted to gold."""
+"""Fail-closed security invariants of public pre-admission metadata (stdlib only)."""
 from __future__ import annotations
-
 import copy
 import json
 import sys
+import unittest
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -19,50 +17,56 @@ def fixture():
     return json.loads(REGISTRY.read_text(encoding="utf-8"))
 
 
-def test_documented_five_candidates_are_public_and_not_gold():
-    registry = fixture()
-    assert validate(registry) == []
-    status = report(registry)
-    assert status["candidate_count"] == 5
-    assert status["native_red_green_count"] == 2
-    assert status["confirmed_gold_count"] == 0
-    assert status["certification"] == "NOT_CERTIFIED"
+class ResearchCohortContract(unittest.TestCase):
+    def test_registry_has_five_cases_and_two_native_witnesses_without_gold(self):
+        doc = fixture()
+        self.assertEqual(validate(doc), [])
+        result = report(doc)
+        self.assertEqual(result["candidate_count"], 5)
+        self.assertEqual(result["native_red_green_count"], 2)
+        self.assertEqual(result["confirmed_gold_count"], 0)
+        self.assertEqual(result["certification"], "NOT_CERTIFIED")
+
+    def test_missing_registry_rejected(self):
+        self.assertTrue(validate({}))
+
+    def test_ci_is_not_independent_external_security_adjudication(self):
+        doc = fixture()
+        self.assertEqual(doc["candidates"][0]["native_evidence"], "RED_GREEN_REPRODUCED")
+        self.assertEqual(report(doc)["confirmed_gold_count"], 0)
+
+    def test_repeated_original_patch_pair_is_rejected(self):
+        doc = fixture()
+        doc["candidates"][4]["source_commit"] = doc["candidates"][0]["source_commit"]
+        doc["candidates"][4]["fix_commit"] = doc["candidates"][0]["fix_commit"]
+        self.assertIn("duplicate_source_patch_pair", validate(doc))
 
 
-@pytest.mark.parametrize("tamper", [
-    lambda d: d["candidates"][0].update(gold_status="ADMITTED"),
-    lambda d: d["candidates"][0].update(independent_review="EXPERT_ADJUDICATED"),
-    lambda d: d["candidates"][0].update(commercial_rights="CLEARED"),
-    lambda d: d["candidates"][0].update(split="TEST"),
-    lambda d: d["candidates"][0].update(provenance="PRIVATE_SOURCE"),
-    lambda d: d.update(certification="CERTIFIED"),
-    lambda d: d["candidates"][1].update(cve_id=d["candidates"][0]["cve_id"]),
-    lambda d: d["candidates"][1].update(cwe_id="CWE-9999"),
-    lambda d: d["candidates"][0].update(source_commit="deadbeef"),
-    lambda d: d["candidates"][0].update(native_evidence="PASS"),
-    lambda d: d["candidates"].pop(),
-    lambda d: d["candidates"][0].update(training_import="YES"),
-    lambda d: d["candidates"][0].update(vulnerable_reproduced="YES"),
-    lambda d: d["candidates"][0].update(source_url="http://example.invalid"),
-])
-def test_invalid_claims_are_rejected(tamper):
-    registry = copy.deepcopy(fixture())
-    tamper(registry)
-    assert validate(registry), "invalid or overclaiming registry was accepted"
+NEGATIVE_CASES = {
+    "self_certified_gold": lambda d: d["candidates"][0].update(gold_status="ADMITTED"),
+    "fabricated_expert": lambda d: d["candidates"][0].update(independent_review="EXPERT_ADJUDICATED"),
+    "fabricated_rights": lambda d: d["candidates"][0].update(commercial_rights="CLEARED"),
+    "holdout_leak": lambda d: d["candidates"][0].update(split="TEST"),
+    "private_source": lambda d: d["candidates"][0].update(provenance="PRIVATE_SOURCE"),
+    "fake_certification": lambda d: d.update(certification="CERTIFIED"),
+    "duplicate_cve": lambda d: d["candidates"][1].update(cve_id=d["candidates"][0]["cve_id"]),
+    "unknown_cwe": lambda d: d["candidates"][1].update(cwe_id="CWE-9999"),
+    "short_sha": lambda d: d["candidates"][0].update(source_commit="deadbeef"),
+    "fake_pass_native": lambda d: d["candidates"][0].update(native_evidence="PASS"),
+    "missing_candidate": lambda d: d["candidates"].pop(),
+    "training_import": lambda d: d["candidates"][0].update(training_import="YES"),
+    "faked_witness": lambda d: d["candidates"][0].update(vulnerable_reproduced="YES"),
+    "http_evidence": lambda d: d["candidates"][0].update(source_url="http://example.invalid"),
+}
 
 
-def test_empty_manifest_is_rejected():
-    assert validate({})
+def make_negative_test(tamper):
+    def test(self):
+        doc = copy.deepcopy(fixture())
+        tamper(doc)
+        self.assertTrue(validate(doc), "Unsafe metadata was accepted")
+    return test
 
 
-def test_ci_is_not_an_independent_adjudicator():
-    registry = fixture()
-    assert registry["candidates"][0]["native_evidence"] == "RED_GREEN_REPRODUCED"
-    assert report(registry)["confirmed_gold_count"] == 0
-
-
-def test_duplicate_original_patch_pair_is_rejected():
-    registry = fixture()
-    registry["candidates"][4]["source_commit"] = registry["candidates"][0]["source_commit"]
-    registry["candidates"][4]["fix_commit"] = registry["candidates"][0]["fix_commit"]
-    assert "duplicate_source_patch_pair" in validate(registry)
+for name, tamper in NEGATIVE_CASES.items():
+    setattr(ResearchCohortContract, "test_reject_" + name, make_negative_test(tamper))
