@@ -24,7 +24,7 @@ def test_documented_five_candidates_are_public_and_not_gold():
     assert validate(registry) == []
     status = report(registry)
     assert status["candidate_count"] == 5
-    assert status["native_red_green_count"] == 1
+    assert status["native_red_green_count"] == 2
     assert status["confirmed_gold_count"] == 0
     assert status["certification"] == "NOT_CERTIFIED"
 
