@@ -1,0 +1,118 @@
+# UltraSec V7: public upstream regression evidence only.
+# PR #10 research branch; no gold/holdout/private dataset read or uploaded.
+name: V7 Crowdsignal upstream PHPUnit evidence
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-crowdsignal-upstream-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upstream-phpunit:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '1.7.2'
+            sha: 'e0084d0760a16babe9ae441e24de3f4910d57b27'
+          - version: '1.8.0'
+            sha: '9ebf48d8d9d80fe96a2813d9a66120431399cac9'
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_public_test
+          MYSQL_DATABASE: wordpress_test
+        ports: [ '3306:3306' ]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci_public_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - name: Set up PHP 8.1, Composer and PHPUnit 9.6
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2, phpunit:9.6
+          extensions: mysqli, pdo_mysql, mbstring, xml, curl, zip
+          coverage: none
+      - name: Fetch exact upstream commit and verify SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/Automattic/crowdsignal-forms.git
+          git -C upstream -c protocol.version=2 fetch --depth 1 origin "$EXPECTED_SHA"
+          git -C upstream checkout --detach --quiet FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
+          git -C upstream show -s --format='UPSTREAM_SHA=%H%nUPSTREAM_DATE=%cI' HEAD | tee upstream_commit.txt
+      - name: Install pinned WordPress test environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion default-mysql-client
+          curl --fail --location --retry 3 --output wp.tar.gz https://wordpress.org/wordpress-6.6.2.tar.gz
+          mkdir -p /tmp/wordpress
+          tar -xzf wp.tar.gz -C /tmp
+          svn export --non-interactive --quiet https://develop.svn.wordpress.org/tags/6.6.2/tests/phpunit /tmp/wordpress-tests-lib
+          cat > /tmp/wordpress-tests-lib/wp-tests-config.php <<'PHP'
+          <?php
+          define( 'ABSPATH', '/tmp/wordpress/' );
+          define( 'DB_NAME', 'wordpress_test' );
+          define( 'DB_USER', 'root' );
+          define( 'DB_PASSWORD', 'ci_public_test' );
+          define( 'DB_HOST', '127.0.0.1' );
+          define( 'DB_CHARSET', 'utf8' );
+          define( 'DB_COLLATE', '' );
+          define( 'WP_TESTS_DOMAIN', 'example.org' );
+          define( 'WP_TESTS_EMAIL', 'test@example.org' );
+          define( 'WP_TESTS_TITLE', 'Public upstream isolated tests' );
+          define( 'WP_PHP_BINARY', 'php' );
+          define( 'WP_TESTS_MULTISITE', false );
+          PHP
+          test -f /tmp/wordpress-tests-lib/includes/bootstrap.php
+          mysql --host 127.0.0.1 --user root --password=ci_public_test --execute 'SELECT VERSION();'
+          printf 'WP_VERSION=6.6.2\n' | tee wp_version.txt
+      - name: Install upstream dependencies from lockfile when available
+        shell: bash
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          php -v | head -2
+          composer --version
+          if test -f composer.lock; then sha256sum composer.lock; fi
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Run original PHPUnit suite and record log
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: |
+          set -euo pipefail
+          cd upstream
+          phpunit --version
+          phpunit --configuration phpunit.xml --colors=never 2>&1 | tee ../phpunit-${{ matrix.version }}.log
+          cd ..
+          sha256sum upstream/phpunit.xml phpunit-${{ matrix.version }}.log upstream_commit.txt wp_version.txt | tee checksums-${{ matrix.version }}.txt
+      - name: Publish only public test logs (not code or datasets)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crowdsignal-public-test-${{ matrix.version }}
+          path: |
+            phpunit-${{ matrix.version }}.log
+            upstream_commit.txt
+            wp_version.txt
+            checksums-${{ matrix.version }}.txt
+          if-no-files-found: warn
+          retention-days: 14
