@@ -13,7 +13,7 @@ SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 CVE = re.compile(r"CVE-[0-9]{4}-[0-9]{4,}\Z")
 CWES = frozenset({"CWE-79", "CWE-89", "CWE-352", "CWE-862", "CWE-787", "CWE-22",
                   "CWE-416", "CWE-125", "CWE-78", "CWE-94", "CWE-120", "CWE-434"})
-NATIVE = frozenset({"RED_GREEN_REPRODUCED", "DIFF_ONLY",
+NATIVE = frozenset({"RED_GREEN_REPRODUCED", "DIFF_ONLY", "FIXED_GUARD_ISOLATED_PASS",
                     "UPSTREAM_SUITES_EXECUTED_NO_CVE_REPRO", "PATCH_LOCATED_NO_RUN"})
 REQUIRED = frozenset({"cve_id", "cwe_id", "name", "source_url", "source_commit",
     "fix_commit", "source_release_sha256", "fix_release_sha256", "native_evidence",
