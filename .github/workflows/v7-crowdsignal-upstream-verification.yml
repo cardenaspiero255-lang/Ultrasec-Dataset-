@@ -103,6 +103,25 @@ jobs:
           composer install --working-dir=/tmp/wp-polyfills --no-interaction --prefer-dist --no-progress --no-scripts
           test -f /tmp/wp-polyfills/vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php
           sha256sum /tmp/wp-polyfills/composer.lock | tee polyfills-lock-sha256.txt
+      - name: Adapt ONLY old test bootstrap signature for PHP 8.1 (never production source)
+        if: ${{ matrix.version == '1.7.2' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=upstream/tests/framework/class-crowdsignal-forms-unit-test-case.php
+          sha256sum "$target" | tee old-test-bootstrap-upstream-sha256.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('upstream/tests/framework/class-crowdsignal-forms-unit-test-case.php')
+          s=p.read_text()
+          needle='public function setUp() {'
+          assert s.count(needle)==1, 'Unexpected upstream test-bootstrap layout'
+          p.write_text(s.replace(needle,'public function setUp(): void {'))
+          PY
+          sha256sum "$target" | tee old-test-bootstrap-adapted-sha256.txt
+          git -C upstream diff --check
+          git -C upstream diff --stat
+          echo 'TEST_ONLY_COMPATIBILITY_ADAPTATION=yes (production source untouched)'
       - name: Run original PHPUnit suite and record log
         shell: bash
         env:
