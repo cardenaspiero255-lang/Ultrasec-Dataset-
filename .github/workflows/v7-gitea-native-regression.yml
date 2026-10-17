@@ -56,9 +56,39 @@ jobs:
           set -euo pipefail
           cd upstream
           go version
-          go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update$' ./services/release -v 2>&1 | tee ../gitea-${{ matrix.version }}.log
+          # An expected RED result counts as a successful *regression experiment*, not a passing upstream test.
+          set +e
+          go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update
+      - name: Preserve public logs and SHA; never archive source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitea-native-public-${{ matrix.version }}
+          path: |
+            source_sha.txt
+            test_provenance.txt
+            source_hashes.txt
+            gitea-${{ matrix.version }}.log
+            log_sha256.txt
+            native_verdict.txt
+          if-no-files-found: warn
+          retention-days: 14
+ ./services/release -v 2>&1 | tee ../gitea-${{ matrix.version }}.log
+          test_exit="${PIPESTATUS[0]}"
+          set -e
           cd ..
-          sha256sum gitea-${{ matrix.version }}.log > log_sha256.txt
+          echo "UPSTREAM_TEST_EXIT=$test_exit" | tee native_verdict.txt
+          if test "${{ matrix.version }}" = before; then
+            test "$test_exit" -ne 0
+            grep -Fq -- '--- FAIL: TestRelease_Update' gitea-before.log
+            grep -Fq -- 'An error is expected but got nil.' gitea-before.log
+            echo 'EXPECTED_RED_VERIFIED=true' | tee -a native_verdict.txt
+          else
+            test "$test_exit" -eq 0
+            grep -Fq -- '--- PASS: TestRelease_Update' gitea-after.log
+            echo 'FIXED_GREEN_VERIFIED=true' | tee -a native_verdict.txt
+          fi
+          sha256sum gitea-${{ matrix.version }}.log native_verdict.txt > log_sha256.txt
       - name: Preserve public logs and SHA; never archive source
         if: always()
         uses: actions/upload-artifact@v4
