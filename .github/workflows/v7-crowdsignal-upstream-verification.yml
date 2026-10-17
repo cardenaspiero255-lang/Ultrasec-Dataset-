@@ -80,6 +80,7 @@ jobs:
           define( 'WP_TESTS_TITLE', 'Public upstream isolated tests' );
           define( 'WP_PHP_BINARY', 'php' );
           define( 'WP_TESTS_MULTISITE', false );
+          define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', '/tmp/wp-polyfills/vendor/yoast/phpunit-polyfills' );
           PHP
           test -f /tmp/wordpress-tests-lib/includes/bootstrap.php
           mysql --host 127.0.0.1 --user root --password=ci_public_test --execute 'SELECT VERSION();'
@@ -93,6 +94,15 @@ jobs:
           composer --version
           if test -f composer.lock; then sha256sum composer.lock; fi
           composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Install pinned PHPUnit polyfills outside upstream tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wp-polyfills
+          printf '%s\n' '{"require":{"yoast/phpunit-polyfills":"2.0.0"}}' > /tmp/wp-polyfills/composer.json
+          composer install --working-dir=/tmp/wp-polyfills --no-interaction --prefer-dist --no-progress --no-scripts
+          test -f /tmp/wp-polyfills/vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php
+          sha256sum /tmp/wp-polyfills/composer.lock | tee polyfills-lock-sha256.txt
       - name: Run original PHPUnit suite and record log
         shell: bash
         env:
@@ -117,7 +127,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  bulgarisation-svn-snapshots:
+  bulgarisation-versioned-snapshots:
     # Read-only inspection of public source: no plugin execution or dataset export.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
     runs-on: ubuntu-22.04
@@ -130,13 +140,29 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq subversion
           mkdir -p snapshots
-          svn export --non-interactive --quiet -r 3034198 \
-            https://plugins.svn.wordpress.org/bulgarisation-for-woocommerce/tags/3.0.14 snapshots/before
-          svn export --non-interactive --quiet -r 3034198 \
-            https://plugins.svn.wordpress.org/bulgarisation-for-woocommerce/tags/3.0.15 snapshots/after
+          for entry in '3.0.14:before' '3.0.15:after'; do
+            version="${entry%%:*}"
+            dest="${entry#*:}"
+            svn_url="https://plugins.svn.wordpress.org/bulgarisation-for-woocommerce/tags/$version"
+            if svn info --non-interactive -r 3034198 "$svn_url" >/dev/null 2>&1; then
+              svn export --non-interactive --quiet -r 3034198 "$svn_url" "snapshots/$dest"
+              echo "$version SVN r3034198 $svn_url" >> source_revisions.txt
+            elif svn info --non-interactive "$svn_url" >/dev/null 2>&1; then
+              revision="$(svn info --non-interactive --show-item last-changed-revision "$svn_url")"
+              svn export --non-interactive --quiet "$svn_url" "snapshots/$dest"
+              echo "$version SVN HEAD $revision $svn_url" >> source_revisions.txt
+            else
+              url="https://downloads.wordpress.org/plugin/bulgarisation-for-woocommerce.$version.zip"
+              curl --fail --location --retry 3 --silent --show-error -o "pkg-$version.zip" "$url"
+              mkdir -p "wpzip-$version"
+              unzip -qq "pkg-$version.zip" -d "wpzip-$version"
+              mv "wpzip-$version/bulgarisation-for-woocommerce" "snapshots/$dest"
+              echo "$version WP_OFFICIAL_ZIP $url $(sha256sum "pkg-$version.zip" | cut -d' ' -f1)" >> source_revisions.txt
+            fi
+          done
           (cd snapshots/before && find . -type f -print0 | sort -z | xargs -0 sha256sum) > hashes-3.0.14.txt
           (cd snapshots/after && find . -type f -print0 | sort -z | xargs -0 sha256sum) > hashes-3.0.15.txt
-          echo "SVN_REVISION=3034198" | tee svn_revision.txt
+          cat source_revisions.txt
           test -s hashes-3.0.14.txt
           test -s hashes-3.0.15.txt
       - name: Compare authorization control changes without publishing code
@@ -165,22 +191,22 @@ jobs:
               else:
                   api_deltas={}
               rows.append({'file':name,'before_sha256':hashlib.sha256(x).hexdigest() if p else None,'after_sha256':hashlib.sha256(y).hexdigest() if q else None,'authorization_api_line_deltas':api_deltas})
-          summary={'source':'Official WordPress SVN tags 3.0.14 and 3.0.15 at r3034198','revision':3034198,'files_changed':len(rows),'files':rows,'rights':'NOT_VERIFIED','gold':'NOT_ADMITTED','causal_e2e':'NOT_RUN'}
+          summary={'source':'Official versioned WordPress SVN tags or official WordPress release archives (actual origin in sources)','sources':pathlib.Path('source_revisions.txt').read_text().splitlines(),'files_changed':len(rows),'files':rows,'rights':'NOT_VERIFIED','gold':'NOT_ADMITTED','causal_e2e':'NOT_RUN'}
           pathlib.Path('svn_comparison_public_metadata.json').write_text(json.dumps(summary,indent=2,ensure_ascii=False)+'\n')
           print('CHANGED_FILES='+str(len(rows)))
           for item in rows:
               print('PATH='+item['file']+' API_DELTAS='+json.dumps({k:v for k,v in item['authorization_api_line_deltas'].items() if v['added'] or v['removed']}))
           PY
-          sha256sum hashes-3.0.14.txt hashes-3.0.15.txt svn_comparison_public_metadata.json > svn_manifest_sha256.txt
+          sha256sum hashes-3.0.14.txt hashes-3.0.15.txt source_revisions.txt svn_comparison_public_metadata.json > svn_manifest_sha256.txt
       - name: Export hashes and metadata only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bulgarisation-svn-public-evidence
+          name: bulgarisation-official-version-evidence
           path: |
             hashes-3.0.14.txt
             hashes-3.0.15.txt
-            svn_revision.txt
+            source_revisions.txt
             svn_comparison_public_metadata.json
             svn_manifest_sha256.txt
           if-no-files-found: warn
