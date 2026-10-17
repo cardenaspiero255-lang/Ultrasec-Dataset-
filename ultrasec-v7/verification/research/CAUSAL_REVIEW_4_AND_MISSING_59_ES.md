@@ -49,3 +49,32 @@ Inspeccionar `LICENSE` en un commit acredita un texto histórico, no el derecho 
 Cualquier admisión futura exige evidencia externa independiente, caso vulnerable/fix ejecutado en sandbox con logs, huellas de contenido, revisión de derechos y control de leakage. El estado de todos los CVE aquí descritos sigue: **GOLD=NOT_ADMITTED; SAST_REAL=NOT_RUN; RIGHTS=NOT_VERIFIED**.
 
 **PR #7 no se modifica ni se fusiona.** PR #10 debe permanecer Draft hasta comprobación final de CI y criterios de su propio alcance, sin confundir CI pública con certificación comercial.
+
+
+## Adenda: contraste reproducible del validador y descarte documental (17-10-2026)
+
+### Gladys — repetición de prueba aislada con un oráculo más estricto
+
+Comprobación adicional del archivo exacto publicado por Gladys en el commit \`f27d0ea4689c3deca5739b5f9ed45a2ddbf00b7b\`:
+
+- Ruta: \`server/services/rtsp-camera/utils/validateStreamParams.js\`.
+- Git **blob SHA-1** confirmado con \`git hash-object\`: \`6585341516562db2707ed4817efedb3b462f89e6\`, coincidente con GitHub.
+- Node.js 22.16.0. Se proporcionó exclusivamente el \`Error400\` mínimo necesario para importar el archivo sin la aplicación completa. Se ejecutaron **7 expectativas de aceptación/rechazo**: **3 PASS / 4 FAIL** sobre el archivo upstream del commit de corrección. Los cuatro fallos se deben a una expresión regular que permite coincidencias parciales o un punto no escapado.
+- Una **copia de control local NO upstream** con expresión de nombre completo y punto literal obtuvo **7 PASS / 0 FAIL**, sin modificar el repositorio de Gladys.
+- Los resultados pertenecen **solo al validador**; no reproducen la traversía de directorios HTTP real, el enrutamiento, ni una explotación. No se declara la remediación completa ni se acepta como gold. La diferencia con el anterior recuento 4/7 y 3/7 se debe a que esta batería contiene **cuatro** casos negativos adversariales, no tres.
+- SHA-256 del archivo original (local): \`50f35e58b5a949101fa5f9141d4247d16f3ea4330490f217dbb078b7c28b07b1\`.
+- SHA-256 del script de siete pruebas: \`5526b670976eb3d9cfe8c43b81b3f1a4adf2ab4b85d528dfe8896f966824e8ea\`.
+
+### Entre los otros 59 — más evidencia, sin dar casos por reproducidos
+
+**CVE-2024-46724 / CWE-125:** confirmados ahora el commit upstream en [torvalds/linux](https://github.com/torvalds/linux/commit/d768394fa99467bcf2703bde74ddc96eeb0b71fa), SHA completo \`d768394fa99467bcf2703bde74ddc96eeb0b71fa\`, padre \`cdca89bce4984f1bb6e53cd4084820d4ff54f977\` y diff de \`drivers/gpu/drm/amd/amdgpu/df_v1_7.c\` con comprobación del límite \`ARRAY_SIZE\` antes de indexar. El anuncio oficial contiene seis SHAs de backports que **no** son seis vulnerabilidades distintas. Archivo \`COPYING\` del commit upstream, blob \`a635a38ef9405fdfcfe97f3a435393c1e9cae971\`, identifica GPL-2.0 con Linux-syscall-note y advierte que algunos archivos tienen licencias adicionales. **No hay ejecución reproducible con hardware/configuración Kconfig**, ni revisión comercial.
+
+**CVE-2025-6130 / CWE-120:** [CVE.org](https://www.cve.org/CVERecord?id=CVE-2025-6130) lo asocia a firmware TOTOLINK EX1200T. No se acreditó acceso a revisiones originales de código ni licencia redistribuible. **DEPRIORITIZED_SOURCE_UNAVAILABLE**; no usar PoC publicado como sustituto de fuente original ni permiso de reventa.
+
+**CVE-2022-1519 / CWE-434:** [NVD](https://nvd.nist.gov/vuln/detail/CVE-2022-1519) describe Illumina Local Run Manager, no un proyecto WordPress. No hay pares de commits originales comprobados ni condiciones comerciales acreditadas. **DEPRIORITIZED_SOURCE_UNAVAILABLE**.
+
+**CVE-2024-36074 / CWE-94:** [NVD](https://nvd.nist.gov/vuln/detail/CVE-2024-36074) describe agentes comerciales Netwrix/CoSoSys. Los datos actuales no permiten reconstruir un par de código original con permiso de reutilización. **DEPRIORITIZED_SOURCE_UNAVAILABLE**.
+
+Los estados de esos cuatro registros permanecen **NOT_ADMITTED**. La prioridad siguiente es auditar los commits de los candidatos con fuente libre (especialmente kernel y dpic), ejecutar pruebas reproducibles en el entorno upstream correcto y solicitar revisión de licencias conforme al uso comercial concreto.
+
+**Control final de esta adenda:** pruebas aisladas ≠ test E2E; existencia del commit ≠ causalidad totalmente acreditada; \`COPYING\` histórico ≠ licencia comercial aprobada. No se han creado falsos controles humanos, firmas, métricas SAST ni admisiones gold.
