@@ -108,17 +108,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          target=upstream/tests/framework/class-crowdsignal-forms-unit-test-case.php
-          sha256sum "$target" | tee old-test-bootstrap-upstream-sha256.txt
           python3 - <<'PY'
-          from pathlib import Path
-          p=Path('upstream/tests/framework/class-crowdsignal-forms-unit-test-case.php')
-          s=p.read_text()
-          needle='public function setUp() {'
-          assert s.count(needle)==1, 'Unexpected upstream test-bootstrap layout'
-          p.write_text(s.replace(needle,'public function setUp(): void {'))
+          import pathlib,re,hashlib
+          root=pathlib.Path('upstream/tests')
+          changed=[]
+          pattern=re.compile(r'(\bfunction\s+(?:setUp|tearDown)\s*\(\s*\))(\s*\{)')
+          for p in sorted(root.rglob('*.php')):
+              s=p.read_text()
+              new,n=pattern.subn(r'\1: void\2',s)
+              if n:
+                  before=hashlib.sha256(s.encode()).hexdigest()
+                  after=hashlib.sha256(new.encode()).hexdigest()
+                  p.write_text(new)
+                  changed.append((str(p.relative_to(root)),n,before,after))
+          assert changed,'Expected legacy test methods requiring PHP 8.1 signature compatibility'
+          with open('legacy_test_only_compatibility_sha256.txt','w') as output:
+              for name,n,before,after in changed:
+                  print(name, 'signature_count='+str(n), 'upstream_sha256='+before, 'adapted_sha256='+after,file=output)
+          print('LEGACY_TEST_SIGNATURE_ADAPTATIONS='+str(sum(x[1] for x in changed)))
+          print('LEGACY_TEST_FILES_CHANGED='+str(len(changed)))
           PY
-          sha256sum "$target" | tee old-test-bootstrap-adapted-sha256.txt
           git -C upstream diff --check
           git -C upstream diff --stat
           echo 'TEST_ONLY_COMPATIBILITY_ADAPTATION=yes (production source untouched)'
@@ -143,6 +152,7 @@ jobs:
             upstream_commit.txt
             wp_version.txt
             checksums-${{ matrix.version }}.txt
+            legacy_test_only_compatibility_sha256.txt
           if-no-files-found: warn
           retention-days: 14
 
