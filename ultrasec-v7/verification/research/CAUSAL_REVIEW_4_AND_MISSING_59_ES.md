@@ -78,3 +78,23 @@ Comprobación adicional del archivo exacto publicado por Gladys en el commit \`f
 Los estados de esos cuatro registros permanecen **NOT_ADMITTED**. La prioridad siguiente es auditar los commits de los candidatos con fuente libre (especialmente kernel y dpic), ejecutar pruebas reproducibles en el entorno upstream correcto y solicitar revisión de licencias conforme al uso comercial concreto.
 
 **Control final de esta adenda:** pruebas aisladas ≠ test E2E; existencia del commit ≠ causalidad totalmente acreditada; \`COPYING\` histórico ≠ licencia comercial aprobada. No se han creado falsos controles humanos, firmas, métricas SAST ni admisiones gold.
+
+
+## Nueva prueba acotada del kernel — UBSan, datos verificables
+
+Se inspeccionaron en GitHub ambos blobs públicos de `drivers/gpu/drm/amd/amdgpu/df_v1_7.c`: anterior `5dfab80ffff213f11d5de27dd7e5c90faa06545e`; corregido `cd298556f7a608dea1df5beb1d70aaa8d6a40727`. El commit del fix es `d768394fa99467bcf2703bde74ddc96eeb0b71fa`, primer padre `cdca89bce4984f1bb6e53cd4084820d4ff54f977`.
+
+Se ejecutó en sandbox un harness C local que replica *solo* la tabla de nueve entradas y el cuerpo observado de la función `df_v1_7_get_hbm_channel_number`, con un stub de lectura de índice; **NO se compilaron ni ejecutaron el driver, el kernel o sus suites upstream**. Compilación con GCC `-O0 -g -fsanitize=undefined -fno-sanitize-recover=all`. Para índice 9, la versión previa emitió `runtime error: index 9 out of bounds for type 'u32 [9]'` y terminó con código 1. Con el control de límite del parche terminó con código 0 y valor de salida 1 (posición 0).
+
+SHA-256 de harness: `e661ffb383551b8fe8457c16411976bf7231849ac7bbf485440f034f8917963c`; log anterior: `e1a162c72c879a5093e8ac028a2e544ca615138983ac5c007c5ae4dd04c150c9`; log corregido: `6441d3d2c7136ca3249ab0b3818422468fcb84b35ce55754c7e493511b3da252`.
+
+La prueba apoya la *causalidad lógica acotada* del control de límite; no demuestra explotación del CVE sobre hardware ni un test E2E. La licencia de la revisión anterior se observa en el `COPYING` de Linux con GPL-2.0 y `Linux-syscall-note`, que advierte reglas adicionales por archivo; no se han acreditado derechos de venta del dataset.
+
+## Ampliación de fuentes de los otros 57
+
+Existe una tabla individual de los 57 restantes en `SOURCE_TRIAGE_57_PUBLIC_METADATA_ES.md`. Constataciones adicionales:
+- `CVE-2024-2395` tiene una revisión SVN de WordPress del proveedor, que **no equivale** a SHA Git; NVD lo clasifica CWE-352 y su CNA también cita CWE-862.
+- `CVE-2021-32422` remite al commit GitLab `d317e4066c17f9ceb359b3af13264c32f6fb43cf`, compartido con `CVE-2021-32421`; vigilar duplicación causal. El registro histórico `Copyright.txt` del proveedor indica código BSD-2-Clause, manual CC-BY-3.0 y `doc/dpictools.pic` con LPPL 1.3c. No declarar derechos comerciales sin delimitar los archivos incluidos.
+- `CVE-2024-11921` se refiere a GiveWP, `CVE-2025-69015` a Crowdsignal Forms, `CVE-2025-60173` a GST for WooCommerce; existe producto/versión en NVD pero falta revisión y prueba fuente/fix.
+
+**Entorno:** un `git ls-remote` desde la terminal local falló por falta de resolución DNS de github.com. No se descargaron suites completas; no se alteraron parches de terceros, ni se admitieron casos. **Gold: 0 nuevos; RIGHTS: NOT_VERIFIED; SAST REAL: NOT_RUN.**
