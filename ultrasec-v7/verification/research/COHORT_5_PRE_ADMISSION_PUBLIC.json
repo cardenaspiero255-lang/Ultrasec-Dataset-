@@ -114,12 +114,12 @@
       "source_url": "https://github.com/arm32x/command-block-ide",
       "source_commit": "7da8ea77ba3443c42e0d9929f66b370bb97c0234",
       "fix_commit": "42e09840168d9c2fe2ee07f4472d296000b2a416",
-      "native_evidence": "PATCH_LOCATED_NO_RUN",
-      "native_evidence_url": "https://github.com/arm32x/command-block-ide/commit/42e09840168d9c2fe2ee07f4472d296000b2a416",
-      "test_provenance": "One upstream Java patch checks APPLY_FUNCTION privilege; no native server test",
+      "native_evidence": "RED_GREEN_REPRODUCED",
+      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078876423",
+      "test_provenance": "SHA-pinned original APPLY_FUNCTION receiver permission PREFIX extracted from Java before/after source, compiled with javac 11. Before unauthorized context continues (RED); after hasPermissionLevel(2) returns before packet merge (GREEN). Isolated Java context stub: NOT full Minecraft/Fabric integration.",
       "license_observed": "LGPL-2.1",
       "license_evidence_url": "https://github.com/arm32x/command-block-ide/blob/7da8ea77ba3443c42e0d9929f66b370bb97c0234/LICENSE",
-      "open_questions": "Native server authorized/unauthorized test; verify CVE association and commercial delivery rights."
+      "open_questions": "Full Fabric server integration, original packet permission enforcement, independent blind CVE mapping, and legal redistribution authorization remain open."
     }
   ]
 }
