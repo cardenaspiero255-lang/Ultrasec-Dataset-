@@ -91,9 +91,9 @@
       "source_url": "https://github.com/moonlight-stream/moonlight-common-c",
       "source_commit": "116267a24569ec610f4c9efa1048541022981040",
       "fix_commit": "02b7742f4d19631024bd766bd2bb76715780004e",
-      "native_evidence": "PATCH_LOCATED_NO_RUN",
-      "native_evidence_url": "https://github.com/moonlight-stream/moonlight-common-c/commit/02b7742f4d19631024bd766bd2bb76715780004e",
-      "test_provenance": "Original upstream C patch linked to CVE; native sanitizer test not yet executed",
+      "native_evidence": "RED_GREEN_REPRODUCED",
+      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39076329630",
+      "test_provenance": "Exact upstream static C parser extracted from both SHA-pinned commits; controlled AddressSanitizer stack overflow RED in original and bounded copy GREEN after fix. Isolated harness with small platform shim, NOT full upstream suite.",
       "license_observed": "GPL-3.0",
       "license_evidence_url": "https://github.com/moonlight-stream/moonlight-common-c/blob/116267a24569ec610f4c9efa1048541022981040/LICENSE.txt",
       "open_questions": "Safe native sanitizer reproduction, independent validation, rights per included fragment."
