@@ -68,12 +68,12 @@
       "source_url": "https://github.com/Automattic/crowdsignal-forms",
       "source_commit": "e0084d0760a16babe9ae441e24de3f4910d57b27",
       "fix_commit": "9ebf48d8d9d80fe96a2813d9a66120431399cac9",
-      "native_evidence": "UPSTREAM_SUITES_EXECUTED_NO_CVE_REPRO",
-      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39073712720",
-      "test_provenance": "PHPUnit 1.8.0 98 tests pass; 1.7.2 one known historical suite error; focused polls 9 tests pass; CVE-specific RED/GREEN NOT RUN",
+      "native_evidence": "RED_GREEN_REPRODUCED",
+      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078935591",
+      "test_provenance": "WordPress 6.6.2 with original Crowdsignal 1.7.2 and 1.8.0 commits; identical PHPUnit tests exercise real registered REST permission_callbacks for POST/PUT on NPS/Feedback under author role. Old 4/4 unauthorized permission positives (test RED). Fixed 4/4 PASS, 12 assertions after mutation routes removed. No network modification; exact CVE-mapping still provisional.",
       "license_observed": "GPL-2.0",
       "license_evidence_url": "https://github.com/Automattic/crowdsignal-forms/blob/e0084d0760a16babe9ae441e24de3f4910d57b27/LICENSE.TXT",
-      "open_questions": "Exact authorization CVE affected route, identical adversarial test on both versions, license redistribution duties."
+      "open_questions": "Advisory CNA does not name affected function. Blind external assessment of 4 tested REST paths and CVE association, commercial GPLv2 obligations and no leak/split assignments remain pending."
     },
     {
       "provenance": "PUBLIC_UPSTREAM",
