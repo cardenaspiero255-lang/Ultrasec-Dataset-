@@ -56,7 +56,7 @@ class UltraSec_Bulgarisation_Csrf_WP_Test extends WP_UnitTestCase {
      * Version 3.0.14 is expected to trigger network tripwire (RED).
      * Version 3.0.15 should trigger wp_die before any network request (GREEN).
      */
-    public function test_shop_manager_without_nonce_does_not_reach_carrier_api() {
+    public function test_shop_manager_with_invalid_nonce_does_not_reach_carrier_api() {
         // WooCommerce wasn't activated via the normal plugin installer on WP test bootstrap;
         // give the standard administrator its legitimate WooCommerce capability explicitly.
         $administrator_role = get_role( 'administrator' );
@@ -69,7 +69,7 @@ class UltraSec_Bulgarisation_Csrf_WP_Test extends WP_UnitTestCase {
         $this->assertTrue( is_a( $order, '\WC_Order' ) );
         $_REQUEST['orderId'] = $order->get_id();
         $_REQUEST['shipmentStatus'] = array( 'wb' => 'LOCAL_TEST_ONLY' );
-        unset( $_REQUEST['nonce'] );
+        $_REQUEST['nonce'] = 'FORGED_CSRF_TOKEN_INVALID';
         $reason = '';
         ob_start();
         try {
@@ -85,7 +85,7 @@ class UltraSec_Bulgarisation_Csrf_WP_Test extends WP_UnitTestCase {
         $this->assertSame(
             'BLOCKED_BY_WORDPRESS_GUARD',
             $reason,
-            'Missing nonce must be rejected before side effects or reaching courier network'
+            'Invalid nonce must be rejected before side effects or reaching courier network'
         );
         $this->assertCount( 0, $this->blocked_requests );
     }
