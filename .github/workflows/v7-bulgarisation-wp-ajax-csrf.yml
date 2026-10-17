@@ -1,0 +1,151 @@
+# Isolated WordPress+WooCommerce test, no real provider credentials or outbound carrier traffic.
+name: V7 Bulgarisation AJAX CSRF Native Integration
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-bulgarisation-wp-ajax-csrf.yml'
+      - 'ultrasec-v7/verification/research/bulgarisation_wp_csrf_native_test.php'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  wp-ajax-csrf:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '3.0.14'
+            expected: RED
+          - version: '3.0.15'
+            expected: GREEN
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_public_test
+          MYSQL_DATABASE: wordpress_test
+        ports: [ '3306:3306' ]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci_public_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - name: Checkout only public test scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install PHP, PHPUnit and WordPress dependencies
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: phpunit:9.6, composer:v2
+          extensions: mbstring, xml, zip, mysqli, pdo_mysql, curl, intl
+          coverage: none
+      - name: Retrieve exact official WordPress and WooCommerce releases
+        shell: bash
+        env:
+          WOO_BG_VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion unzip default-mysql-client
+          curl --fail --location --retry 3 --silent --show-error -o wordpress.tar.gz https://wordpress.org/wordpress-6.6.2.tar.gz
+          curl --fail --location --retry 3 --silent --show-error -o woocommerce.zip https://downloads.wordpress.org/plugin/woocommerce.8.7.0.zip
+          curl --fail --location --retry 3 --silent --show-error -o bulgarisation.zip "https://downloads.wordpress.org/plugin/bulgarisation-for-woocommerce.$WOO_BG_VERSION.zip"
+          mkdir -p /tmp/wordpress/wp-content/plugins
+          tar -xf wordpress.tar.gz -C /tmp
+          unzip -qq woocommerce.zip -d /tmp/wordpress/wp-content/plugins
+          unzip -qq bulgarisation.zip -d /tmp/wordpress/wp-content/plugins
+          svn export --non-interactive --quiet https://develop.svn.wordpress.org/tags/6.6.2/tests/phpunit /tmp/wordpress-tests-lib
+          mkdir -p /tmp/wp-polyfills
+          printf '%s\n' '{"require":{"yoast/phpunit-polyfills":"2.0.0"}}' > /tmp/wp-polyfills/composer.json
+          composer install --working-dir=/tmp/wp-polyfills --no-interaction --prefer-dist --no-progress --no-scripts
+          sha256sum wordpress.tar.gz woocommerce.zip bulgarisation.zip /tmp/wp-polyfills/composer.lock > original_distribution_sha256.txt
+          test -f /tmp/wordpress/wp-content/plugins/woocommerce/woocommerce.php
+          ls /tmp/wordpress/wp-content/plugins/bulgarisation-for-woocommerce/*.php
+          php -v | head -2
+      - name: Build ephemeral WordPress test environment and plugin loader
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/wordpress-tests-lib/wp-tests-config.php <<'PHP'
+          <?php
+          define( 'ABSPATH', '/tmp/wordpress/' );
+          define( 'DB_NAME', 'wordpress_test' );
+          define( 'DB_USER', 'root' );
+          define( 'DB_PASSWORD', 'ci_public_test' );
+          define( 'DB_HOST', '127.0.0.1' );
+          define( 'DB_CHARSET', 'utf8' );
+          define( 'DB_COLLATE', '' );
+          define( 'WP_TESTS_DOMAIN', 'example.org' );
+          define( 'WP_TESTS_EMAIL', 'test@example.org' );
+          define( 'WP_TESTS_TITLE', 'Isolated public CVE research' );
+          define( 'WP_PHP_BINARY', 'php' );
+          define( 'WP_TESTS_MULTISITE', false );
+          define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', '/tmp/wp-polyfills/vendor/yoast/phpunit-polyfills' );
+          PHP
+          cat > /tmp/ultrasec_wp_bootstrap.php <<'PHP'
+          <?php
+          require_once '/tmp/wordpress-tests-lib/includes/functions.php';
+          tests_add_filter( 'muplugins_loaded', function () {
+              require_once '/tmp/wordpress/wp-content/plugins/woocommerce/woocommerce.php';
+              $dir = '/tmp/wordpress/wp-content/plugins/bulgarisation-for-woocommerce';
+              $plugins = glob( $dir . '/*.php' );
+              foreach ( $plugins as $p ) {
+                  $header = file_get_contents( $p, false, null, 0, 1500 );
+                  if ( strpos( $header, 'Plugin Name:' ) !== false && strpos( $header, 'Bulgarisation' ) !== false ) {
+                      require_once $p;
+                      return;
+                  }
+              }
+              throw new RuntimeException( 'BULGARISATION_MAIN_PLUGIN_NOT_FOUND' );
+          } );
+          require_once '/tmp/wordpress-tests-lib/includes/bootstrap.php';
+          PHP
+          cp ultrasec-v7/verification/research/bulgarisation_wp_csrf_native_test.php /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php
+          php -l /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php
+          php -l /tmp/ultrasec_wp_bootstrap.php
+          sha256sum /tmp/ultrasec_wp_bootstrap.php /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php > test_harness_sha256.txt
+          mysql --host 127.0.0.1 --user root --password=ci_public_test --execute 'SELECT VERSION();'
+      - name: Execute original registered CVC admin-ajax handler (zero courier HTTP)
+        shell: bash
+        env:
+          VER: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          set +e
+          phpunit --bootstrap /tmp/ultrasec_wp_bootstrap.php --colors=never --verbose /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php > "wordpress-csrf-$VER.log" 2>&1
+          code=$?
+          set -e
+          cat "wordpress-csrf-$VER.log"
+          echo "ORIGINAL_PHPUNIT_EXIT=$code" > verdict.txt
+          if test "$VER" = 3.0.14; then
+            test "$code" -ne 0
+            grep -Fq 'SECURITY_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST' "wordpress-csrf-$VER.log"
+            grep -Fq 'BLOCKED_HTTP_ATTEMPTS=1' "wordpress-csrf-$VER.log"
+            grep -Fq 'Tests: 1' "wordpress-csrf-$VER.log"
+            echo 'EXPECTED_RED_MISSING_CSRF_CHECK=TRUE' >> verdict.txt
+          else
+            test "$code" -eq 0
+            grep -Fq 'SECURITY_TERMINATION=BLOCKED_BY_WORDPRESS_GUARD' "wordpress-csrf-$VER.log"
+            grep -Fq 'BLOCKED_HTTP_ATTEMPTS=0' "wordpress-csrf-$VER.log"
+            grep -Fq 'OK (1 test,' "wordpress-csrf-$VER.log"
+            echo 'EXPECTED_GREEN_NONCE_CHECK=TRUE' >> verdict.txt
+          fi
+          echo 'ALL_COURIER_HTTP_REQUESTS_INTERCEPTED=TRUE' >> verdict.txt
+          sha256sum "wordpress-csrf-$VER.log" verdict.txt > native_log_sha256.txt
+      - name: Preserve only public run evidence (not third-party code)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bulgarisation-wordpress-csrf-public-${{ matrix.version }}
+          path: |
+            original_distribution_sha256.txt
+            test_harness_sha256.txt
+            wordpress-csrf-*.log
+            verdict.txt
+            native_log_sha256.txt
+          retention-days: 14
+          if-no-files-found: warn
