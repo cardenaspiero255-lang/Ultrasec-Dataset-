@@ -1,0 +1,74 @@
+# UltraSec V7: Gitea public upstream regression. Never imports the UltraSec dataset or holdout.
+name: V7 Gitea release native regression
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-gitea-native-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-extension-check:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: 'before'
+            sha: '7fdfb8d642201b388014f29889ef28e35b8c1872'
+          - version: 'after'
+            sha: 'e4ef995f2a162e3aca3f3a0b536afae067975d71'
+    steps:
+      - name: Fetch original source with exact ref
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/go-gitea/gitea.git
+          git -C upstream fetch --depth 2 origin "$EXPECTED_SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo "$EXPECTED_SHA" > source_sha.txt
+          if test "${{ matrix.version }}" = "before"; then
+            git -C upstream fetch --depth 1 origin e4ef995f2a162e3aca3f3a0b536afae067975d71
+            git -C upstream show e4ef995f2a162e3aca3f3a0b536afae067975d71:services/release/release_test.go > upstream/services/release/release_test.go
+            echo 'TEST_SOURCE=FIX_REGRESSION_TRANSPLANTED_TO_PARENT' > test_provenance.txt
+          else
+            echo 'TEST_SOURCE=ORIGINAL_FIXED_UPSTREAM' > test_provenance.txt
+          fi
+          git -C upstream diff --check
+          sha256sum upstream/go.mod upstream/services/release/release.go upstream/services/release/release_test.go > source_hashes.txt
+      - name: Set up original Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: upstream/go.mod
+          cache: false
+      - name: Execute upstream release-service regression only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          go version
+          go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update$' ./services/release -v 2>&1 | tee ../gitea-${{ matrix.version }}.log
+          cd ..
+          sha256sum gitea-${{ matrix.version }}.log > log_sha256.txt
+      - name: Preserve public logs and SHA; never archive source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitea-native-public-${{ matrix.version }}
+          path: |
+            source_sha.txt
+            test_provenance.txt
+            source_hashes.txt
+            gitea-${{ matrix.version }}.log
+            log_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
