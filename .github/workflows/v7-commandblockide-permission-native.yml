@@ -1,0 +1,102 @@
+# Public isolated original Java callback permission check; no Minecraft server or packets.
+name: V7 CommandBlock IDE Native Permission Witness
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-commandblockide-permission-native.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-receiver:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stage: before
+            sha: '7da8ea77ba3443c42e0d9929f66b370bb97c0234'
+          - stage: after
+            sha: '42e09840168d9c2fe2ee07f4472d296000b2a416'
+    steps:
+      - name: Fetch immutable original source
+        shell: bash
+        env:
+          COMMIT: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/arm32x/command-block-ide.git
+          git -C upstream fetch --depth 1 origin "$COMMIT"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$COMMIT"
+          echo "$COMMIT" > original_revision.txt
+          git -C upstream rev-parse HEAD:src/main/java/arm32x/minecraft/commandblockide/CommandBlockIDE.java > source_git_blob.txt
+      - name: Extract and compile original callback permission prefix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          source=Path('upstream/src/main/java/arm32x/minecraft/commandblockide/CommandBlockIDE.java').read_text()
+          anchor='ServerPlayNetworking.registerGlobalReceiver(Packets.APPLY_FUNCTION, (payload, context) -> {'
+          assert source.count(anchor)==1
+          start=source.index(anchor)+len(anchor)
+          end=source.index('Optional<PacketByteBuf> maybeMerged',start)
+          code=source[start:end]
+          assert 'hasPermissionLevel(2)' in code or not code.strip()
+          Path('original_callback_prefix.txt').write_text(code)
+          header='''public class PermissionWitness {
+            static int writes=0;
+            static class Player { boolean authorized; Player(boolean p){authorized=p;} boolean hasPermissionLevel(int n){ if(n!=2)throw new IllegalArgumentException(); return authorized; } }
+            static class Context { Player user; Context(boolean b){user=new Player(b);} Player player(){return user;} }
+            static void run(Context context) {
+          '''
+          main='''writes++;
+            }
+            public static void main(String[] args) {
+              writes=0;run(new Context(false));System.out.println("UNPRIVILEGED_WRITES="+writes);
+              writes=0;run(new Context(true));System.out.println("PRIVILEGED_WRITES="+writes);
+            }
+          }'''
+          Path('PermissionWitness.java').write_text(header+code+main)
+          print('PREFIX_SHA256='+hashlib.sha256(code.encode()).hexdigest())
+          PY
+          sha256sum upstream/src/main/java/arm32x/minecraft/commandblockide/CommandBlockIDE.java original_callback_prefix.txt PermissionWitness.java > source_sha256.txt
+          javac -version
+          javac PermissionWitness.java
+      - name: Assert native permission RED before and GREEN after
+        shell: bash
+        env:
+          STAGE: ${{ matrix.stage }}
+        run: |
+          set -euo pipefail
+          java PermissionWitness | tee java_native.log
+          grep -Fq 'PRIVILEGED_WRITES=1' java_native.log
+          if test "$STAGE" = before; then
+            grep -Fq 'UNPRIVILEGED_WRITES=1' java_native.log
+            echo 'EXPECTED_RED=TRUE' > verdict.txt
+          else
+            grep -Fq 'UNPRIVILEGED_WRITES=0' java_native.log
+            echo 'EXPECTED_GREEN=TRUE' > verdict.txt
+          fi
+          echo 'ISOLATED_RECEIVER_PREFIX_ONLY; MINECRAFT_SERVER_NOT_RUN' >> verdict.txt
+          sha256sum java_native.log verdict.txt > log_sha256.txt
+      - name: Export hashes and verdicts only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commandblockide-public-${{ matrix.stage }}
+          path: |
+            original_revision.txt
+            source_git_blob.txt
+            source_sha256.txt
+            java_native.log
+            verdict.txt
+            log_sha256.txt
+          retention-days: 14
+          if-no-files-found: warn
