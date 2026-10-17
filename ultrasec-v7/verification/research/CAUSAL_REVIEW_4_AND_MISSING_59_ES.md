@@ -37,6 +37,11 @@ Fuentes de revisión: [NVD dpic](https://nvd.nist.gov/vuln/detail/CVE-2021-32422
 
 **No se afirma haber revisado exhaustivamente los otros 55 registros sin commit localizado.** El resto permanece pendiente de cotejo NVD/aviso original y búsqueda de SHAs exactos. Esta fase identificó candidatos de mejor y peor calidad sin modificar sus criterios de admisión.
 
+
+### Corroboración independiente del parche incompleto de Gladys
+
+La base pública [CIRCL Vulnerability-Lookup](https://cve.circl.lu/vuln/gsd-2023-47440) documenta **GSD-2023-47440 / CVE-2023-47440** como una traversía de directorio en versiones Gladys <=4.27.0, describiendo explícitamente que el parche previo de CVE-2023-43256 era incompleto. Esta fuente externa es consistente con los fallos aislados del validador; **no sustituye la reproducción de un exploit en la aplicación**. La posible relación histórica entre ambas CVE requiere revisión: **no contarlas como dos mecanismos independientes sin demostrar causalidad distinta**.
+
 ## Derechos, holdout y liberación
 
 Inspeccionar `LICENSE` en un commit acredita un texto histórico, no el derecho para *un paquete comercial derivado concreto*. Comprobar archivos cubiertos, titulares, terceros, avisos, condiciones copyleft, atribución, redistribución, sublicencia, privacidad y asesoramiento legal cuando corresponda.
