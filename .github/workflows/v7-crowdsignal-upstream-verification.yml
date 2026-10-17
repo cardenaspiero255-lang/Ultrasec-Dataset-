@@ -116,3 +116,72 @@ jobs:
             checksums-${{ matrix.version }}.txt
           if-no-files-found: warn
           retention-days: 14
+
+  bulgarisation-svn-snapshots:
+    # Read-only inspection of public source: no plugin execution or dataset export.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Fetch official WordPress SVN tags at fixed revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion
+          mkdir -p snapshots
+          svn export --non-interactive --quiet -r 3034198 \
+            https://plugins.svn.wordpress.org/bulgarisation-for-woocommerce/tags/3.0.14 snapshots/before
+          svn export --non-interactive --quiet -r 3034198 \
+            https://plugins.svn.wordpress.org/bulgarisation-for-woocommerce/tags/3.0.15 snapshots/after
+          (cd snapshots/before && find . -type f -print0 | sort -z | xargs -0 sha256sum) > hashes-3.0.14.txt
+          (cd snapshots/after && find . -type f -print0 | sort -z | xargs -0 sha256sum) > hashes-3.0.15.txt
+          echo "SVN_REVISION=3034198" | tee svn_revision.txt
+          test -s hashes-3.0.14.txt
+          test -s hashes-3.0.15.txt
+      - name: Compare authorization control changes without publishing code
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,hashlib,json,difflib,re
+          root=pathlib.Path('snapshots')
+          def inspect(subdir):
+              return {str(p.relative_to(root/subdir)):p for p in (root/subdir).rglob('*') if p.is_file()}
+          a=inspect('before');b=inspect('after')
+          patterns=['check_ajax_referer','wp_verify_nonce','current_user_can','check_admin_referer','wp_ajax_','wp_ajax_nopriv_']
+          rows=[]
+          for name in sorted(set(a)|set(b)):
+              p=a.get(name);q=b.get(name)
+              x=p.read_bytes() if p else b'';y=q.read_bytes() if q else b''
+              if x==y: continue
+              if name.endswith('.php'):
+                  old=x.decode('utf-8','replace').splitlines()
+                  new=y.decode('utf-8','replace').splitlines()
+                  changes=list(difflib.unified_diff(old,new,n=0))
+                  added=[l[1:] for l in changes if l.startswith('+') and not l.startswith('+++')]
+                  removed=[l[1:] for l in changes if l.startswith('-') and not l.startswith('---')]
+                  api_deltas={s:{'added':sum(s in l for l in added),'removed':sum(s in l for l in removed)} for s in patterns}
+              else:
+                  api_deltas={}
+              rows.append({'file':name,'before_sha256':hashlib.sha256(x).hexdigest() if p else None,'after_sha256':hashlib.sha256(y).hexdigest() if q else None,'authorization_api_line_deltas':api_deltas})
+          summary={'source':'Official WordPress SVN tags 3.0.14 and 3.0.15 at r3034198','revision':3034198,'files_changed':len(rows),'files':rows,'rights':'NOT_VERIFIED','gold':'NOT_ADMITTED','causal_e2e':'NOT_RUN'}
+          pathlib.Path('svn_comparison_public_metadata.json').write_text(json.dumps(summary,indent=2,ensure_ascii=False)+'\n')
+          print('CHANGED_FILES='+str(len(rows)))
+          for item in rows:
+              print('PATH='+item['file']+' API_DELTAS='+json.dumps({k:v for k,v in item['authorization_api_line_deltas'].items() if v['added'] or v['removed']}))
+          PY
+          sha256sum hashes-3.0.14.txt hashes-3.0.15.txt svn_comparison_public_metadata.json > svn_manifest_sha256.txt
+      - name: Export hashes and metadata only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bulgarisation-svn-public-evidence
+          path: |
+            hashes-3.0.14.txt
+            hashes-3.0.15.txt
+            svn_revision.txt
+            svn_comparison_public_metadata.json
+            svn_manifest_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
