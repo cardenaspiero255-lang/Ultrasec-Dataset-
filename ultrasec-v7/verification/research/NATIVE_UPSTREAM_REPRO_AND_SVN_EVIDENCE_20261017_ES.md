@@ -51,3 +51,24 @@ No se ha ejecutado prueba vulnerable/fix E2E para Crowdsignal, Bulgarisation o s
 **GOLD=0 nuevos; REVIEWERS_SIGNED=0/2; COMMERCIAL_RIGHTS=NOT_VERIFIED; REAL_SAST=NOT_RUN; V7=NOT_CERTIFIED.**
 
 El PR #7 y `main` no se deben fusionar por esta evidencia. Mantener #10 en Draft, con los fallos upstream visibles.
+
+
+## 5. Resultados nativos adicionales comprobados y criterio RED/GREEN
+
+### Crowdsignal 1.7.2: sub-suite original focalizada
+
+Tras el ajuste temporal de siete firmas antiguas en cinco archivos **solo de tests**, la suite completa del tag 1.7.2 arrancó realmente: **23 tests, 50 assertions, 1 error** (test histórico `Account_Controller_Test::test_get_capabilities` invoca método inexistente). **No se declara la suite completa verde.** Se ejecutó separadamente el **filtro original `Polls_Controller_Test`** bajo WordPress/PHPUnit y obtuvo **`OK (9 tests, 17 assertions)`** en el run [39073658793](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39073658793). Ningún archivo de producción upstream se cambió.
+
+### Gitea CVE-2026-58428: regresión nativa con el MISMO test
+
+Run original [39073712740](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39073712740), Go 1.26.4, `go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update$' ./services/release -v`. La fuente de producción de ambos lados fue original, con SHA fijado. Se trasplantó el archivo **de tests** `services/release/release_test.go` del commit corregido al checkout padre y se registraron procedencia/hashes para exigir idéntico oráculo. No se incorporó código de producción nuevo al estado previo.
+
+- **RED (original antes del parche):** `7fdfb8d642201b388014f29889ef28e35b8c1872`; `--- FAIL: TestRelease_Update`; test esperaba error al renombrar a extensión prohibida, pero recibió nil (`An error is expected but got nil.`). El job original falló **por la regresión esperada**.
+- **GREEN (original corregido):** `e4ef995f2a162e3aca3f3a0b536afae067975d71`; `--- PASS: TestRelease_Update`; job original exitoso.
+- El fix en `services/release/release.go` comprueba `upload.Verify(nil, newName, setting.Repository.Release.AllowedTypes)` antes de guardar el nuevo nombre; proviene de [Gitea PR #38314](https://github.com/go-gitea/gitea/pull/38314), no del batch heterogéneo #38406.
+- **Evidencia causal funcional nativa verificada** sobre ese camino de servicio. **No** implica exploit web real, revisión independiente, licencia comercial autorizada ni admisión gold. `GOLD=NOT_ADMITTED`.
+- Los workflows posteriores consideran satisfecho el experimento solo si el RED y GREEN presentan **exactamente el resultado esperado en logs**; conservan y etiquetan el fallo real del software anterior. Un check de experimento con resultado `success` **no convierte el upstream anterior en PASS**.
+
+### Corpus y derechos
+
+Los cinco sustitutos permanecen `QUARANTINED`; **ningún nuevo ID fue incorporado a training/holdout**. `RIGHTS=NOT_VERIFIED`, `EXTERNAL_REVIEW=NOT_DONE`, `PRIVATE_SAST=NOT_RUN`. Se preserva la fallibilidad real de las suites como evidencia y no como certificación.
