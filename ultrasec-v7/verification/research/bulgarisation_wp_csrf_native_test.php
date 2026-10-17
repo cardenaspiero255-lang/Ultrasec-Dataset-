@@ -57,7 +57,12 @@ class UltraSec_Bulgarisation_Csrf_WP_Test extends WP_UnitTestCase {
      * Version 3.0.15 should trigger wp_die before any network request (GREEN).
      */
     public function test_shop_manager_without_nonce_does_not_reach_carrier_api() {
-        $manager = self::factory()->user->create( array( 'role' => 'shop_manager' ) );
+        // WooCommerce wasn't activated via the normal plugin installer on WP test bootstrap;
+        // give the standard administrator its legitimate WooCommerce capability explicitly.
+        $administrator_role = get_role( 'administrator' );
+        $this->assertNotNull( $administrator_role );
+        $administrator_role->add_cap( 'manage_woocommerce' );
+        $manager = self::factory()->user->create( array( 'role' => 'administrator' ) );
         wp_set_current_user( $manager );
         $this->assertTrue( current_user_can( 'manage_woocommerce' ) );
         $order = wc_create_order();
