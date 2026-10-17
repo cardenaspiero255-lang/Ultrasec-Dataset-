@@ -45,12 +45,12 @@
       "source_url": "https://wordpress.org/plugins/bulgarisation-for-woocommerce/",
       "source_commit": null,
       "fix_commit": null,
-      "native_evidence": "DIFF_ONLY",
-      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39072993339/artifacts/12116265364",
-      "test_provenance": "Official WordPress 3.0.14 / 3.0.15 release ZIP SHA-256 pinned; 23 files differ; no WordPress E2E security test",
-      "license_observed": "NOT_VERIFIED_IN_HISTORICAL_PACKAGES",
+      "native_evidence": "FIXED_GUARD_ISOLATED_PASS",
+      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078707779",
+      "test_provenance": "Official WordPress plugin archives 3.0.14 and 3.0.15 checked by SHA256. Fixed-original woo_bg_check_admin_label_actions() extracted to PHP harness: all 4 nonce/capability combinations pass, and 9 guard call sites across CVC/Econt/Speedy present after fix. Before has no helper. Isolated WordPress shims only; NO before/after end-to-end CSRF reproduction.",
+      "license_observed": "Plugin official 3.0.14/3.0.15 license.txt/readme.txt GPLv3 or later; embedded vendor/chillerlan/php-qrcode LICENSE MIT; other third-party files and resale duties NOT_VERIFIED",
       "license_evidence_url": "https://wordpress.org/plugins/bulgarisation-for-woocommerce/",
-      "open_questions": "CWE-352 vs CWE-862 attribution, functional authorization/nonce regression, and rights per file."
+      "open_questions": "Reproduce malicious-intent nonce scenario against same label action in both versions in isolated real WooCommerce+WordPress without vendor network calls; independently adjudicate CWE-352 vs CWE-862 and other CVE, review all redistribution licenses."
     },
     {
       "provenance": "PUBLIC_UPSTREAM",
