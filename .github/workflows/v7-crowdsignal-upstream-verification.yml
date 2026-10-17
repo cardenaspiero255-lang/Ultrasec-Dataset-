@@ -288,6 +288,37 @@ jobs:
               print('PATH='+item['file']+' API_DELTAS='+json.dumps({k:v for k,v in item['authorization_api_line_deltas'].items() if v['added'] or v['removed']}))
           PY
           sha256sum hashes-3.0.14.txt hashes-3.0.15.txt source_revisions.txt svn_comparison_public_metadata.json > svn_manifest_sha256.txt
+      - name: Discover original PHP authorization function and historical license notices
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,re,json
+          data={}
+          for name in ('before','after'):
+              root=pathlib.Path('snapshots')/name
+              p=root/'app/functions.php'
+              s=p.read_text(encoding='utf-8',errors='replace').splitlines()
+              funcs=[]
+              hits=[]
+              for n,line in enumerate(s,1):
+                  m=re.search(r'\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(',line)
+                  if m: funcs.append((n,m.group(1)))
+                  if any(k in line for k in ('wp_verify_nonce','current_user_can','check_ajax_referer')):
+                      owner=next(((pos,fn) for pos,fn in reversed(funcs) if pos<=n),None)
+                      hits.append({'line':n,'kind':next(k for k in ('wp_verify_nonce','current_user_can','check_ajax_referer') if k in line),'owning_function':owner})
+              licenses=[]
+              for file in sorted(root.rglob('*')):
+                  if file.is_file() and re.search('license|copying|readme',file.name,re.I):
+                      t=file.read_text(encoding='utf-8',errors='replace')[:5500]
+                      lines=[v.strip()[:180] for v in t.splitlines() if re.search('license|GPL|copyright',v,re.I)]
+                      licenses.append({'path':str(file.relative_to(root)),'license_mentions':lines[:8]})
+              data[name]={'function_hits':hits,'historical_license_files':licenses}
+              print(name.upper()+'_SECURITY_FUNCTION_HITS='+json.dumps(hits))
+              print(name.upper()+'_LICENSE_REFERENCES='+json.dumps(licenses[:5]))
+          pathlib.Path('authorization_context_public_metadata.json').write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n')
+          PY
+          sha256sum authorization_context_public_metadata.json > authorization_context_sha256.txt
       - name: Export hashes and metadata only
         if: always()
         uses: actions/upload-artifact@v4
@@ -299,5 +330,7 @@ jobs:
             source_revisions.txt
             svn_comparison_public_metadata.json
             svn_manifest_sha256.txt
+            authorization_context_public_metadata.json
+            authorization_context_sha256.txt
           if-no-files-found: warn
           retention-days: 14
