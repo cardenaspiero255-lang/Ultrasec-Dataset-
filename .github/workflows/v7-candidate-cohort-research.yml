@@ -13,6 +13,8 @@ on:
       - 'ultrasec-v7/tests/test_rights_inventory.py'
       - 'ultrasec-v7/tests/test_reconcile_cve_research.py'
       - 'ultrasec-v7/tests/test_private_holdout_preflight.py'
+      - 'ultrasec-v7/tests/test_private_python_ast_screen.py'
+      - 'ultrasec-v7/tools/private_python_ast_screen.py'
       - 'ultrasec-v7/tools/private_holdout_preflight.py'
       - 'ultrasec-v7/tools/reconcile_cve_research.py'
       - 'ultrasec-v7/verification/research/CVE_CANDIDATES_63_PUBLIC_METADATA.md'
@@ -57,6 +59,8 @@ jobs:
           retention-days: 14
       - name: Test private benchmark metadata preflight without exposing user data
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_holdout_preflight.py -v
+      - name: Screen synthetic Python AST clones without exposing private source
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_python_ast_screen.py -v
       - name: Test five-case historical license inventory without resale claims
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
       - name: Report original-source licenses separately from commercial clearance
