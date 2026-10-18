@@ -96,6 +96,11 @@ def validate(doc: object) -> list[str]:
                     not SHA256.fullmatch(a) or not isinstance(b, str) or
                     not SHA256.fullmatch(b) or a == b):
                 errors.append("invalid_release_pair")
+            else:
+                pair = (a, b)
+                if pair in pairs:
+                    errors.append("duplicate_source_patch_pair")
+                pairs.add(pair)
         else:
             if (not all(isinstance(s, str) and SHA40.fullmatch(s) for s in (source, fix))
                     or source == fix):
