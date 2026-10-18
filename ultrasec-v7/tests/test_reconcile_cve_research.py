@@ -44,6 +44,33 @@ class CVEResearchReconciliationTests(unittest.TestCase):
             self.assertEqual(row["holdout_split"], "UNASSIGNED")
             self.assertEqual(row["private_holdout_overlap"], "NOT_VERIFIED")
 
+    def test_all_license_observations_remain_noncommercial_and_scoped(self):
+        report = reconcile(*self.raw)
+        self.assertEqual(report["counts"]["historical_license_descriptions_observed"], 9)
+        for row in report["cases"]:
+            self.assertEqual(row["commercial_rights"], "NOT_VERIFIED")
+            self.assertEqual(row["distribution_modes"], {
+                "metadata_only": "REQUIRES_REVIEW",
+                "source_snippets": "REQUIRES_REVIEW",
+                "complete_source_pairs": "REQUIRES_REVIEW",
+            })
+            if row["stage"] in (
+                "ORIGINAL_COMMIT_INSPECTED_NO_FULL_UPSTREAM_REPRO",
+                "NATIVE_RED_GREEN_TECHNICAL_NOT_GOLD",
+            ):
+                self.assertTrue(row["license_observed_historical"])
+            else:
+                self.assertIsNone(row["license_observed_historical"])
+
+    def test_cwe_disagreement_prevents_silent_gold_mapping(self):
+        report = reconcile(*self.raw)
+        indexed = {row["cve_id"]: row for row in report["cases"]}
+        self.assertEqual(report["counts"]["unresolved_cwe_mapping_conflicts"], 1)
+        self.assertTrue(indexed["CVE-2024-2395"]["cwe_mapping_conflict"])
+        self.assertEqual(indexed["CVE-2024-2395"]["cwe_id"], "CWE-862")
+        self.assertEqual(indexed["CVE-2024-2395"]["upstream_cwe_claim"], "CWE-352")
+        self.assertFalse(indexed["CVE-2024-2395"]["gold_admissible"])
+
     def test_native_reproduction_is_not_equivalent_to_new_gold(self):
         report = reconcile(*self.raw)
         indexed = {c["cve_id"]: c for c in report["cases"]}
