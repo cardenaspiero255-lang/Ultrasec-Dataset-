@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
+RUN_PATH = re.compile(r"/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/[1-9][0-9]*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 CVE = re.compile(r"CVE-[0-9]{4}-[0-9]{4,}\Z")
 CWES = frozenset({"CWE-79", "CWE-89", "CWE-352", "CWE-862", "CWE-787", "CWE-22",
@@ -34,6 +35,14 @@ def public_url(s: object) -> bool:
                 not u.username and not u.password and not u.query)
     except ValueError:
         return False
+
+
+def valid_run_reference(value: object) -> bool:
+    """Accept only canonical numeric Actions runs in this repository; no status claim."""
+    if not public_url(value):
+        return False
+    u = urlsplit(value)
+    return u.hostname == "github.com" and not u.fragment and bool(RUN_PATH.fullmatch(u.path))
 
 
 def validate(doc: object) -> list[str]:
@@ -98,8 +107,8 @@ def validate(doc: object) -> list[str]:
                 errors.append("duplicate_source_patch_pair")
             pairs.add(pair)
         if (c.get("native_evidence") == "RED_GREEN_REPRODUCED" and
-                "actions/runs/" not in str(c.get("native_evidence_url"))):
-            errors.append("red_green_without_run_reference")
+                not valid_run_reference(c.get("native_evidence_url"))):
+            errors.append("invalid_red_green_run_reference")
     return sorted(set(errors))
 
 
@@ -117,6 +126,9 @@ def report(doc: dict) -> dict:
         "rights_verified": 0,
         "independent_experts_signed": 0,
         "scope": "PUBLIC_METADATA_ONLY_NO_CORPUS_OR_HOLDOUT",
+        "automated_phase": "METADATA_CONSISTENCY_ONLY",
+        "human_review_phase": "DEFERRED",
+        "native_run_execution_independently_verified": False,
     }
 
 
