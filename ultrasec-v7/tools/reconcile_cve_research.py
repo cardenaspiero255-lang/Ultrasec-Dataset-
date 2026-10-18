@@ -74,7 +74,7 @@ def parse_inspected(text: str) -> dict[str, dict]:
                 or not CWE.fullmatch(x[1]) or x[0] in inspected):
             raise ValueError("unverified_original_commit_entry")
         inspected[x[0]] = {"fix":match.group(1), "parent":parent.group(1),
-                          "cwe":x[1]}
+                          "cwe":x[1], "license":x[4]}
     if len(inspected) != 7:
         raise ValueError("expected_seven_source_commits_in_historical_review")
     return inspected
@@ -136,12 +136,20 @@ def reconcile(discovery: str, reviewed: str, decisions: str,
             "holdout_split": "UNASSIGNED",
             "private_holdout_overlap": "NOT_VERIFIED",
             "source_license_status": "NOT_CLEARED_FOR_COMMERCIAL_DATASET",
+            "license_observed_historical": None,
+            "gold_admissible": False,
+            "distribution_modes": {
+                "metadata_only": "REQUIRES_REVIEW",
+                "source_snippets": "REQUIRES_REVIEW",
+                "complete_source_pairs": "REQUIRES_REVIEW",
+            },
         })
         if cid in native:
             evidence = native[cid]
             row["stage"] = "NATIVE_RED_GREEN_TECHNICAL_NOT_GOLD"
             row["technical_evidence_url"] = evidence["native_evidence_url"]
             row["upstream_cwe_claim"] = evidence["cwe_id"]
+            row["license_observed_historical"] = evidence["license_observed"]
             row["cwe_mapping_conflict"] = row["cwe_id"] != evidence["cwe_id"]
         elif cid in inspected:
             evidence = inspected[cid]
@@ -150,6 +158,7 @@ def reconcile(discovery: str, reviewed: str, decisions: str,
             row["stage"] = "ORIGINAL_COMMIT_INSPECTED_NO_FULL_UPSTREAM_REPRO"
             row["original_fix_commit"] = evidence["fix"]
             row["original_parent_commit"] = evidence["parent"]
+            row["license_observed_historical"] = evidence["license"]
         elif cid in ineligible:
             row["stage"] = "HOLDOUT_INELIGIBLE_NO_SOURCE_PAIR"
         else:
@@ -170,6 +179,7 @@ def reconcile(discovery: str, reviewed: str, decisions: str,
             "holdout_ineligible_without_source_pair": statuses["HOLDOUT_INELIGIBLE_NO_SOURCE_PAIR"],
             "discovery_only_remaining": statuses["DISCOVERY_ONLY_NOT_VERIFIED"],
             "unresolved_cwe_mapping_conflicts": sum(x["cwe_mapping_conflict"] for x in result),
+            "historical_license_descriptions_observed": sum(bool(x["license_observed_historical"]) for x in result),
             "gold_admitted": 0,
             "independently_validated_private_holdout": 0,
             "resale_rights_verified": 0,
