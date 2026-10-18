@@ -21,12 +21,12 @@ class CVEResearchReconciliationTests(unittest.TestCase):
         report = reconcile(*self.raw)
         m = report["counts"]
         self.assertEqual(m["discovered"], 63)
-        self.assertEqual(m["source_commit_inspected"], 7)
+        self.assertEqual(m["source_commit_inspected"], 8)
         self.assertEqual(m["native_red_green_in_original_63"], 2)
         self.assertEqual(m["previously_reported_missing_source_verification"], 56)
-        self.assertEqual(m["not_yet_source_inspected_after_reconciliation"], 54)
+        self.assertEqual(m["not_yet_source_inspected_after_reconciliation"], 53)
         self.assertEqual(m["holdout_ineligible_without_source_pair"], 5)
-        self.assertEqual(m["discovery_only_remaining"], 49)
+        self.assertEqual(m["discovery_only_remaining"], 48)
         self.assertEqual(m["gold_admitted"], 0)
         self.assertEqual(m["independently_validated_private_holdout"], 0)
         self.assertEqual(report["certification"], "NOT_CERTIFIED")
@@ -46,7 +46,7 @@ class CVEResearchReconciliationTests(unittest.TestCase):
 
     def test_all_license_observations_remain_noncommercial_and_scoped(self):
         report = reconcile(*self.raw)
-        self.assertEqual(report["counts"]["historical_license_descriptions_observed"], 9)
+        self.assertEqual(report["counts"]["historical_license_descriptions_observed"], 10)
         for row in report["cases"]:
             self.assertEqual(row["commercial_rights"], "NOT_VERIFIED")
             self.assertEqual(row["distribution_modes"], {
@@ -79,10 +79,19 @@ class CVEResearchReconciliationTests(unittest.TestCase):
             self.assertIn("actions/runs/", indexed[cve]["technical_evidence_url"])
         self.assertEqual(indexed["CVE-2024-11921"]["stage"], "DISCOVERY_ONLY_NOT_VERIFIED")
 
-    def test_inspected_seven_must_have_precise_source_commit(self):
+    def test_givewp_original_patch_is_accounted_without_gold(self):
+        report = reconcile(*self.raw)
+        row = next(x for x in report["cases"] if x["cve_id"] == "CVE-2024-11921")
+        self.assertEqual(row["stage"], "ORIGINAL_COMMIT_INSPECTED_NO_FULL_UPSTREAM_REPRO")
+        self.assertEqual(row["original_fix_commit"], "4fb99af5304257ce0a5adf0df78f02b59755c2df")
+        self.assertEqual(row["original_parent_commit"], "a20c9d8f727adc9863bbd4bff098087f2af9a29c")
+        self.assertFalse(row["gold_admissible"])
+        self.assertEqual(row["commercial_rights"], "NOT_VERIFIED")
+
+    def test_inspected_eight_must_have_precise_source_commit(self):
         report = reconcile(*self.raw)
         old = [x for x in report["cases"] if x["stage"] == "ORIGINAL_COMMIT_INSPECTED_NO_FULL_UPSTREAM_REPRO"]
-        self.assertEqual(len(old), 7)
+        self.assertEqual(len(old), 8)
         for c in old:
             self.assertRegex(c["original_fix_commit"], r"^[0-9a-f]{40}$")
             self.assertRegex(c["original_parent_commit"], r"^[0-9a-f]{40}$")
@@ -94,24 +103,24 @@ class CVEResearchReconciliationTests(unittest.TestCase):
         self.assertTrue(all(x["technical_evidence_url"] is None for x in blocked))
 
     def test_duplicate_discovery_row_rejected(self):
-        discovery, reviewed, decisions, cohort = self.raw
+        discovery, reviewed, decisions, cohort, addendum = self.raw
         first = next(line for line in discovery.splitlines() if line.startswith("| 1 |"))
         altered = discovery.replace("| 2 |", "| 1 |", 1)
         with self.assertRaisesRegex(ValueError, "discovery"):
-            reconcile(altered, reviewed, decisions, cohort)
+            reconcile(altered, reviewed, decisions, cohort, addendum)
 
     def test_missing_provenance_rejected_instead_of_fabricated(self):
-        discovery, reviewed, decisions, cohort = self.raw
+        discovery, reviewed, decisions, cohort, addendum = self.raw
         altered = reviewed.replace("CVE-2026-29035", "CVE-2099-999999")
         with self.assertRaises(ValueError):
-            reconcile(discovery, altered, decisions, cohort)
+            reconcile(discovery, altered, decisions, cohort, addendum)
 
     def test_fabricated_certified_cohort_is_rejected(self):
-        discovery, reviewed, decisions, cohort = self.raw
+        discovery, reviewed, decisions, cohort, addendum = self.raw
         altered = json.loads(json.dumps(cohort))
         altered["certification"] = "CERTIFIED"
         with self.assertRaises(ValueError):
-            reconcile(discovery, reviewed, decisions, altered)
+            reconcile(discovery, reviewed, decisions, altered, addendum)
 
 
 if __name__ == "__main__":
