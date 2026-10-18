@@ -9,6 +9,9 @@ on:
       - 'ultrasec-v7/tests/test_prepare_blind_cohort.py'
       - 'ultrasec-v7/tools/prepare_blind_cohort.py'
       - 'ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json'
+      - 'ultrasec-v7/tools/verify_rights_inventory.py'
+      - 'ultrasec-v7/tests/test_rights_inventory.py'
+      - 'ultrasec-v7/verification/research/LICENSE_SCOPE_INVENTORY_5.json'
   workflow_dispatch:
 
 permissions:
@@ -26,6 +29,14 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_verify_candidate_cohort.py -v
       - name: Test disjoint reviewer queues and zero label leakage
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_prepare_blind_cohort.py -v
+      - name: Test five-case historical license inventory without resale claims
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
+      - name: Report original-source licenses separately from commercial clearance
+        run: |
+          python3 ultrasec-v7/tools/verify_rights_inventory.py \\
+            ultrasec-v7/verification/research/LICENSE_SCOPE_INVENTORY_5.json \\
+            ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json
+          echo 'Observed upstream license files do NOT certify per-file rights, sublicensing, or resale permissions.' >> "$GITHUB_STEP_SUMMARY"
       - name: Print truthful metadata-only report
         run: |
           python3 ultrasec-v7/tools/verify_candidate_cohort.py \
