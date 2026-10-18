@@ -1,9 +1,10 @@
-# UltraSec V7: Gitea public upstream regression. Never imports the UltraSec dataset or holdout.
+# UltraSec V7: native Gitea regression; public upstream only, never the private corpus.
 name: V7 Gitea release native regression
 on:
   pull_request:
     paths:
       - '.github/workflows/v7-gitea-native-regression.yml'
+      - 'ultrasec-v7/tests/test_upstream_workflow_integrity.py'
   workflow_dispatch:
 
 permissions:
@@ -56,24 +57,9 @@ jobs:
           set -euo pipefail
           cd upstream
           go version
-          # An expected RED result counts as a successful *regression experiment*, not a passing upstream test.
+          # RED is an expected failing upstream regression, not proof that old source is clean.
           set +e
-          go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update
-      - name: Preserve public logs and SHA; never archive source
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gitea-native-public-${{ matrix.version }}
-          path: |
-            source_sha.txt
-            test_provenance.txt
-            source_hashes.txt
-            gitea-${{ matrix.version }}.log
-            log_sha256.txt
-            native_verdict.txt
-          if-no-files-found: warn
-          retention-days: 14
- ./services/release -v 2>&1 | tee ../gitea-${{ matrix.version }}.log
+          go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update$' ./services/release -v 2>&1 | tee ../gitea-${{ matrix.version }}.log
           test_exit="${PIPESTATUS[0]}"
           set -e
           cd ..
@@ -100,5 +86,6 @@ jobs:
             source_hashes.txt
             gitea-${{ matrix.version }}.log
             log_sha256.txt
+            native_verdict.txt
           if-no-files-found: warn
           retention-days: 14
