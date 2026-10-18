@@ -1,10 +1,10 @@
 # Auditoría de CodeQL, Semgrep y Slither en 100 casos reales (plan ejecutable)
 
-**No se ha ejecutado este estudio sobre 100 casos reales en el PR.** El repositorio público carece de estos casos y de licencias para redistribuirlos. Los escáneres de CI públicos analizan solo el validador público, por lo que esos checks **NO** son los resultados del corpus privado.
+**No se ha ejecutado este estudio sobre 100 casos reales en el PR.** A 18-10-2026 se añadió un workflow separado para un *ensayo real sin puntuación* de Semgrep OSS sobre el archivo original Moonlight C en dos SHAs fijos. Ese experimento no contiene gold independiente ni permite concluir precisión/recall; consultar su estado y logs en el PR #10 antes de afirmar resultados. El repositorio público carece de estos casos y de licencias para redistribuirlos. Los escáneres de CI públicos analizan solo el validador público, por lo que esos checks **NO** son los resultados del corpus privado.
 
 ## Admisión y reproducibilidad
 
-Antes de ejecutar: dos revisores humanos firman el gold o el adjudicador fija la verdad; validar repositorio y commits fuente/parche, derechos de uso, versión de toolchains y proyecto held-out. Ejecutar en VM/runner privado sin egress no aprobado y con controles de acceso al holdout. Conservar digest de cada fuente, contenedor, reglas, salida SARIF/JSON, stderr y código de retorno; almacenar evidencias y logs en directorio privado.
+Antes de ejecutar un **benchmark puntuable**, disponer de un gold justificado y trazable, definido antes de leer la salida del escáner; la doble revisión humana está **aplazada por decisión del propietario** y no bloquea los ensayos técnicos actuales, pero tampoco se sustituye por IA ni se declara completada. Validar repositorio y commits fuente/parche, uso permitido, toolchains y proyecto held-out. Ejecutar en VM/runner privado sin egress no aprobado y con controles de acceso al holdout. Conservar digest de cada fuente, contenedor, reglas, salida SARIF/JSON, stderr y código de retorno; almacenar evidencias y logs en directorio privado.
 
 ## Herramientas y aplicabilidad
 
