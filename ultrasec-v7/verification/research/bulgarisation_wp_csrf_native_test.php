@@ -89,4 +89,62 @@ class UltraSec_Bulgarisation_Csrf_WP_Test extends WP_UnitTestCase {
         );
         $this->assertCount( 0, $this->blocked_requests );
     }
+
+    /** A manager's legitimate nonce must preserve the normal dispatch to a local transport stub. */
+    public function test_authorized_manager_with_valid_nonce_preserves_operation() {
+        $admin_role = get_role( 'administrator' );
+        $this->assertNotNull( $admin_role );
+        $admin_role->add_cap( 'manage_woocommerce' );
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+        $this->assertTrue( current_user_can( 'manage_woocommerce' ) );
+        $order = wc_create_order();
+        $this->assertInstanceOf( '\WC_Order', $order );
+        $_REQUEST['orderId'] = $order->get_id();
+        $_REQUEST['shipmentStatus'] = array( 'wb' => 'LOCAL_TEST_ONLY' );
+        $_REQUEST['nonce'] = wp_create_nonce( 'woo_bg_admin_label' );
+        $this->assertNotFalse( wp_verify_nonce( $_REQUEST['nonce'], 'woo_bg_admin_label' ) );
+        $reason = '';
+        ob_start();
+        try {
+            do_action( 'wp_ajax_woo_bg_cvc_delete_label' );
+            $reason = 'RETURNED_WITHOUT_GUARD';
+        } catch ( \Throwable $e ) {
+            $reason = $e->getMessage();
+        } finally {
+            ob_end_clean();
+        }
+        echo "AUTHORIZED_TERMINATION=" . $reason . "\n";
+        echo "AUTHORIZED_BLOCKED_HTTP_ATTEMPTS=" . count( $this->blocked_requests ) . "\n";
+        $this->assertSame( 'BLOCKED_OUTBOUND_PROVIDER_REQUEST', $reason );
+        $this->assertCount( 1, $this->blocked_requests );
+    }
+
+    /** Having a valid nonce does not give a Subscriber manage_woocommerce rights. */
+    public function test_subscriber_with_valid_nonce_must_not_reach_provider() {
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+        $this->assertFalse( current_user_can( 'manage_woocommerce' ) );
+        $order = wc_create_order();
+        $this->assertInstanceOf( '\WC_Order', $order );
+        $_REQUEST['orderId'] = $order->get_id();
+        $_REQUEST['shipmentStatus'] = array( 'wb' => 'LOCAL_TEST_ONLY' );
+        $_REQUEST['nonce'] = wp_create_nonce( 'woo_bg_admin_label' );
+        $this->assertNotFalse( wp_verify_nonce( $_REQUEST['nonce'], 'woo_bg_admin_label' ) );
+        $reason = '';
+        ob_start();
+        try {
+            do_action( 'wp_ajax_woo_bg_cvc_delete_label' );
+            $reason = 'RETURNED_WITHOUT_GUARD';
+        } catch ( \Throwable $e ) {
+            $reason = $e->getMessage();
+        } finally {
+            ob_end_clean();
+        }
+        echo "SUBSCRIBER_TERMINATION=" . $reason . "\n";
+        echo "SUBSCRIBER_BLOCKED_HTTP_ATTEMPTS=" . count( $this->blocked_requests ) . "\n";
+        $this->assertSame(
+            'BLOCKED_BY_WORDPRESS_GUARD', $reason,
+            'Valid nonce does not grant WooCommerce administrator capabilities'
+        );
+        $this->assertCount( 0, $this->blocked_requests );
+    }
 }
