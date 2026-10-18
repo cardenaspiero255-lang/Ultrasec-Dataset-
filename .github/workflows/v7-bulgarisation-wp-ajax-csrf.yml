@@ -88,6 +88,7 @@ jobs:
           PHP
           cat > /tmp/ultrasec_wp_bootstrap.php <<'PHP'
           <?php
+          define( 'DOING_AJAX', true ); // Send wp_send_json through overridable wp_die AJAX handler.
           require_once '/tmp/wordpress-tests-lib/includes/functions.php';
           tests_add_filter( 'muplugins_loaded', function () {
               require_once '/tmp/wordpress/wp-content/plugins/woocommerce/woocommerce.php';
