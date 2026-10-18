@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/v7-moonlight-sast-research.yml'
+      - 'ultrasec-v7/verification/rules/moonlight-cwe120.yml'
   workflow_dispatch:
 
 permissions:
@@ -86,6 +87,47 @@ jobs:
           print("Real upstream Semgrep completed. Findings:",len(findings))
           print("No TP/FP/FN/TN; no holdout gold or commercial certification.")
           PY
+      - name: Run SHA-pinned post-hoc CWE-120 research regression (NOT gold)
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: "off"
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          semgrep scan --oss-only --disable-version-check --metrics off --config ultrasec-v7/verification/rules/moonlight-cwe120.yml --json --output /tmp/semgrep-pinned.json upstream/src/RtspConnection.c
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          rule=pathlib.Path("ultrasec-v7/verification/rules/moonlight-cwe120.yml")
+          scan=pathlib.Path("/tmp/semgrep-pinned.json")
+          result=json.loads(scan.read_text())
+          if result.get("errors"):
+              raise SystemExit("pinned_semgrep_scan_parser_or_runtime_errors")
+          matches=result.get("results")
+          if not isinstance(matches,list):
+              raise SystemExit("missing_rule_scan_results")
+          if any("moonlight-original-unbounded-copy" not in item.get("check_id","") for item in matches):
+              raise SystemExit("unexpected_rule_executed")
+          phase=os.environ["PHASE"]
+          expected=1 if phase=="before" else 0
+          if len(matches)!=expected:
+              raise SystemExit("expected_native_copy_detection_regression_mismatch")
+          summary={
+              "schema":"ultrasec.post-hoc-targeted-cwe120-regression.v1",
+              "phase":phase,
+              "observed_findings":len(matches),
+              "rule_sha256":hashlib.sha256(rule.read_bytes()).hexdigest(),
+              "scanner_output_sha256":hashlib.sha256(scan.read_bytes()).hexdigest(),
+              "tool":"semgrep-oss",
+              "source_scope":"UPSTREAM_RTSP_C",
+              "rule_designed_after_fix_review":True,
+              "independent_gold":False,
+              "holdout_validation":"NOT_TESTED",
+              "benchmark_score":"NOT_COMPUTED",
+              "certification":"NOT_CERTIFIED",
+          }
+          pathlib.Path("sast_pinned_rule_summary.json").write_text(json.dumps(summary,sort_keys=True,indent=2)+"\\n")
+          print("Post-hoc exact-rule regression PASS; findings:",len(matches))
+          PY
       - name: Retain only metadata and hashes, never original source or raw report
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,5 +138,6 @@ jobs:
             source_hash.txt
             semgrep_version.txt
             sast_research_summary.json
+            sast_pinned_rule_summary.json
           if-no-files-found: warn
           retention-days: 14
