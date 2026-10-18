@@ -126,15 +126,22 @@ jobs:
             test "$code" -ne 0
             grep -Fq 'SECURITY_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST' "wordpress-csrf-$VER.log"
             grep -Fq 'BLOCKED_HTTP_ATTEMPTS=1' "wordpress-csrf-$VER.log"
-            grep -Fq 'Tests: 1' "wordpress-csrf-$VER.log"
-            echo 'EXPECTED_RED_MISSING_CSRF_CHECK=TRUE' >> verdict.txt
+            grep -Fq 'SUBSCRIBER_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST' "wordpress-csrf-$VER.log"
+            grep -Fq 'SUBSCRIBER_BLOCKED_HTTP_ATTEMPTS=1' "wordpress-csrf-$VER.log"
+            grep -Fq 'Tests: 3' "wordpress-csrf-$VER.log"
+            grep -Fq 'Failures: 2' "wordpress-csrf-$VER.log"
+            echo 'EXPECTED_RED_CSRF_AND_AUTHORIZATION_CHECKS=TRUE' >> verdict.txt
           else
             test "$code" -eq 0
             grep -Fq 'SECURITY_TERMINATION=BLOCKED_BY_WORDPRESS_GUARD' "wordpress-csrf-$VER.log"
             grep -Fq 'BLOCKED_HTTP_ATTEMPTS=0' "wordpress-csrf-$VER.log"
-            grep -Fq 'OK (1 test,' "wordpress-csrf-$VER.log"
-            echo 'EXPECTED_GREEN_NONCE_CHECK=TRUE' >> verdict.txt
+            grep -Fq 'SUBSCRIBER_TERMINATION=BLOCKED_BY_WORDPRESS_GUARD' "wordpress-csrf-$VER.log"
+            grep -Fq 'SUBSCRIBER_BLOCKED_HTTP_ATTEMPTS=0' "wordpress-csrf-$VER.log"
+            grep -Fq 'OK (3 tests,' "wordpress-csrf-$VER.log"
+            echo 'EXPECTED_GREEN_CSRF_AND_AUTHORIZATION_CHECKS=TRUE' >> verdict.txt
           fi
+          grep -Fq 'AUTHORIZED_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST' "wordpress-csrf-$VER.log"
+          grep -Fq 'AUTHORIZED_BLOCKED_HTTP_ATTEMPTS=1' "wordpress-csrf-$VER.log"
           echo 'ALL_COURIER_HTTP_REQUESTS_INTERCEPTED=TRUE' >> verdict.txt
           sha256sum "wordpress-csrf-$VER.log" verdict.txt > native_log_sha256.txt
       - name: Preserve only public run evidence (not third-party code)
