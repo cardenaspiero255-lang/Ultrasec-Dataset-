@@ -36,6 +36,23 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_prepare_blind_cohort.py -v
       - name: Reconcile all 63 public CVE candidates without promoting any to gold
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_reconcile_cve_research.py -v
+      - name: Build explicit public-only CVE 63 evidence ledger
+        run: |
+          python3 ultrasec-v7/tools/reconcile_cve_research.py --public-report ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json
+          python3 - <<'PY'
+          import json, os, pathlib
+          report=json.loads(pathlib.Path('ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json').read_text())
+          c=report['counts']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+              out.write(f"### CVE 63 evidence ledger (NOT gold)\\n- Source commits inspected: {c['source_commit_inspected']}\\n- Independent native RED/GREEN: {c['native_red_green_in_original_63']}\\n- Without original source inspection: {c['not_yet_source_inspected_after_reconciliation']}\\n- Ineligible: {c['holdout_ineligible_without_source_pair']}\\n- Unresolved CWE mapping conflicts: {c['unresolved_cwe_mapping_conflicts']}\\n- Commercial permissions: {c['resale_rights_verified']}\\n")
+          PY
+      - name: Attach public metadata ledger for reproducibility
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultrasec-v7-public-cve-63-evidence
+          path: ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Test five-case historical license inventory without resale claims
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
       - name: Report original-source licenses separately from commercial clearance
