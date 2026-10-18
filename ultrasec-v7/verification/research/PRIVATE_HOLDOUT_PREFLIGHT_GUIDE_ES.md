@@ -34,3 +34,15 @@ python3 ultrasec-v7/tools/private_holdout_preflight.py \
 Un `metadata_preflight_pass=true` significa **únicamente** que las afirmaciones suministradas tienen estructura coherente y no presentan los solapamientos exactos detectables por las claves entregadas. No confirma que la procedencia, las etiquetas, los hashes, la separación semántica, los derechos de redistribución, la preinscripción temporal o las predicciones sean auténticos. Necesitan comprobaciones sobre árboles Git, logs originales, normas SAST y un sellado externo al evaluador.
 
 **Estado real actual:** no se proporcionó el inventario privado; `HOLDOUT_PRIVATE=NOT_VERIFIED`; `GOLD=0`; benchmark real de 100 casos `NOT_RUN`; certificación `NOT_CERTIFIED`. La fase de dos revisores externos sigue `DEFERRED`.
+
+## Detección local complementaria de clones estructurales Python
+
+Cuando el propietario tenga los archivos fuente privados, ejecutar **solo localmente** el nuevo `private_python_ast_screen.py` con un JSONL separado de cinco campos: `case_id`, `split` (train/validation/test), `language: python`, `vulnerable_source`, `fixed_source`. No ejecutar el código de los ejemplos; se analiza con `ast.parse` y se computan firmas SHA-256 sobre AST normalizados (identificadores y literales anonimizados).
+
+```bash
+python3 ultrasec-v7/tools/private_python_ast_screen.py \
+  --input /ruta/privada/pares_python_para_auditoria.jsonl
+```
+
+**Un choque entre train y test o dentro del test requiere revisión manual del mecanismo** y el programa devuelve error. La ausencia de colisiones no acredita independencia causal; otras lenguas (JavaScript, PHP, C) requieren analizadores propios y análisis de flujo de datos. Los resultados impresos son solo conteos/errores agregados: no compartir el JSONL privado, sus hashes o código en Actions, issues ni PR.
+
