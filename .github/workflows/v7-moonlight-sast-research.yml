@@ -1,0 +1,100 @@
+# Real Semgrep tool execution against exact Moonlight upstream source, NOT a certified SAST benchmark.
+name: V7 Moonlight Semgrep real-source research
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-moonlight-sast-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  moonlight-semgrep-research:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            sha: '116267a24569ec610f4c9efa1048541022981040'
+          - phase: after
+            sha: '02b7742f4d19631024bd766bd2bb76715780004e'
+    steps:
+      - name: Fetch original Moonlight C source at immutable revision
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/moonlight-stream/moonlight-common-c.git
+          git -C upstream fetch --depth 1 origin "$SOURCE_SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SOURCE_SHA"
+          git -C upstream rev-parse 'HEAD:src/RtspConnection.c' > upstream_blob.txt
+          sha256sum upstream/src/RtspConnection.c > source_hash.txt
+      - name: Install real Semgrep OSS pinned CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'semgrep==1.180.0'
+          semgrep --version > semgrep_version.txt
+      - name: Scan actual original source with registry security-audit rules
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: "off"
+          PHASE: ${{ matrix.phase }}
+          SOURCE_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          semgrep scan --oss-only --disable-version-check --metrics off --config p/security-audit --json --output /tmp/semgrep-native.json upstream/src/RtspConnection.c
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          path=pathlib.Path("/tmp/semgrep-native.json")
+          doc=json.loads(path.read_text())
+          if doc.get("errors"):
+              raise SystemExit("scanner_errors_prevent_valid_run")
+          findings=doc.get("results")
+          if not isinstance(findings,list):
+              raise SystemExit("missing_scanner_results")
+          summary={
+              "schema":"ultrasec.sast-upstream-shadow.v1",
+              "scope":"ONE_REAL_UPSTREAM_C_SOURCE_FILE",
+              "cve_candidate":"CVE-2023-42799",
+              "phase":os.environ["PHASE"],
+              "upstream_commit":os.environ["SOURCE_SHA"],
+              "upstream_file":"src/RtspConnection.c",
+              "scanner":"semgrep-oss",
+              "scanner_version":pathlib.Path("semgrep_version.txt").read_text().strip(),
+              "ruleset":"registry:p/security-audit",
+              "ruleset_immutable":False,
+              "scanner_output_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+              "source_file_sha256":hashlib.sha256(pathlib.Path("upstream/src/RtspConnection.c").read_bytes()).hexdigest(),
+              "finding_count":len(findings),
+              "rule_ids":sorted(set(str(x.get("check_id","")) for x in findings)),
+              "scanner_execution":"RAN",
+              "independent_gold":"NOT_AVAILABLE",
+              "benchmark_metrics":"NOT_COMPUTED",
+              "commercial_rights":"NOT_VERIFIED",
+              "certification":"NOT_CERTIFIED",
+          }
+          pathlib.Path("sast_research_summary.json").write_text(json.dumps(summary,sort_keys=True,indent=2)+"\n")
+          print("Real upstream Semgrep completed. Findings:",len(findings))
+          print("No TP/FP/FN/TN; no holdout gold or commercial certification.")
+          PY
+      - name: Retain only metadata and hashes, never original source or raw report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-semgrep-research-${{ matrix.phase }}
+          path: |
+            upstream_blob.txt
+            source_hash.txt
+            semgrep_version.txt
+            sast_research_summary.json
+          if-no-files-found: warn
+          retention-days: 14
