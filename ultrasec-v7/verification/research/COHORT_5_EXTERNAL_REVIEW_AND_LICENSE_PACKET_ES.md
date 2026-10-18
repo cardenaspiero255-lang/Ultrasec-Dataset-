@@ -10,9 +10,9 @@ Fecha de corte: 2026-10-17. Naturaleza: expediente PUBLIC_METADATA_ONLY, no dist
 | CVE-2025-69015 | 862 | Crowdsignal: cuatro permisos REST del rol Autor permisivos en 1.7.2 y cuatro resultados corregidos en 1.8.0 con WordPress PHPUnit | https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078935591 | Vincular la función al advisory preciso, derechos |
 | CVE-2023-42799 | 120 | Moonlight: ASan detecta desbordamiento de pila de función original en padre y copia acotada en fix | https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39076329630 | Prueba del proyecto completo, atribución y derechos |
 | CVE-2024-48645 | 862 | Command Block IDE: prefijo original Java permite procesamiento sin privilegio antes y lo rechaza después | https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078876423 | Servidor Fabric real, atribución y derechos |
-| CVE-2024-2395 | 352 | Bulgarisation: helper original nuevo controla nonce y manage_woocommerce, pruebas aisladas 4/4 PASS y nueve llamadas en tres transportistas | https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078707779 | Petición CSRF WordPress/WooCommerce antes/después, derechos y distinción CVE-2024-0683 |
+| CVE-2024-2395 | 352 | Bulgarisation: WP/WooCommerce admin-AJAX original con tres casos, RED 3.0.14 (dos fallos esperados) y GREEN 3.0.15 (3 tests / 19 assertions); transportes interceptados | https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39081399130 | Atribución CWE y distinción CVE-2024-0683, alcance de otros handlers y derechos |
 
-Los resultados anteriores son de distinto nivel de integración. La prueba de Gitea es Go nativo, la de Crowdsignal usa WordPress PHPUnit, Moonlight y Command Block IDE extraen fragmentos de fuente original y Bulgarisation prueba solo el guard de la versión corregida. No se pueden equiparar ni extrapolar a una garantía de ausencia de otras vulnerabilidades.
+Los resultados son de distinto nivel de integración. Gitea emplea Go nativo, Crowdsignal usa WordPress PHPUnit, Moonlight y Command Block IDE extraen fragmentos originales, y Bulgarisation usa el callback AJAX original en WordPress + WooCommerce con todo el tráfico de proveedores interceptado. No se pueden equiparar ni extrapolar a una garantía de ausencia de otras vulnerabilidades.
 
 ## Registro histórico de licencias: evidencia primaria observada
 
@@ -49,7 +49,7 @@ Las respuestas de GitHub Actions, asistentes, búsquedas y el propio autor NO so
 
 ## Protección de holdout y aceptación
 
-A la fecha: 5 investigaciones públicas, 4 contrastes RED/GREEN técnicos, 1 guard aislado, 0/5 derechos comerciales dictaminados, 0/2 revisores externos, 0 gold admitido, ningún caso importado a entrenamiento/holdout, SAST sobre gold real NOT_RUN y V7 NOT_CERTIFIED. No publicar ni firmar certificados ficticios.
+A la fecha: 5 investigaciones públicas, 5 contrastes RED/GREEN técnicos (con distinto alcance de integración), 1 guard aislado adicional, 0/5 derechos comerciales dictaminados, 0/2 revisores externos, 0 gold admitido, ningún caso importado a entrenamiento/holdout, SAST sobre gold real NOT_RUN y V7 NOT_CERTIFIED. No publicar ni firmar certificados ficticios.
 
 El único punto de entrada del lote público es COHORT_5_PRE_ADMISSION_PUBLIC.json; su verificador rechaza admisiones y particiones autodeclaradas.
 
@@ -83,3 +83,10 @@ En el [run RED/GREEN del AJAX original](https://github.com/cardenaspiero255-lang
 - Se exigen titulares y avisos por archivo, dependencias, interpretación de licencia por modalidad/jurisdicción y dictamen humano. **0/5 derechos confirmados; estado `COMMERCIAL_RIGHTS=NOT_VERIFIED`.**
 
 **Al cierre de estas notas, el dataset privado, sus etiquetas y el holdout no se han modificado. `gold=0`, `reviews_signed=0`, `SAST_PRIVATE=NOT_RUN`, `V7=NOT_CERTIFIED`.**
+
+
+## Rectificación de corte — prueba de tres escenarios
+
+El [run 39081399130](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39081399130) acredita el mismo flujo AJAX original en los ZIP 3.0.14 y 3.0.15: administrador con nonce falsificado, suscriptor con nonce válido y administrador autorizado con nonce válido. En 3.0.14 los dos casos no autorizados llegaron al transporte HTTP interceptado (2 fallos esperados de 3 pruebas); en 3.0.15 fueron rechazados antes del transporte y el control autorizado siguió avanzando (3 pruebas y 19 aserciones exitosas). **No se enviaron solicitudes reales a transportistas**. Esto completa el contraste de la ruta bajo prueba, no un examen exhaustivo de los AJAX del plugin. El acoplamiento exacto del advisory CVE-2024-2395 y CVE-2024-0683 requiere revisión independiente.
+
+**Solicitudes externas reales:** [issue #12, dos revisores AppSec](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/12) y [issue #11, revisión jurídica profesional](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/11). Crearlas no acredita personas asignadas ni firmas: **0/2 revisores, 0/5 derechos comerciales, gold 0/5**.
