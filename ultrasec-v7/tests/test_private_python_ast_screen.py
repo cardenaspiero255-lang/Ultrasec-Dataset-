@@ -48,6 +48,16 @@ class PythonStructureScreenTests(unittest.TestCase):
         self.assertIn("invalid_python_source",report["failures"])
         self.assertEqual(report["certification"],"NOT_CERTIFIED")
 
+    def test_empty_private_input_must_fail_closed(self):
+        report=mod.audit([])
+        self.assertFalse(report["structural_preflight_pass"])
+        self.assertIn("missing_train_or_test", report["failures"])
+
+    def test_only_test_records_cannot_claim_independence(self):
+        report=mod.audit([row("a","test","print(1)","print(2)")])
+        self.assertFalse(report["structural_preflight_pass"])
+        self.assertIn("missing_train_or_test", report["failures"])
+
     def test_distinct_shapes_can_pass_screen_without_becoming_gold(self):
         a=row("a","train","x=1\n","y=2\n")
         b=row("b","test","if True:\n    print(3)\n","while False:\n    break\n")
