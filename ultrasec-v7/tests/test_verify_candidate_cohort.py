@@ -54,6 +54,16 @@ class ResearchCohortContract(unittest.TestCase):
         self.assertEqual(result["certification"], "NOT_CERTIFIED")
         self.assertEqual(result["confirmed_gold_count"], 0)
 
+    def test_repeated_release_pair_is_rejected(self):
+        doc = copy.deepcopy(fixture())
+        source = doc["candidates"][1]
+        other = doc["candidates"][4]
+        other["source_commit"] = None
+        other["fix_commit"] = None
+        other["source_release_sha256"] = source["source_release_sha256"]
+        other["fix_release_sha256"] = source["fix_release_sha256"]
+        self.assertIn("duplicate_source_patch_pair", validate(doc))
+
     def test_repeated_original_patch_pair_is_rejected(self):
         doc = fixture()
         doc["candidates"][4]["source_commit"] = doc["candidates"][0]["source_commit"]
