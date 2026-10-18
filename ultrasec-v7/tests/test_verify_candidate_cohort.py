@@ -64,6 +64,22 @@ class ResearchCohortContract(unittest.TestCase):
         other["fix_release_sha256"] = source["fix_release_sha256"]
         self.assertIn("duplicate_source_patch_pair", validate(doc))
 
+    def test_duplicated_upstream_project_is_not_independent(self):
+        doc = copy.deepcopy(fixture())
+        doc["candidates"][4]["source_url"] = doc["candidates"][0]["source_url"]
+        self.assertIn("nonindependent_upstream_project", validate(doc))
+
+    def test_reused_native_witness_run_is_rejected(self):
+        doc = copy.deepcopy(fixture())
+        doc["candidates"][4]["native_evidence_url"] = doc["candidates"][0]["native_evidence_url"]
+        self.assertIn("duplicate_native_witness", validate(doc))
+
+    def test_public_disjointness_does_not_claim_independent_holdout(self):
+        result = report(fixture())
+        self.assertEqual(result["distinct_upstream_projects"], 5)
+        self.assertEqual(result["distinct_native_witnesses"], 5)
+        self.assertEqual(result["private_holdout_independence"], "NOT_VERIFIED")
+
     def test_repeated_original_patch_pair_is_rejected(self):
         doc = fixture()
         doc["candidates"][4]["source_commit"] = doc["candidates"][0]["source_commit"]
