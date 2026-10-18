@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-_SHA40 = re.compile(r"[a-f0-9]{40}\\Z")
+_SHA40 = re.compile(r"[a-f0-9]{40}$")
 MODES = frozenset({"metadata_only", "source_fragments", "full_source_pairs"})
 EXPECTED_STATE = "INVENTORY_ONLY_NOT_COMMERCIAL_CLEARANCE"
 
