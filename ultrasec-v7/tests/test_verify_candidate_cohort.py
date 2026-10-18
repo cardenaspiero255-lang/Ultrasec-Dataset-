@@ -35,6 +35,25 @@ class ResearchCohortContract(unittest.TestCase):
         self.assertEqual(doc["candidates"][0]["native_evidence"], "RED_GREEN_REPRODUCED")
         self.assertEqual(report(doc)["confirmed_gold_count"], 0)
 
+    def test_red_green_run_urls_must_be_canonical_and_belong_to_ultrasec(self):
+        bad = [
+            "https://github.com/outsider/other/actions/runs/39073712740",
+            "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/not-an-id",
+            "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39073712740/extra",
+        ]
+        for url in bad:
+            with self.subTest(url=url):
+                doc = copy.deepcopy(fixture())
+                doc["candidates"][0]["native_evidence_url"] = url
+                self.assertIn("invalid_red_green_run_reference", validate(doc))
+
+    def test_automation_phase_is_distinct_from_external_certification(self):
+        result = report(fixture())
+        self.assertEqual(result["automated_phase"], "METADATA_CONSISTENCY_ONLY")
+        self.assertEqual(result["human_review_phase"], "DEFERRED")
+        self.assertEqual(result["certification"], "NOT_CERTIFIED")
+        self.assertEqual(result["confirmed_gold_count"], 0)
+
     def test_repeated_original_patch_pair_is_rejected(self):
         doc = fixture()
         doc["candidates"][4]["source_commit"] = doc["candidates"][0]["source_commit"]
