@@ -52,3 +52,34 @@ Las respuestas de GitHub Actions, asistentes, búsquedas y el propio autor NO so
 A la fecha: 5 investigaciones públicas, 4 contrastes RED/GREEN técnicos, 1 guard aislado, 0/5 derechos comerciales dictaminados, 0/2 revisores externos, 0 gold admitido, ningún caso importado a entrenamiento/holdout, SAST sobre gold real NOT_RUN y V7 NOT_CERTIFIED. No publicar ni firmar certificados ficticios.
 
 El único punto de entrada del lote público es COHORT_5_PRE_ADMISSION_PUBLIC.json; su verificador rechaza admisiones y particiones autodeclaradas.
+
+
+## Avance posterior: WP AJAX original y protocolo HMAC
+
+### CSRF de Bulgarisation 3.0.14 → 3.0.15
+
+En el [run RED/GREEN del AJAX original](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39081141414) se cargó **WordPress 6.6.2 + WooCommerce 8.7.0** y los ZIP oficiales 3.0.14/3.0.15. La prueba crea una orden efímera y emite `do_action('wp_ajax_woo_bg_cvc_delete_label')` como administrador con permiso legítimo pero un nonce falsificado. **Cada** solicitud HTTP desde WordPress está interceptada antes de salir; nunca se contacta a CVC, Econt ni Speedy.
+
+- Antes: el controlador aceptó el nonce inválido y alcanzó la preparación de la solicitud HTTP externa (interceptada, 1 intento) → PHPUnit RED esperado.
+- Después: `wp_send_json_error`/manejador `wp_die` negó la acción sin intentar HTTP (0 intentos), PHPUnit GREEN con 6 aserciones.
+- La respuesta con nonce ausente —no presente en `$_REQUEST`— provocaba un aviso `Undefined array key "nonce"` en la versión corregida bajo PHPUnit. Se usó un **nonce presente, inválido** para probar el control CSRF sin confundir el aviso con una denegación normal. Este aviso debe quedar como caso funcional residual para una auditoría de calidad; no declarar rechazo limpio de toda entrada posible.
+- El ensayo no realiza la cancelación real en transportistas; verifica la diferencia de **llegada al límite de salida** usando callback WordPress y WooCommerce reales.
+- Ejecutar además roles no privilegiados con nonce válido y el control positivo de administrador con nonce válido, antes de cerrar el rango completo de autorizaciones. **La asociación exacta y alcance de CVE-2024-2395 frente a CVE-2024-0683 aún debe ser adjudicada independientemente.**
+
+### Protocolo para revisión independiente real
+
+- Código: `ultrasec-v7/tools/prepare_blind_cohort.py`; tests `ultrasec-v7/tests/test_prepare_blind_cohort.py`.
+- Dos *slots* A y B con ID opacos distintos por HMAC y clave que **nunca** se almacena en este repositorio; respuestas iniciales en blanco, `signature=null`, conflicto/exposición previa pendiente.
+- La correspondencia CVE ↔ ID se conserva **fuera del repositorio y con permisos 0600** bajo el custodio. Nunca publicar ni subir la correspondencia como artefacto de GitHub CI; ejecutar la utilidad únicamente en una máquina o entorno privado controlado.
+- No se incorpora código protegido de terceros a los paquetes sin evaluación previa de permisos de entrega; el custodio proveerá material autorizado y anonimizado tras acordar confidencialidad.
+- Estos pasos solo preparan una evaluación; no certifican que sea verdaderamente ciega si el experto conoce previamente el CVE o identifica el proyecto por su código. La exposición previa y los conflictos deben declararse.
+- [Convocatoria humana específica — issue #12](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/12). **0/2 revisores confirmados; ningún dictamen ni firmas.**
+
+### Encargo jurídico externo
+
+- [Solicitud de revisión jurídica humana — issue #11](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/issues/11). El alcance distingue tres modalidades: metadatos sin código; fragmentos/diffs; y pares completos de código. La modalidad de venta no está contractual ni técnicamente fijada.
+- La [FAQ oficial de GNU](https://www.gnu.org/licenses/gpl-faq.es.html) permite vender copias GPL cumpliendo la licencia, pero no da un derecho de exclusividad ni autoriza imponer restricciones adicionales incompatibles a las copias cubiertas.
+- Fuentes de licencias históricas verificadas ≠ autorización comercial del producto concreto ni informe de abogado firmado.
+- Se exigen titulares y avisos por archivo, dependencias, interpretación de licencia por modalidad/jurisdicción y dictamen humano. **0/5 derechos confirmados; estado `COMMERCIAL_RIGHTS=NOT_VERIFIED`.**
+
+**Al cierre de estas notas, el dataset privado, sus etiquetas y el holdout no se han modificado. `gold=0`, `reviews_signed=0`, `SAST_PRIVATE=NOT_RUN`, `V7=NOT_CERTIFIED`.**
