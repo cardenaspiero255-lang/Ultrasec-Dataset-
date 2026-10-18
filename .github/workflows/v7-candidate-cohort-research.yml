@@ -12,6 +12,8 @@ on:
       - 'ultrasec-v7/tools/verify_rights_inventory.py'
       - 'ultrasec-v7/tests/test_rights_inventory.py'
       - 'ultrasec-v7/tests/test_reconcile_cve_research.py'
+      - 'ultrasec-v7/tests/test_private_holdout_preflight.py'
+      - 'ultrasec-v7/tools/private_holdout_preflight.py'
       - 'ultrasec-v7/tools/reconcile_cve_research.py'
       - 'ultrasec-v7/verification/research/CVE_CANDIDATES_63_PUBLIC_METADATA.md'
       - 'ultrasec-v7/verification/research/CVE_VERIFICATION_7_OF_63_2026-10-17.md'
@@ -53,6 +55,8 @@ jobs:
           path: ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json
           if-no-files-found: error
           retention-days: 14
+      - name: Test private benchmark metadata preflight without exposing user data
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_holdout_preflight.py -v
       - name: Test five-case historical license inventory without resale claims
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
       - name: Report original-source licenses separately from commercial clearance
