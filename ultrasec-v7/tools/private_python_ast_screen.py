@@ -69,6 +69,7 @@ def audit(rows: list[dict]) -> dict:
     test_pair_shapes = set()
     test_cases = 0
     valid_cases = 0
+    train_cases = 0
     for record in rows:
         if not isinstance(record, dict) or (
             set(record) != {"case_id","split","language","vulnerable_source","fixed_source"}
@@ -89,6 +90,8 @@ def audit(rows: list[dict]) -> dict:
             continue
         valid_cases += 1
         split = record["split"]
+        if split == "train":
+            train_cases += 1
         if split == "test":
             test_cases += 1
             pair = (original, corrected)
@@ -99,6 +102,8 @@ def audit(rows: list[dict]) -> dict:
             first = variants.setdefault(shape, split)
             if first != split:
                 errors["ast_structure_split_overlap"] += 1
+    if train_cases == 0 or test_cases == 0:
+        errors["missing_train_or_test"] += 1
     return {
         "schema":"ultrasec.private-python-ast-shape-audit.v1",
         "scope":"OWNER_LOCAL_ONLY_NO_SOURCE_EXPORTED",
