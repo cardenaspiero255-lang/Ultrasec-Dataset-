@@ -77,7 +77,7 @@ class CVEResearchReconciliationTests(unittest.TestCase):
         for cve in ("CVE-2024-2395", "CVE-2025-69015"):
             self.assertEqual(indexed[cve]["stage"], "NATIVE_RED_GREEN_TECHNICAL_NOT_GOLD")
             self.assertIn("actions/runs/", indexed[cve]["technical_evidence_url"])
-        self.assertEqual(indexed["CVE-2024-11921"]["stage"], "DISCOVERY_ONLY_NOT_VERIFIED")
+        self.assertEqual(indexed["CVE-2024-11921"]["stage"], "ORIGINAL_COMMIT_INSPECTED_NO_FULL_UPSTREAM_REPRO")
 
     def test_givewp_original_patch_is_accounted_without_gold(self):
         report = reconcile(*self.raw)
