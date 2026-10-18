@@ -68,6 +68,16 @@ class PrivateHoldoutPreflightTests(unittest.TestCase):
         rows[2]["source_sha256"] = rows[0]["fix_sha256"]
         self.assertIn("source_content_split_leakage", module.preflight(rows,48,12)["failures"])
 
+    def test_reused_origin_inside_test_is_not_independent(self):
+        rows = fixture()
+        rows[6]["project_fingerprint"] = rows[2]["project_fingerprint"]
+        self.assertIn("duplicate_test_origin", module.preflight(rows,48,12)["failures"])
+
+    def test_same_original_commit_cannot_reappear_in_test_as_new_case(self):
+        rows = fixture()
+        rows[6]["source_commit"] = rows[2]["fix_commit"]
+        self.assertIn("duplicate_test_source_commit", module.preflight(rows,48,12)["failures"])
+
     def test_posthoc_rule_cannot_enter_blind_benchmark(self):
         rows = fixture()
         rows[0]["rule_pre_registered"] = False
