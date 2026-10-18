@@ -61,6 +61,7 @@ def validate(doc: object) -> list[str]:
     if not isinstance(xs, list) or len(xs) != 5:
         return errors + ["bad_candidate_count"]
     ids, pairs = set(), set()
+    projects, witnesses = set(), set()
     for c in xs:
         if not isinstance(c, dict):
             errors.append("invalid_case")
@@ -73,6 +74,16 @@ def validate(doc: object) -> list[str]:
         if cid in ids:
             errors.append("duplicate_cve")
         ids.add(cid)
+        project = c.get("source_url")
+        if project in projects:
+            errors.append("nonindependent_upstream_project")
+        if isinstance(project, str):
+            projects.add(project)
+        run = c.get("native_evidence_url")
+        if run in witnesses:
+            errors.append("duplicate_native_witness")
+        if isinstance(run, str):
+            witnesses.add(run)
         if c.get("cwe_id") not in CWES:
             errors.append("invalid_cwe")
         if any(not public_url(c.get(k)) for k in (
@@ -134,6 +145,9 @@ def report(doc: dict) -> dict:
         "automated_phase": "METADATA_CONSISTENCY_ONLY",
         "human_review_phase": "DEFERRED",
         "native_run_execution_independently_verified": False,
+        "distinct_upstream_projects": len(set(c["source_url"] for c in doc["candidates"])),
+        "distinct_native_witnesses": len(set(c["native_evidence_url"] for c in doc["candidates"])),
+        "private_holdout_independence": "NOT_VERIFIED",
     }
 
 
