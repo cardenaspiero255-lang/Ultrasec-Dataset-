@@ -24,6 +24,8 @@ jobs:
           - phase: after
             sha: '02b7742f4d19631024bd766bd2bb76715780004e'
     steps:
+      - name: Checkout exact PR revision to load the pinned research rule
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fetch original Moonlight C source at immutable revision
         shell: bash
         env:
