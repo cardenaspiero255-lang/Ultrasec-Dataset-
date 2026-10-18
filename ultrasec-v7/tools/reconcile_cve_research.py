@@ -80,6 +80,27 @@ def parse_inspected(text: str) -> dict[str, dict]:
     return inspected
 
 
+def parse_additional_inspected(text: str) -> dict[str, dict]:
+    """Additional original source commit evidence; no native execution implied."""
+    section = text.split("## Evidencia primaria exacta")[0]
+    inspected = {}
+    for line in section.splitlines():
+        if not line.startswith("|"):
+            continue
+        x = cells(line)
+        if len(x) != 5 or not CVE.fullmatch(x[0]):
+            continue
+        commit = COMMIT_LINK.search(x[2])
+        parent = re.search(r"`([0-9a-f]{40})`", x[3])
+        if not commit or not parent or commit.group(1) == parent.group(1):
+            raise ValueError("invalid_additional_original_commit")
+        inspected[x[0]] = {"fix": commit.group(1), "parent": parent.group(1),
+                           "cwe": x[1], "license": x[4]}
+    if len(inspected) != 1 or set(inspected) != {"CVE-2024-11921"}:
+        raise ValueError("additional_original_source_trace_incomplete")
+    return inspected
+
+
 def parse_ineligible(text: str) -> set[str]:
     marker = "## Candidatos NO elegibles hoy para holdout fuente/fix"
     end = "## Casos con evidencia aislada previa"
@@ -101,11 +122,15 @@ def parse_ineligible(text: str) -> set[str]:
 
 
 def reconcile(discovery: str, reviewed: str, decisions: str,
-              native_cohort: object) -> dict:
+              native_cohort: object, additional_review: str) -> dict:
     """Evidence accounting only. No two records qualify as independent gold."""
     source_rows = parse_discovery(discovery)
     by_id = {x["cve_id"]:x for x in source_rows}
-    inspected = parse_inspected(reviewed)
+    original_seven = parse_inspected(reviewed)
+    added = parse_additional_inspected(additional_review)
+    if set(added) & set(original_seven):
+        raise ValueError("duplicate_cross_cohort_original_commit")
+    inspected = {**original_seven, **added}
     ineligible = parse_ineligible(decisions)
     if (set(inspected) - by_id.keys() or ineligible - by_id.keys()
             or set(inspected) & ineligible):
@@ -174,7 +199,7 @@ def reconcile(discovery: str, reviewed: str, decisions: str,
             "discovered": 63,
             "source_commit_inspected": statuses["ORIGINAL_COMMIT_INSPECTED_NO_FULL_UPSTREAM_REPRO"],
             "native_red_green_in_original_63": statuses["NATIVE_RED_GREEN_TECHNICAL_NOT_GOLD"],
-            "previously_reported_missing_source_verification": 63 - len(inspected),
+            "previously_reported_missing_source_verification": 63 - len(original_seven),
             "not_yet_source_inspected_after_reconciliation": 63 - len(inspected) - len(native),
             "holdout_ineligible_without_source_pair": statuses["HOLDOUT_INELIGIBLE_NO_SOURCE_PAIR"],
             "discovery_only_remaining": statuses["DISCOVERY_ONLY_NOT_VERIFIED"],
@@ -190,12 +215,13 @@ def reconcile(discovery: str, reviewed: str, decisions: str,
     }
 
 
-def load_sources(base: Path) -> tuple[str, str, str, dict]:
+def load_sources(base: Path) -> tuple[str, str, str, dict, str]:
     return (
         (base / "CVE_CANDIDATES_63_PUBLIC_METADATA.md").read_text(encoding="utf-8"),
         (base / "CVE_VERIFICATION_7_OF_63_2026-10-17.md").read_text(encoding="utf-8"),
         (base / "SOURCE_ELIGIBILITY_DECISIONS_20261017_ES.md").read_text(encoding="utf-8"),
         json.loads((base / "COHORT_5_PRE_ADMISSION_PUBLIC.json").read_text(encoding="utf-8")),
+        (base / "CVE_GIVEWP_2024_11921_SOURCE_TRACE_20261018_ES.md").read_text(encoding="utf-8"),
     )
 
 
