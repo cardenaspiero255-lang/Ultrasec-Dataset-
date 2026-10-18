@@ -1,0 +1,110 @@
+# Second real upstream SAST pilot. No independence claim, no gold labels, no certification.
+name: V7 GiveWP real-source Semgrep SAST pilot
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-givewp-semgrep-source-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  givewp-semgrep:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            tag: '3.18.0'
+            sha: 'd056e04cbb1b43664b2b13c1df6fb7328cc0db11'
+            blob: '1693d95e6c3e88106169eb540630a1ece5978b2a'
+          - phase: after
+            tag: '3.19.0'
+            sha: 'b24415fee1438d321407dee8739733092ac0b90a'
+            blob: '2daa91f1c627a4c3d8e28bdcdbf148a0cf9ecef5'
+    steps:
+      - name: Fetch GiveWP original tag, verify exact commit and blob
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ matrix.sha }}
+          SOURCE_TAG: ${{ matrix.tag }}
+          SOURCE_BLOB: ${{ matrix.blob }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/impress-org/givewp.git
+          git -C upstream fetch --depth 1 origin "refs/tags/$SOURCE_TAG"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SOURCE_SHA"
+          FILE=upstream/src/Framework/Migrations/Controllers/ManualMigration.php
+          test "$(git -C upstream rev-parse 'HEAD:src/Framework/Migrations/Controllers/ManualMigration.php')" = "$SOURCE_BLOB"
+          test "$(git -C upstream rev-parse 'HEAD:license.txt')" = 41caf864643409541acecae6b449abefa1425bb4
+          sha256sum "$FILE" > original_source_sha256.txt
+      - name: Install pinned Semgrep OSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'semgrep==1.180.0'
+          semgrep --version > scanner_version.txt
+      - name: Run security-audit registry rules on original PHP file
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: off
+          SOURCE_SHA: ${{ matrix.sha }}
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          semgrep scan --oss-only --disable-version-check --metrics off --config p/security-audit \
+            --json --output /tmp/givewp-semgrep.json upstream/src/Framework/Migrations/Controllers/ManualMigration.php
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os
+          path=Path('/tmp/givewp-semgrep.json')
+          result=json.loads(path.read_text(encoding='utf-8'))
+          errors=result.get('errors')
+          findings=result.get('results')
+          if errors or not isinstance(findings,list):
+              raise SystemExit('scan_incomplete_or_invalid')
+          summary={
+            'schema':'ultrasec.real-upstream-sast-research.v1',
+            'source_project':'impress-org/givewp',
+            'original_commit':os.environ['SOURCE_SHA'],
+            'original_file':'src/Framework/Migrations/Controllers/ManualMigration.php',
+            'phase':os.environ['PHASE'],
+            'tool':'semgrep-oss',
+            'scanner_version':Path('scanner_version.txt').read_text().strip(),
+            'ruleset':'p/security-audit',
+            'ruleset_immutable':False,
+            'scanner_executed':True,
+            'scanner_json_sha256':hashlib.sha256(path.read_bytes()).hexdigest(),
+            'original_file_sha256':Path('original_source_sha256.txt').read_text().split()[0],
+            'finding_count':len(findings),
+            'rule_ids':sorted({str(f.get('check_id','')) for f in findings}),
+            'verified_detection_of_CVE_2024_11921':False,
+            'independent_gold':'NOT_AVAILABLE',
+            'benchmark_metrics':'NOT_COMPUTED',
+            'holdout':'UNASSIGNED',
+            'commercial_rights':'NOT_VERIFIED',
+            'certification':'NOT_CERTIFIED',
+          }
+          Path('sast_source_research.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          print('REAL_SCANNER_RAN=true')
+          print('FINDINGS_COUNT='+str(len(findings)))
+          print('CVE_DETECTION=NOT_VERIFIED')
+          PY
+      - name: Preserve hashes and research report only, never upstream source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: givewp-semgrep-research-${{ matrix.phase }}
+          path: |
+            scanner_version.txt
+            original_source_sha256.txt
+            sast_source_research.json
+          if-no-files-found: warn
+          retention-days: 14
