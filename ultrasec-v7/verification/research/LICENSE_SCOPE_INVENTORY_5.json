@@ -1,0 +1,103 @@
+{
+  "schema": "ultrasec.v7-public-source-license-inventory.v1",
+  "scope": "FIVE_UPSTREAM_CANDIDATES_PUBLIC_METADATA_ONLY",
+  "status": "INVENTORY_ONLY_NOT_COMMERCIAL_CLEARANCE",
+  "certification": "NOT_CERTIFIED",
+  "cases": [
+    {
+      "cve_id": "CVE-2026-58428",
+      "project": "Gitea",
+      "license_expression_observed": "MIT",
+      "license_reference": "https://github.com/go-gitea/gitea/blob/7fdfb8d642201b388014f29889ef28e35b8c1872/LICENSE",
+      "license_path": "LICENSE",
+      "license_blob_sha": "a8d4b49dd073a4a38a7e58385eeff7cc52568697",
+      "source_basis": "Git parent commit, original project LICENSE; no per-contribution analysis",
+      "obligations_to_verify": "Retain copyright and MIT notices for redistributed source; verify file-level provenance and sample contract",
+      "commercial_rights": "NOT_VERIFIED",
+      "distribution_modes": {
+        "metadata_only": "REQUIRES_SCOPE_REVIEW",
+        "source_fragments": "REQUIRES_SCOPE_REVIEW",
+        "full_source_pairs": "REQUIRES_SCOPE_REVIEW"
+      },
+      "file_level_chain_of_title_verified": false,
+      "dependencies_complete": false,
+      "legal_opinion_signed": false
+    },
+    {
+      "cve_id": "CVE-2024-2395",
+      "project": "Bulgarisation for WooCommerce",
+      "license_expression_observed": "GPL-3.0-or-later AND bundled MIT dependency",
+      "license_reference": "https://wordpress.org/plugins/bulgarisation-for-woocommerce/",
+      "license_path": "license.txt/readme.txt and vendor/chillerlan/php-qrcode/LICENSE",
+      "license_blob_sha": null,
+      "source_basis": "Official WordPress.org 3.0.14 and 3.0.15 ZIPs with SHA256 recorded in COHORT_5_PRE_ADMISSION_PUBLIC.json",
+      "obligations_to_verify": "Per-file vendor notices, GPL source distribution obligations, dependency inventory, fragment sublicensing; differentiate CVE-2024-2395 vs CVE-2024-0683",
+      "commercial_rights": "NOT_VERIFIED",
+      "distribution_modes": {
+        "metadata_only": "REQUIRES_SCOPE_REVIEW",
+        "source_fragments": "REQUIRES_SCOPE_REVIEW",
+        "full_source_pairs": "REQUIRES_SCOPE_REVIEW"
+      },
+      "file_level_chain_of_title_verified": false,
+      "dependencies_complete": false,
+      "legal_opinion_signed": false
+    },
+    {
+      "cve_id": "CVE-2025-69015",
+      "project": "Crowdsignal Forms",
+      "license_expression_observed": "GPL-2.0",
+      "license_reference": "https://github.com/Automattic/crowdsignal-forms/blob/e0084d0760a16babe9ae441e24de3f4910d57b27/LICENSE.TXT",
+      "license_path": "LICENSE.TXT",
+      "license_blob_sha": "ecbc0593737be657aef92e3adcf3bcbd6fdb812e",
+      "source_basis": "Original 1.7.2 and 1.8.0 tags; license file blob observed",
+      "obligations_to_verify": "GPL copyright notices and source obligations for redistributed fragments; clarify exact plugin route mapped to CVE",
+      "commercial_rights": "NOT_VERIFIED",
+      "distribution_modes": {
+        "metadata_only": "REQUIRES_SCOPE_REVIEW",
+        "source_fragments": "REQUIRES_SCOPE_REVIEW",
+        "full_source_pairs": "REQUIRES_SCOPE_REVIEW"
+      },
+      "file_level_chain_of_title_verified": false,
+      "dependencies_complete": false,
+      "legal_opinion_signed": false
+    },
+    {
+      "cve_id": "CVE-2023-42799",
+      "project": "Moonlight Common C",
+      "license_expression_observed": "GPL-3.0",
+      "license_reference": "https://github.com/moonlight-stream/moonlight-common-c/blob/116267a24569ec610f4c9efa1048541022981040/LICENSE.txt",
+      "license_path": "LICENSE.txt",
+      "license_blob_sha": "9cecc1d4669ee8af2ca727a5d8cde10cd8b2d7cc",
+      "source_basis": "Exact upstream parent commit and historical LICENSE.txt",
+      "obligations_to_verify": "GPL origin, copyright notices and copyleft obligations for snippets and source pairs",
+      "commercial_rights": "NOT_VERIFIED",
+      "distribution_modes": {
+        "metadata_only": "REQUIRES_SCOPE_REVIEW",
+        "source_fragments": "REQUIRES_SCOPE_REVIEW",
+        "full_source_pairs": "REQUIRES_SCOPE_REVIEW"
+      },
+      "file_level_chain_of_title_verified": false,
+      "dependencies_complete": false,
+      "legal_opinion_signed": false
+    },
+    {
+      "cve_id": "CVE-2024-48645",
+      "project": "Command Block IDE",
+      "license_expression_observed": "LGPL-2.1",
+      "license_reference": "https://github.com/arm32x/command-block-ide/blob/7da8ea77ba3443c42e0d9929f66b370bb97c0234/LICENSE",
+      "license_path": "LICENSE",
+      "license_blob_sha": "ee9ed415ee14252a64a1bba6d73c85deb6551dc7",
+      "source_basis": "Historical parent commit and LGPL-2.1 root LICENSE",
+      "obligations_to_verify": "Full library/dependency notices, source and modification terms for distributed fragments",
+      "commercial_rights": "NOT_VERIFIED",
+      "distribution_modes": {
+        "metadata_only": "REQUIRES_SCOPE_REVIEW",
+        "source_fragments": "REQUIRES_SCOPE_REVIEW",
+        "full_source_pairs": "REQUIRES_SCOPE_REVIEW"
+      },
+      "file_level_chain_of_title_verified": false,
+      "dependencies_complete": false,
+      "legal_opinion_signed": false
+    }
+  ]
+}
