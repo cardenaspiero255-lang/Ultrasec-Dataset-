@@ -11,13 +11,13 @@ import sys
 
 from verify_candidate_cohort import validate as validate_native_cohort
 
-CVE = re.compile(r"CVE-(?:19|20)[0-9]{2}-[0-9]{4,}\\Z")
-SHA40 = re.compile(r"[0-9a-f]{40}\\Z")
-GHSA = re.compile(r"GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}\\Z")
-CWE = re.compile(r"CWE-[1-9][0-9]{0,5}\\Z")
-CVE_LINK = re.compile(r"\\[(CVE-[0-9]{4}-[0-9]{4,})\\]\\((https://nvd\\.nist\\.gov/vuln/detail/CVE-[0-9]{4}-[0-9]{4,})\\)\\Z")
-GHSA_LINK = re.compile(r"\\[(GHSA-[a-z0-9-]+)\\]\\((https://github\\.com/advisories/GHSA-[a-z0-9-]+)\\)\\Z")
-COMMIT_LINK = re.compile(r"https://github\\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/commit/([a-f0-9]{40})\\)")
+CVE = re.compile(r"CVE-(?:19|20)[0-9]{2}-[0-9]{4,}\Z")
+SHA40 = re.compile(r"[0-9a-f]{40}\Z")
+GHSA = re.compile(r"GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}\Z")
+CWE = re.compile(r"CWE-[1-9][0-9]{0,5}\Z")
+CVE_LINK = re.compile(r"\[(CVE-[0-9]{4}-[0-9]{4,})\]\((https://nvd\.nist\.gov/vuln/detail/CVE-[0-9]{4}-[0-9]{4,})\)\Z")
+GHSA_LINK = re.compile(r"\[(GHSA-[a-z0-9-]+)\]\((https://github\.com/advisories/GHSA-[a-z0-9-]+)\)\Z")
+COMMIT_LINK = re.compile(r"https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/commit/([a-f0-9]{40})\)")
 
 
 def cells(line: str) -> list[str]:
@@ -197,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         base = Path(__file__).resolve().parents[1] / "verification" / "research"
         result = reconcile(*load_sources(base))
         if args.public_report is not None:
-            args.public_report.write_text(json.dumps(result, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+            args.public_report.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps({key:value for key,value in result.items() if key != "cases"}, sort_keys=True))
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
         print("FAIL_CLOSED: source evidence inventory inconsistent", file=sys.stderr)
