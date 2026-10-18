@@ -1,5 +1,7 @@
 # UltraSec V7 — cohorte cerrada de 5 candidatos, NO gold
 
+**Actualización 2026-10-18:** revisión obligatoria de dos expertos **aplazada** para una futura fase externa, sin bloquear la validación técnica automatizada. No se considera realizada ni sustituida por IA. El estado permanece NOT_ADMITTED / NOT_CERTIFIED; ver [política por fases](PHASED_AUTOMATED_TECHNICAL_REVIEW_20261018_ES.md).
+
 **Corte:** 2026-10-17. **Fuente de verdad:** [COHORT_5_PRE_ADMISSION_PUBLIC.json](COHORT_5_PRE_ADMISSION_PUBLIC.json).
 **Estado irrevocable en el repositorio público:** `NOT_ADMITTED / NOT_CERTIFIED`; esta investigación no contiene código vulnerable, etiquetas privadas, muestras de entrenamiento ni holdout. Los cinco candidatos de sustitución **no se han añadido** a los 100 CVE históricos.
 
@@ -19,11 +21,11 @@
 
 **B. Derechos:** inventario completo de licencias y titulares por archivo en la revisión exacta, obligaciones para redistribuir fragmentos, código, diffs y anotaciones; conservar avisos y fuentes cuando aplique. Una licencia abierta **no** autoriza afirmar exclusividad, protección legal de la compilación ni certificado de reventa. Dictamen firmado de revisor legal competente para los términos y territorios de la oferta; estado `COMMERCIAL_RIGHTS=NOT_VERIFIED` hasta entonces. Fuentes primarias: [GNU GPL FAQ](https://www.gnu.org/licenses/gpl-faq.html), [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0), licencias históricas enlazadas arriba.
 
-**C. Independencia:** dos revisores externos de seguridad sin acceso a etiquetas gold o respuestas del propio detector; registro de identidad real y conflictos de interés, hashes sellados, decisiones individuales y desacuerdos resueltos por protocolo. El autor, GitHub Actions, Exa, Sentry, Context7 y modelos de IA **no sustituyen firmas humanas independientes**.
+**C. Revisión externa (APLAZADA):** no se exigen dos revisores humanos en la fase técnica automatizada. Si posteriormente se solicita una evaluación independiente, se deberá acordar un nuevo protocolo, identidad y conflictos de interés y decisiones individuales. El autor, GitHub Actions, Exa, Sentry, Context7 y modelos de IA **no sustituyen firmas humanas** ni acreditan una auditoría externa.
 
-**D. Separación:** sin importación a entrenamiento ni holdout hasta después de las verificaciones A–C; asignación de split por proyecto/familia/commit y comprobación de contaminación mediante hashes de código y grafo de dependencias; los cinco sustitutos están `UNASSIGNED` y `NOT_ADMITTED`. Para benchmark SAST se necesita escanear contra gold real congelado: los checks CodeQL/Semgrep de este repositorio son **solo referencia pública**.
+**D. Separación:** sin importación a entrenamiento ni holdout mientras no existan pruebas, derechos y validación de etiquetas suficientes; asignación de split por proyecto/familia/commit y comprobación de contaminación mediante hashes de código y grafo de dependencias; los cinco sustitutos están `UNASSIGNED` y `NOT_ADMITTED`. Para benchmark SAST se necesita escanear contra gold real congelado: los checks CodeQL/Semgrep de este repositorio son **solo referencia pública**.
 
-**E. Admisión:** únicamente en el archivo privado bajo control del propietario, tras A–D, con referencia a autorización real. El registro público y su validador **nunca** certifican gold ni modifican el holdout; `gold_count=0` es correcto aquí.
+**E. Admisión:** únicamente en el archivo privado bajo control del propietario, tras acreditar los controles técnicos, de derechos, calidad y segregación aplicables al uso declarado, con referencia a autorización real. El registro público y su validador **nunca** certifican gold ni modifican el holdout; `gold_count=0` es correcto aquí.
 
 ## Control automático
 
@@ -36,7 +38,7 @@
 
 El plugin Sentry solo aporta errores operativos de un proyecto conectado y autenticado; no determina si un CVE está correctamente etiquetado ni acredita licencias. No se ha comprobado un proyecto Sentry de UltraSec V7 asociado con este lote y **no** se declara instrumentación ni escaneo privado.
 
-**Resultado actual:** cinco solicitudes de evidencia preparadas; **0 gold**, **0/2 revisores**, **0 derechos individuales aprobados**, benchmark SAST privado `NOT_RUN`, certificación `NOT_CERTIFIED`. Mantener PR #10 en Draft y el PR #7 independiente.
+**Resultado de fase actual:** cinco casos técnicos preparados; **0 gold**, revisión de dos expertos **APLAZADA**, **0 derechos individuales aprobados**, benchmark SAST privado `NOT_RUN`, certificación `NOT_CERTIFIED`. Mantener PR #10 en Draft y el PR #7 independiente.
 
 
 ## Actualización: segundo RED/GREEN reproducible
@@ -48,4 +50,4 @@ El 17-10-2026, el [run Moonlight](https://github.com/cardenaspiero255-lang/Ultra
 
 La [suite original de tres escenarios](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39081399130) fue ejecutada con WordPress 6.6.2, WooCommerce 8.7.0, PHPUnit 9.6 y ambos ZIP oficiales. Antes: `Tests: 3, Assertions: 17, Failures: 2` (nonce falsificado y suscriptor con nonce válido alcanzan el transporte interceptado); después: `OK (3 tests, 19 assertions)`, las dos solicitudes no autorizadas se bloquean antes del transporte y el administrador con nonce válido sigue funcionando con transporte simulado. Todos los requests HTTP fueron interceptados antes de enviarse, sin credenciales de proveedores. Esta evidencia es técnicamente válida para la ruta evaluada, pero no asigna automáticamente CWE/CVE independientes ni acredita venta comercial.
 
-**Estado corregido:** 5/5 contrastes RED/GREEN técnicos, 0/5 entradas gold, 0/2 revisores externos y 0/5 derechos comerciales dictaminados. La CI de este informe no implica certificación.
+**Estado corregido:** 5/5 contrastes RED/GREEN técnicos, 0/5 entradas gold, dos revisores humanos **APLAZADOS**, 0/5 derechos comerciales dictaminados. La CI de este informe no implica certificación.
