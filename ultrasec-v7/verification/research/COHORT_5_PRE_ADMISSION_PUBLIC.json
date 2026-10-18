@@ -45,12 +45,12 @@
       "source_url": "https://wordpress.org/plugins/bulgarisation-for-woocommerce/",
       "source_commit": null,
       "fix_commit": null,
-      "native_evidence": "FIXED_GUARD_ISOLATED_PASS",
-      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39078707779",
-      "test_provenance": "Official WordPress plugin archives 3.0.14 and 3.0.15 checked by SHA256. Fixed-original woo_bg_check_admin_label_actions() extracted to PHP harness: all 4 nonce/capability combinations pass, and 9 guard call sites across CVC/Econt/Speedy present after fix. Before has no helper. Isolated WordPress shims only; NO before/after end-to-end CSRF reproduction.",
+      "native_evidence": "RED_GREEN_REPRODUCED",
+      "native_evidence_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39081399130",
+      "test_provenance": "Original WordPress.org releases 3.0.14 and 3.0.15, WordPress 6.6.2, WooCommerce 8.7.0, MySQL and identical original CVC delete_label admin-AJAX callback tests. Old: 3 tests/17 assertions/2 expected failures (administrator forged nonce and subscriber valid nonce reach locally blocked courier HTTP). Fixed: 3 tests/19 assertions PASS (both rejected with zero HTTP attempts); authorized manager with valid nonce still reaches blocked transport in both. All outgoing HTTP intercepted. CVE mapping not independently adjudicated.",
       "license_observed": "Plugin official 3.0.14/3.0.15 license.txt/readme.txt GPLv3 or later; embedded vendor/chillerlan/php-qrcode LICENSE MIT; other third-party files and resale duties NOT_VERIFIED",
       "license_evidence_url": "https://wordpress.org/plugins/bulgarisation-for-woocommerce/",
-      "open_questions": "Reproduce malicious-intent nonce scenario against same label action in both versions in isolated real WooCommerce+WordPress without vendor network calls; independently adjudicate CWE-352 vs CWE-862 and other CVE, review all redistribution licenses."
+      "open_questions": "Independent CVE-2024-2395 versus CVE-2024-0683 mechanism assignment, untested AJAX handlers, missing nonce PHP notice, signed human reviewer labels, license obligations for exact commercial deliverable; none cleared."
     },
     {
       "provenance": "PUBLIC_UPSTREAM",
