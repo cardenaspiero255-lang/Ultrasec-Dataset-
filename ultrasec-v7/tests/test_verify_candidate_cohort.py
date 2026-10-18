@@ -23,7 +23,7 @@ class ResearchCohortContract(unittest.TestCase):
         self.assertEqual(validate(doc), [])
         result = report(doc)
         self.assertEqual(result["candidate_count"], 5)
-        self.assertEqual(result["native_red_green_count"], 4)
+        self.assertEqual(result["native_red_green_count"], 5)
         self.assertEqual(result["confirmed_gold_count"], 0)
         self.assertEqual(result["certification"], "NOT_CERTIFIED")
 
