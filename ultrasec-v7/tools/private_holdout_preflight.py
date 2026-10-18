@@ -69,6 +69,9 @@ def preflight(rows: list[dict], minimum_cases: int = 100,
     all_cwes = set()
     test_cwe_classes = defaultdict(set)
     count_by_split = Counter()
+    test_projects = set()
+    test_commits = set()
+    test_contents = set()
 
     def observe(key: str, value: str, split: str, failure: str) -> None:
         old = seen_by_split[key].setdefault(value, split)
@@ -95,6 +98,18 @@ def preflight(rows: list[dict], minimum_cases: int = 100,
         count_by_split[split] += 1
         if split == "test":
             test_cwe_classes[cwe].add(row["vulnerable"])
+            project = row["project_fingerprint"]
+            if project in test_projects:
+                errors["duplicate_test_origin"] += 1
+            test_projects.add(project)
+            for commit in (row["source_commit"], row["fix_commit"]):
+                if commit in test_commits:
+                    errors["duplicate_test_source_commit"] += 1
+                test_commits.add(commit)
+            for digest in (row["source_sha256"], row["fix_sha256"]):
+                if digest in test_contents:
+                    errors["duplicate_test_source_content"] += 1
+                test_contents.add(digest)
 
         if row["oracle_type"] not in ORACLES:
             errors["unverified_oracle_kind"] += 1
