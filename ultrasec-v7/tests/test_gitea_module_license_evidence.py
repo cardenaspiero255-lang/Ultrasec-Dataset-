@@ -51,6 +51,7 @@ class GiteaModuleLicenseEvidenceTests(unittest.TestCase):
 
     def test_dual_license_preserves_both_possible_families(self):
         raw=(b"Apache License Version 2.0, January 2004\n"
+             b"TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n"
              b"Permission is hereby granted, free of charge\n"
              b"the above copyright notice and this permission notice shall be included\n"
              b'the software is provided "as is"\n')
