@@ -17,6 +17,9 @@ on:
       - 'ultrasec-v7/tools/private_python_ast_screen.py'
       - 'ultrasec-v7/tools/private_holdout_preflight.py'
       - 'ultrasec-v7/tools/delivery_scope_manifest.py'
+      - 'ultrasec-v7/tools/premium_source_pair_scope.py'
+      - 'ultrasec-v7/tests/test_premium_source_pair_scope.py'
+      - 'ultrasec-v7/verification/research/PREMIUM_SOURCE_PAIR_PRODUCT_DRAFT.json'
       - 'ultrasec-v7/tests/test_delivery_scope_manifest.py'
       - 'ultrasec-v7/verification/research/DELIVERY_SCOPE_PUBLIC_METADATA_DRAFT.json'
       - 'ultrasec-v7/tools/reconcile_cve_research.py'
@@ -78,6 +81,12 @@ jobs:
           path: ultrasec-v7/verification/research/DELIVERY_SCOPE_CI_INTEGRITY_REPORT.json
           if-no-files-found: error
           retention-days: 14
+      - name: Test private high-value source pair product cannot ship without rights or gold
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_premium_source_pair_scope.py -v
+      - name: Validate blocked premium product proposal with no private source
+        run: |
+          python3 ultrasec-v7/tools/premium_source_pair_scope.py
+          echo 'Premium minimal reproducible vulnerable/fixed source-pairs are the research target only. 0 eligible to ship until verified original evidence, file licenses and legal delivery conditions are met.' >> "$GITHUB_STEP_SUMMARY"
       - name: Test five-case historical license inventory without resale claims
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
       - name: Report original-source licenses separately from commercial clearance
