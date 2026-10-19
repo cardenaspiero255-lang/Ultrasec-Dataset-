@@ -10,6 +10,8 @@ on:
       - 'ultrasec-v7/tests/test_gitea_module_license_evidence.py'
       - 'ultrasec-v7/tools/gitea_couchbase_source_headers.py'
       - 'ultrasec-v7/tests/test_gitea_couchbase_source_headers.py'
+      - 'ultrasec-v7/tools/couchbase_bsl_distribution_gate.py'
+      - 'ultrasec-v7/tests/test_couchbase_bsl_distribution_gate.py'
   workflow_dispatch:
 
 permissions:
@@ -99,6 +101,31 @@ jobs:
             --closure gitea-go-closure.json \
             --output gitea-couchbase-actual-source-scope.json
           echo 'Couchbase BSL per-file/Change Date needs qualified scope review; NO source bytes uploaded; autonomous package remains BLOCKED.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Enforce fail-closed actual-file Couchbase BSL distribution scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s ultrasec-v7/tests -p test_couchbase_bsl_distribution_gate.py -v
+          python3 ultrasec-v7/tools/couchbase_bsl_distribution_gate.py \
+            --scope gitea-couchbase-actual-source-scope.json \
+            --phase ${{ matrix.phase }} \
+            --receipt couchbase-bsl-commercial-rights-gate.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('couchbase-bsl-commercial-rights-gate.json'))
+          assert data['commercial_distribution_allowed'] is False
+          assert data['file_level_rights_verified'] is False
+          assert data['certification']=='NOT_CERTIFIED'
+          if data['phase']=='fixed':
+              assert data['actual_original_source_files']==4
+              assert data['source_header_bsl_references']==4
+              assert data['legal_question']=='LICENSED_WORK_SCOPE_AMBIGUOUS'
+          else:
+              assert data['actual_original_source_files']==0
+          print('ORIGINAL_COUCHBASE_BSL_FILE_SCOPE_VERIFIED; NO_COMMERCIAL_CLEARANCE')
+          PY
+          sha256sum couchbase-bsl-commercial-rights-gate.json > couchbase-bsl-gate-sha256.txt
+          echo 'Original Couchbase licensing scope remains unresolved: autonomous commercial distribution blocked, no legal certification.' >> "$GITHUB_STEP_SUMMARY"
       - name: Archive dependency references only, never original repo files or private examples
         if: always()
         uses: actions/upload-artifact@v4
@@ -108,5 +135,7 @@ jobs:
             gitea-go-closure.json
             gitea-go-module-license-evidence.json
             gitea-couchbase-actual-source-scope.json
+            couchbase-bsl-commercial-rights-gate.json
+            couchbase-bsl-gate-sha256.txt
           if-no-files-found: warn
           retention-days: 14
