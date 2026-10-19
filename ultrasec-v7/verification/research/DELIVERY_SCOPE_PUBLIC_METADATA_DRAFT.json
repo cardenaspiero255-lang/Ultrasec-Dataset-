@@ -1,0 +1,54 @@
+{
+  "schema": "ultrasec.v7-exact-public-metadata-delivery-scope.v1",
+  "name": "UltraSec V7 Public Research Metadata Only - Candidate SKU",
+  "status": "DRAFT_NOT_CERTIFIED_NOT_FOR_COMMERCIAL_DISTRIBUTION",
+  "delivery_mode": "metadata_only",
+  "scope_basis": "Five public repository research files only; not the 1M private dataset or source-fragment pairs.",
+  "includes_gold_or_holdout": false,
+  "source_distribution_allowed": false,
+  "commercial_rights": "NOT_VERIFIED",
+  "legal_opinion": "NOT_RECEIVED",
+  "file_level_rights": "NOT_VERIFIED",
+  "human_two_reviewer_phase": "DEFERRED",
+  "source_fragments_mode": "OUT_OF_SCOPE_REQUIRES_SEPARATE_MANIFEST",
+  "full_source_pairs_mode": "OUT_OF_SCOPE_REQUIRES_SEPARATE_MANIFEST",
+  "files": [
+    {
+      "path": "verification/research/CVE_CANDIDATES_63_PUBLIC_METADATA.md",
+      "git_blob_sha1": "2623f2d9bf88b1550ac0afbef14c834d27e759ae",
+      "rights_status": "NOT_VERIFIED",
+      "contains_upstream_source": false
+    },
+    {
+      "path": "verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json",
+      "git_blob_sha1": "1540d75e92b94541e1d04102f854be48e78460e9",
+      "rights_status": "NOT_VERIFIED",
+      "contains_upstream_source": false
+    },
+    {
+      "path": "verification/research/LICENSE_SCOPE_INVENTORY_5.json",
+      "git_blob_sha1": "2c3357ed953a061de13e7ca908d11321b7b52f13",
+      "rights_status": "NOT_VERIFIED",
+      "contains_upstream_source": false
+    },
+    {
+      "path": "verification/research/LICENSE_SCOPE_10_CASES_20261018_ES.md",
+      "git_blob_sha1": "4f307fe7faa09b4504b98a0f4ce664c77ccff479",
+      "rights_status": "NOT_VERIFIED",
+      "contains_upstream_source": false
+    },
+    {
+      "path": "verification/research/REAL_SAST_TWO_PROJECTS_20261018_ES.md",
+      "git_blob_sha1": "66ffba2d859362f5b5f2411419685db4c1e2623e",
+      "rights_status": "NOT_VERIFIED",
+      "contains_upstream_source": false
+    }
+  ],
+  "outstanding_rights_checks": [
+    "authorship and third-party copyright claims per exact file",
+    "check original advisory and data source terms for commercial reuse",
+    "third-party trademarks and attribution language",
+    "buyer jurisdiction and distribution contract scope",
+    "source fragment and full source package excluded from this SKU"
+  ]
+}
