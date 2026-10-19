@@ -23,6 +23,10 @@ OBSERVED_OBLIGATIONS = {
     "MIT": "MIT_RETAIN_COPYRIGHT_AND_PERMISSION_NOTICE",
     "BSD-3-Clause": "BSD3_RETAIN_COPYRIGHT_CONDITIONS_DISCLAIMER_NO_ENDORSEMENT",
     "Apache-2.0": "APACHE2_PRESERVE_LICENSE_NOTICES_CHANGES_AND_APPLICABLE_NOTICE_FILE",
+    "MPL-2.0": "MPL2_COVERED_FILE_SOURCE_AVAILABILITY_AND_NOTICES_REVIEW",
+    "BSD-2-Clause": "BSD2_RETAIN_COPYRIGHT_CONDITIONS_AND_DISCLAIMER",
+    "BSL-1.1": "BSL1_1_RESTRICTED_USE_CHANGE_DATE_REQUIRES_LEGAL_REVIEW",
+    "PER_FILE_LICENSE_MAPPING_REQUIRED": "PER_FILE_LICENSE_SCAN_REQUIRED_DO_NOT_APPLY_ROOT_LICENSE_BLANKET",
 }
 
 
@@ -39,9 +43,25 @@ def classify_original_license_text(payload:bytes)->list[str]:
     if ("apache license" in text and "version 2.0" in text
             and ("terms and conditions" in text or "http://www.apache.org/licenses" in text)):
         observed.append("Apache-2.0")
-    if ("redistribution and use in source and binary forms" in text
-            and "neither the name" in text):
-        observed.append("BSD-3-Clause")
+    if ("mozilla public license" in text and "version 2.0" in text
+            and "covered software" in text):
+        observed.append("MPL-2.0")
+    # Avoid confusing the restrictive BSL with the separate Apache change license.
+    if "business source license" in text and "1.1" in text:
+        if "each file indicates" in text or "various licenses" in text:
+            observed.append("PER_FILE_LICENSE_MAPPING_REQUIRED")
+        elif "licensed work" in text:
+            observed.append("BSL-1.1")
+        else:
+            observed.append("PER_FILE_LICENSE_MAPPING_REQUIRED")
+    if "redistribution and use in source and binary forms" in text:
+        if ("neither the name" in text or
+                ("may not be used to endorse" in text and "name" in text)):
+            observed.append("BSD-3-Clause")
+        elif ("redistributions of source code must retain" in text
+              and "redistributions in binary form must reproduce" in text
+              and "as is" in text):
+            observed.append("BSD-2-Clause")
     if ("permission is hereby granted, free of charge" in text
             and "the above copyright notice and this permission notice shall be included" in text):
         observed.append("MIT")
@@ -145,6 +165,12 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
                     status="MODULE_REPLACEMENT_REQUIRES_REVIEW"
                 elif flags:
                     status=sorted(flags)[0]
+                elif licenses and any(
+                    ("PER_FILE_LICENSE_MAPPING_REQUIRED" in f["observed_license_families"] or
+                     "BSL-1.1" in f["observed_license_families"])
+                    for f in licenses
+                ):
+                    status="PER_FILE_LICENSE_REVIEW_REQUIRED"
                 elif licenses:
                     status="LICENSE_FILE_PRESENT_CLASSIFICATION_PENDING"
                 else:
@@ -159,12 +185,14 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
         if status not in {"LICENSE_FILE_PRESENT_CLASSIFICATION_PENDING"}:
             count["modules_needing_evidence_remediation"]+=1
         observed_families=sorted({family for file in licenses for family in file["observed_license_families"]})
+        high_risk=bool(set(observed_families) & {"PER_FILE_LICENSE_MAPPING_REQUIRED", "BSL-1.1"})
         records.append({
             "module":name,"version":expected_refs[name],"license_status":status,
             "replacement_path":replace_path if replaced else None,
             "replacement_version":replace_version if replaced else None,
             "effective_module_version":replace_version if replaced else expected_refs[name],
             "observed_license_families":observed_families,
+            "restricted_or_per_file_review":high_risk,
             "obligation_hints":[OBSERVED_OBLIGATIONS[family] for family in observed_families],
             "license_files":licenses,"notice_files":notices,
             "flags":sorted(set(flags)),"legal_conditions":"NOT_REVIEWED",
