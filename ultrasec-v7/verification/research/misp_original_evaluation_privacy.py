@@ -22,12 +22,28 @@ def _extract_original(path: Path, functions: set[str], namespace: dict) -> None:
     if not original or len(original) > 1024 * 1024:
         raise ValueError("UNSAFE_ORIGINAL_SOURCE_SIZE")
     tree = ast.parse(original, filename=str(path))
-    selected = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    selected = [node for node in tree.body if isinstance(node, ast.FunctionDef)
                 and node.name in functions]
-    if set(node.name for node in selected) != functions:
-        raise ValueError("ORIGINAL_FUNCTION_MISSING")
-    module = ast.Module(body=selected, type_ignores=[])
-    exec(compile(module, str(path), "exec"), namespace)
+    if len(selected) != len(functions) or {node.name for node in selected} != functions:
+        raise ValueError("ORIGINAL_FUNCTION_MISSING_OR_DUPLICATE")
+    for fn in selected:
+        # Never evaluate decorators, executable default expressions or
+        # module-level original statements in this isolated witness.
+        if (fn.decorator_list or any(value is not None for value in fn.args.kw_defaults)
+                or any(not isinstance(value, ast.Constant) or value.value is not None
+                       for value in fn.args.defaults)):
+            raise ValueError("UNSUPPORTED_ORIGINAL_FUNCTION_INITIALIZER")
+        unit = compile(ast.Module(body=[fn], type_ignores=[]),
+                       str(path), "exec")
+        candidates = [value for value in unit.co_consts
+                      if isinstance(value, types.CodeType) and value.co_name == fn.name]
+        if len(candidates) != 1 or candidates[0].co_freevars:
+            raise ValueError("UNSAFE_ORIGINAL_FUNCTION_CODE")
+        # A restricted original-function code object is installed directly;
+        # no original module initializer or decorator executes here.
+        namespace[fn.name] = types.FunctionType(
+            candidates[0], namespace, fn.name,
+            tuple(None for _ in fn.args.defaults))
 
 
 class _Query:
