@@ -81,6 +81,11 @@ def validate(doc:object)->dict:
         'dependency_manifests_not_rights_clearance':True,
         'go_dependency_license_exceptions_unresolved':16,
         'unresolved_couchbase_compiled_files':4,
+        # Exact nine original overlay files contain no Couchbase Go source.
+        # Reproduction still depends on upstream dependency downloads; a
+        # compiled standalone customer bundle is a DIFFERENT licensing scope.
+        'couchbase_source_files_inside_nine_file_overlay':0,
+        'source_overlay_reconstructed_from_upstream_only':True,
         'files_commercially_cleared':0,
         'commercially_releasable_files':0,
         'buyer_package_manifest_verified':False,
