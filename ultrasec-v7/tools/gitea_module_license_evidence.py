@@ -39,7 +39,7 @@ def classify_original_license_text(payload:bytes)->list[str]:
     """
     if not isinstance(payload,bytes):
         return []
-    text=re.sub(r"\\s+"," ",payload.decode("utf-8",errors="replace").lower())
+    text=re.sub(r"\s+"," ",payload.decode("utf-8",errors="replace").lower())
     observed=[]
     if ("apache license" in text and "version 2.0" in text
             and ("terms and conditions" in text or "http://www.apache.org/licenses" in text)):
