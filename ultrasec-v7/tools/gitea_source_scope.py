@@ -113,7 +113,7 @@ def verify_original_repository(doc:dict,upstream:Path)->dict:
         if parents!=[FIX,PARENT]:
             errors.add("original_parent_mismatch")
         diff=_git(upstream,"diff","--name-only",PARENT,FIX).decode().splitlines()
-        if diff!=list(CHANGED):
+        if sorted(diff)!=sorted(CHANGED):
             errors.add("original_diff_paths_mismatch")
         for row in doc["changed_files"]+doc["runtime_files"]:
             path=row["path"]
