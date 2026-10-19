@@ -8,7 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/"tools"))
-from gitea_module_license_evidence import collect_license_evidence
+from gitea_module_license_evidence import collect_license_evidence, classify_original_license_text
 
 
 class GiteaModuleLicenseEvidenceTests(unittest.TestCase):
@@ -24,6 +24,49 @@ class GiteaModuleLicenseEvidenceTests(unittest.TestCase):
             "ImportPath":"example.org/original/part",
             "Module":{"Path":"example.org/original","Version":"v1.0.0","Dir":str(self.module)}
         }]
+
+    def test_classify_mit_with_original_permission_and_notice(self):
+        raw=(b"MIT License\nPermission is hereby granted, free of charge, "
+             b"to any person obtaining a copy\n"
+             b"The above copyright notice and this permission notice shall be included\n"
+             b'THE SOFTWARE IS PROVIDED "AS IS"\n')
+        self.assertEqual(classify_original_license_text(raw),["MIT"])
+        (self.module/"LICENSE").write_bytes(raw)
+        r=collect_license_evidence(self.pkgs,self.closure,self.cache)
+        self.assertEqual(r["modules"][0]["license_files"][0]["observed_license_families"],["MIT"])
+        self.assertEqual(r["modules"][0]["obligation_hints"],["MIT_RETAIN_COPYRIGHT_AND_PERMISSION_NOTICE"])
+        self.assertEqual(r["commercial_licenses_cleared"],0)
+
+    def test_classify_bsd_three_clause_and_notice(self):
+        raw=(b"Redistribution and use in source and binary forms, with or without "
+             b"modification, are permitted\nNeither the name of the copyright "
+             b"holder nor the names of its contributors may be used to endorse\n"
+             b"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n")
+        self.assertEqual(classify_original_license_text(raw),["BSD-3-Clause"])
+
+    def test_classify_apache_two_and_conditions_without_legal_approval(self):
+        raw=(b"Apache License\nVersion 2.0, January 2004\n"
+             b"http://www.apache.org/licenses/\nTERMS AND CONDITIONS FOR USE\n")
+        self.assertEqual(classify_original_license_text(raw),["Apache-2.0"])
+
+    def test_dual_license_preserves_both_possible_families(self):
+        raw=(b"Apache License Version 2.0, January 2004\n"
+             b"Permission is hereby granted, free of charge\n"
+             b"the above copyright notice and this permission notice shall be included\n"
+             b'the software is provided "as is"\n')
+        self.assertEqual(classify_original_license_text(raw),["Apache-2.0","MIT"])
+
+    def test_unknown_or_spoofed_license_is_not_classified(self):
+        self.assertEqual(classify_original_license_text(b"SPDX-License-Identifier: MIT\n"),[])
+        self.assertEqual(classify_original_license_text(b"redistribute this source at will"),[])
+
+    def test_replacement_tracks_effective_version_not_requested_version(self):
+        self.pkgs[0]["Module"]["Replace"]={"Path":"example.org/fork","Version":"v0.8.0","Dir":str(self.module)}
+        (self.module/"LICENSE").write_bytes(b"unknown license terms")
+        r=collect_license_evidence(self.pkgs,self.closure,self.cache)
+        self.assertEqual(r["modules"][0]["replacement_version"],"v0.8.0")
+        self.assertEqual(r["modules"][0]["effective_module_version"],"v0.8.0")
+        self.assertEqual(r["modules"][0]["license_status"],"MODULE_REPLACEMENT_REQUIRES_REVIEW")
 
     def test_original_license_file_receipt_is_not_legal_clearance(self):
         license_data=b"Copyright Original Authors\nMIT License\n"
