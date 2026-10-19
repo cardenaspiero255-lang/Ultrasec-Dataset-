@@ -7,7 +7,7 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"tools"))
-from gitea_source_scope import check_scope
+from gitea_source_scope import check_scope, has_go_mit_spdx_header
 
 FILE=ROOT/"verification/research/GITEA_ORIGINAL_FILE_RIGHTS_SCOPE.json"
 
@@ -15,6 +15,33 @@ def fixture():
     return json.loads(FILE.read_text(encoding="utf-8"))
 
 class GiteaOriginalScopeTest(unittest.TestCase):
+    def test_upstream_gitea_spdx_comment_is_recognized(self):
+        source=b"// Copyright 2019 The Gitea Authors. All rights reserved.\n// SPDX-License-Identifier: MIT\n\npackage release\n"
+        self.assertTrue(has_go_mit_spdx_header(source))
+
+    def test_upstream_gitea_multi_copyright_comment_is_recognized(self):
+        source=(b"// Copyright 2014 The Gogs Authors. All rights reserved.\n"
+                b"// Copyright 2018 The Gitea Authors. All rights reserved.\n"
+                b"// SPDX-License-Identifier: MIT\n\npackage repo\n")
+        self.assertTrue(has_go_mit_spdx_header(source))
+
+    def test_missing_or_non_mit_spdx_is_rejected(self):
+        cases=(
+            b"// Copyright 2019 The Gitea Authors\npackage release\n",
+            b"// SPDX-License-Identifier: GPL-3.0\npackage release\n",
+            b"// SPDX-License-Identifier: MIT-extra\npackage release\n",
+            b"// Other comment mentioning SPDX-License-Identifier: MIT\npackage release\n",
+            b"var x = \"SPDX-License-Identifier: MIT\"\npackage release\n",
+            b"package release\n"+b"\n"*6+b"// SPDX-License-Identifier: MIT\n",
+        )
+        for source in cases:
+            with self.subTest(source=source[:90]):
+                self.assertFalse(has_go_mit_spdx_header(source))
+
+    def test_spdx_helper_rejects_non_comment_or_non_bytes(self):
+        self.assertFalse(has_go_mit_spdx_header("SPDX-License-Identifier: MIT"))
+        self.assertFalse(has_go_mit_spdx_header(None))
+
     def test_six_original_changed_files_and_three_runtime_documents(self):
         result=check_scope(fixture())
         self.assertEqual(result["errors"],[])
