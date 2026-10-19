@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/v7-bulgarisation-wp-ajax-csrf.yml'
       - 'ultrasec-v7/verification/research/bulgarisation_wp_csrf_native_test.php'
+      - 'ultrasec-v7/tests/test_original_negative_controls.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -144,6 +145,63 @@ jobs:
           grep -Fq 'AUTHORIZED_BLOCKED_HTTP_ATTEMPTS=1' "wordpress-csrf-$VER.log"
           echo 'ALL_COURIER_HTTP_REQUESTS_INTERCEPTED=TRUE' >> verdict.txt
           sha256sum "wordpress-csrf-$VER.log" verdict.txt > native_log_sha256.txt
+      - name: Independently replay CSRF, capability and authorized-manager negative control
+        shell: bash
+        env:
+          VER: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          run_case() {
+            local slug="$1" test_name="$2" path="mechanism-$1-$VER.log"
+            set +e
+            phpunit --bootstrap /tmp/ultrasec_wp_bootstrap.php --colors=never --verbose \
+              --filter "^$test_name$" /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php > "$path" 2>&1
+            local rc=$?
+            set -e
+            if test "$slug" = "authorized-manager"; then
+              test "$rc" -eq 0
+              grep -Fq 'AUTHORIZED_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST' "$path"
+              grep -Fq 'AUTHORIZED_BLOCKED_HTTP_ATTEMPTS=1' "$path"
+              grep -Fq 'OK (1 test,' "$path"
+            elif test "$VER" = "3.0.14"; then
+              test "$rc" -ne 0
+              grep -Fq 'Failures: 1' "$path"
+              if test "$slug" = csrf; then
+                grep -Fq "SECURITY_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST" "$path"
+                grep -Fq 'BLOCKED_HTTP_ATTEMPTS=1' "$path"
+              else
+                grep -Fq "SUBSCRIBER_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST" "$path"
+                grep -Fq 'SUBSCRIBER_BLOCKED_HTTP_ATTEMPTS=1' "$path"
+              fi
+            else
+              test "$rc" -eq 0
+              grep -Fq 'OK (1 test,' "$path"
+              if test "$slug" = csrf; then
+                grep -Fq 'SECURITY_TERMINATION=BLOCKED_BY_WORDPRESS_GUARD' "$path"
+                grep -Fq 'BLOCKED_HTTP_ATTEMPTS=0' "$path"
+              else
+                grep -Fq 'SUBSCRIBER_TERMINATION=BLOCKED_BY_WORDPRESS_GUARD' "$path"
+                grep -Fq 'SUBSCRIBER_BLOCKED_HTTP_ATTEMPTS=0' "$path"
+              fi
+            fi
+            echo "$slug phpunit_exit=$rc: expected outcome checked"
+          }
+          # These are real, separate runs of the SAME original registered handler
+          # under independently controlled nonce and capability predicates.
+          run_case csrf test_shop_manager_with_invalid_nonce_does_not_reach_carrier_api
+          run_case authorization test_subscriber_with_valid_nonce_must_not_reach_provider
+          run_case authorized-manager test_authorized_manager_with_valid_nonce_preserves_operation
+          {
+            echo 'CSRF_ADMIN_INVALID_NONCE_ISOLATED=TRUE'
+            echo 'AUTH_SUBSCRIBER_VALID_NONCE_ISOLATED=TRUE'
+            echo 'NEGATIVE_AUTHORIZED_MANAGER=PASS_BOTH_VERSIONS'
+            echo 'MECHANISMS_RECORDED_SEPARATELY_NOT_TWO_GOLD=TRUE'
+            echo 'GOLD_ADMITTED=0'
+          } > mechanism_matrix_verdict.txt
+          sha256sum mechanism-csrf-$VER.log mechanism-authorization-$VER.log \
+            mechanism-authorized-manager-$VER.log mechanism_matrix_verdict.txt \
+            > mechanism_receipts_sha256.txt
+          echo 'Two independent PHPUnit invocations isolate nonce-versus-capability on original AJAX callback; authorized manager is a benign control. No CVE label certification.' >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve only public run evidence (not third-party code)
         if: always()
         uses: actions/upload-artifact@v4
@@ -155,5 +213,8 @@ jobs:
             wordpress-csrf-*.log
             verdict.txt
             native_log_sha256.txt
+            mechanism-*.log
+            mechanism_matrix_verdict.txt
+            mechanism_receipts_sha256.txt
           retention-days: 14
           if-no-files-found: warn
