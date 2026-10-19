@@ -47,3 +47,13 @@ Preguntas por escrito al departamento de licencias/representante autorizado de C
 No registrar `commercial_distribution_allowed=true` ni `GOLD_ADMITTED` porque pasen los tests o porque se haya redactado esta consulta. El objetivo es cerrar una **pregunta jurídica real**, no crear un certificado automatizado.
 
 **Estado:** `RIGHTS_NOT_VERIFIED`, `BSL_APPLICABILITY=UNRESOLVED`, `STANDALONE_BUNDLE=BLOCKED`, `METADATA_ONLY_RIGHTS=NOT_VERIFIED`, `NOT_CERTIFIED`.
+
+## Vía de consulta verificada y diferencia importante entre productos (19-10-2026)
+
+El titular publica [Contact Couchbase](https://www.couchbase.com/contact/): el formulario de `Talk to Sales` es un canal para dirigir una **consulta de alcance de licencias**. Para clientes con contrato existe el [portal de soporte](https://support.couchbase.com/hc/en-us/articles/360043247551-Accessing-Couchbase-Support). **No se ha enviado ninguna solicitud ni recibido contestación**: este expediente contiene las preguntas que debe responder el titular o un representante autorizado por escrito.
+
+**No confundir** la [licencia Apache-2.0 del Couchbase Go SDK](https://docs.couchbase.com/go-sdk/current/project-docs/sdk-licenses.html) con los cuatro archivos originales **distintos** del módulo `github.com/couchbase/goutils@v0.3.0` cuyos encabezados remiten a `BSL-Couchbase.txt`. Que un SDK tenga licencia Apache no resuelve jurídicamente el alcance de estos archivos. La propia [explicación de adopción de BSL de Couchbase](https://www.couchbase.com/blog/couchbase-adopts-bsl-license/) describe restricciones para productos comerciales que incorporen obra BSL, sujetas al alcance preciso de la licencia original.
+
+**Producto prioritario del propietario:** `minimal_reproducible_source_pairs` B2B privado. Está bloqueado hasta completar inventario por archivo, titular, NOTICE, dependencias, modalidad y permisos; la modalidad `metadata_only` es un **SKU alternativo**, no equivale a la autorización comercial del producto prioritario. La [puerta de bytes del SKU alternativo](../../tools/verify_metadata_delivery_scope.py) sólo coteja cinco archivos públicos con sus Git blob IDs originales y rechaza cambios no inventariados, pero declara `commercial_distribution_allowed=false` y `source_content_free_verified=false`: coincidencia de bytes no es autorización ni auditoría legal del contenido citado.
+
+**Próximo documento que falta:** constancia formal del titular específica para la etiqueta `v0.3.0` y esos cuatro archivos, más un inventario final de **todos** los archivos que contendrá el paquete privado propuesto. Hasta entonces, `BSL_APPLICABILITY=UNRESOLVED`, `RIGHTS_NOT_VERIFIED`, `STANDALONE_BUNDLE=BLOCKED`.
