@@ -20,11 +20,14 @@ HEADER_BYTES=4096
 
 
 def _safe_original_file(path:Path,base:Path,limit:int)->bytes:
-    if path.is_symlink() or not path.resolve(strict=True).is_relative_to(base):
-        raise ValueError("source or license outside original module")
-    if not path.is_file() or path.stat().st_size > limit:
-        raise ValueError("missing or oversized original file")
-    data=path.read_bytes()
+    try:
+        if path.is_symlink() or not path.resolve(strict=True).is_relative_to(base):
+            raise ValueError("source or license outside original module")
+        if not path.is_file() or path.stat().st_size > limit:
+            raise ValueError("missing or oversized original file")
+        data=path.read_bytes()
+    except OSError:
+        raise ValueError("missing or unreadable original source/notice") from None
     if not data:
         raise ValueError("empty original file")
     return data
