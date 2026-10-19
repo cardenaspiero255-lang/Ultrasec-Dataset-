@@ -27,6 +27,7 @@ OBSERVED_OBLIGATIONS = {
     "BSD-2-Clause": "BSD2_RETAIN_COPYRIGHT_CONDITIONS_AND_DISCLAIMER",
     "BSL-1.1": "BSL1_1_RESTRICTED_USE_CHANGE_DATE_REQUIRES_LEGAL_REVIEW",
     "PER_FILE_LICENSE_MAPPING_REQUIRED": "PER_FILE_LICENSE_SCAN_REQUIRED_DO_NOT_APPLY_ROOT_LICENSE_BLANKET",
+    "PUBLIC_DOMAIN_CLAIM_UNSTANDARDIZED": "PUBLIC_DOMAIN_CHAIN_OF_TITLE_AND_JURISDICTION_REVIEW",
 }
 
 
@@ -38,7 +39,7 @@ def classify_original_license_text(payload:bytes)->list[str]:
     """
     if not isinstance(payload,bytes):
         return []
-    text=payload.decode("utf-8",errors="replace").lower()
+    text=re.sub(r"\\s+"," ",payload.decode("utf-8",errors="replace").lower())
     observed=[]
     if ("apache license" in text and "version 2.0" in text
             and ("terms and conditions" in text or "http://www.apache.org/licenses" in text)):
@@ -54,6 +55,9 @@ def classify_original_license_text(payload:bytes)->list[str]:
             observed.append("BSL-1.1")
         else:
             observed.append("PER_FILE_LICENSE_MAPPING_REQUIRED")
+    if ("all these files have been put into the public domain" in text
+            and "you can do whatever you want with these files" in text):
+        observed.append("PUBLIC_DOMAIN_CLAIM_UNSTANDARDIZED")
     if "redistribution and use in source and binary forms" in text:
         if ("neither the name" in text or
                 ("may not be used to endorse" in text and "name" in text)):
@@ -171,6 +175,11 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
                     for f in licenses
                 ):
                     status="PER_FILE_LICENSE_REVIEW_REQUIRED"
+                elif licenses and any(
+                    "PUBLIC_DOMAIN_CLAIM_UNSTANDARDIZED" in f["observed_license_families"]
+                    for f in licenses
+                ):
+                    status="PUBLIC_DOMAIN_PROVENANCE_REVIEW_REQUIRED"
                 elif licenses:
                     status="LICENSE_FILE_PRESENT_CLASSIFICATION_PENDING"
                 else:
@@ -185,7 +194,7 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
         if status not in {"LICENSE_FILE_PRESENT_CLASSIFICATION_PENDING"}:
             count["modules_needing_evidence_remediation"]+=1
         observed_families=sorted({family for file in licenses for family in file["observed_license_families"]})
-        high_risk=bool(set(observed_families) & {"PER_FILE_LICENSE_MAPPING_REQUIRED", "BSL-1.1"})
+        high_risk=bool(set(observed_families) & {"PER_FILE_LICENSE_MAPPING_REQUIRED", "BSL-1.1", "PUBLIC_DOMAIN_CLAIM_UNSTANDARDIZED"})
         records.append({
             "module":name,"version":expected_refs[name],"license_status":status,
             "replacement_path":replace_path if replaced else None,
