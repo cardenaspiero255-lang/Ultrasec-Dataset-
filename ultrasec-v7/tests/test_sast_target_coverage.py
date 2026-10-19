@@ -29,6 +29,16 @@ class FullSastScopePreRegistrationTest(unittest.TestCase):
         self.assertFalse(report['blind_benchmark_ready'])
         self.assertEqual(report['gold_admitted'],0)
 
+    def test_v2_exclusions_include_every_public_studied_cve_and_other_known_case(self):
+        p=ROOT/'verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V2.json'
+        plan=json.loads(p.read_text())
+        receipt=audit(plan,ROOT)
+        self.assertTrue(receipt['all_researched_public_cves_excluded'])
+        self.assertEqual(receipt['excluded_researched_public_cves'],63)
+        self.assertGreaterEqual(len(plan['known_case_exclusions']),70)
+        self.assertEqual(receipt['missing_target_cwe_count'],11)
+        self.assertFalse(receipt['blind_benchmark_ready'])
+
     def test_single_rule_cannot_falsely_cover_all_twelve_cwe_by_claim(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
