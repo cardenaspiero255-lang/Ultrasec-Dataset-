@@ -48,6 +48,19 @@ _KNOWN_PROJECT_URLS = (
 )
 
 
+def _read_original_public_cves() -> frozenset[str]:
+    """Fail closed if the previously researched 63-case index disappears or changes."""
+    inventory = Path(__file__).resolve().parents[1] / "verification" / "research" / "CVE_CANDIDATES_63_PUBLIC_METADATA.md"
+    try:
+        raw = inventory.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ValueError("known_public_research_inventory_missing") from exc
+    ids = re.findall(r"^\|\s*[1-9][0-9]*\s*\|\s*\[(CVE-[0-9]{4}-[0-9]{4,})\]", raw, flags=re.MULTILINE)
+    if len(ids) != 63 or len(set(ids)) != 63:
+        raise ValueError("known_public_research_inventory_incomplete")
+    return frozenset(ids)
+
+
 def project_fingerprint(url: str) -> str:
     """Canonical public project URL hashing; owners must use same v1 scheme."""
     if not isinstance(url,str) or len(url)>512:
@@ -86,6 +99,7 @@ def screen(rows: list) -> dict:
     if not isinstance(rows,list):
         raise ValueError('invalid_candidate_collection')
     known_projects = {project_fingerprint(url) for url in _KNOWN_PROJECT_URLS}
+    known_cves = _KNOWN_CVES | _read_original_public_cves()
     errors=Counter()
     if not rows:
         errors['no_candidate_metadata'] += 1
@@ -98,7 +112,7 @@ def screen(rows: list) -> dict:
         valid+=1
         if row['case_id'] in seen_ids: errors['duplicate_case_id']+=1
         seen_ids.add(row['case_id'])
-        if row['cve_id'] in _KNOWN_CVES: errors['previously_studied_cve']+=1
+        if row['cve_id'] in known_cves: errors['previously_studied_cve']+=1
         if row['project_fingerprint'] in known_projects: errors['previously_studied_project']+=1
         for field,seen,error in (
             ('project_fingerprint',seen_projects,'reused_project_requires_grouping'),
@@ -116,7 +130,7 @@ def screen(rows: list) -> dict:
       'schema':'ultrasec.future-holdout-exposure-screen.v1',
       'candidate_metadata_screen_pass':not bool(errors),
       'future_candidate_records':valid,
-      'known_research_cves_excluded':len(_KNOWN_CVES),
+      'known_research_cves_excluded':len(known_cves),
       'known_research_projects_excluded':len(known_projects),
       'known_research_inventory_completeness_verified':False,
       'split_status':'UNASSIGNED',
