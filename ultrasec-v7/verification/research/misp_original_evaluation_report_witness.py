@@ -40,9 +40,22 @@ def _original_function(text: str, name: str, globals_: dict):
     fn=nodes[0]
     if fn.decorator_list:
         raise ValueError("unexpected_original_decorators")
-    code=compile(ast.Module(body=[fn],type_ignores=[]), "<sha-pinned-original-function>", "exec")
-    exec(code, globals_)
-    return globals_[name], hashlib.sha256(ast.get_source_segment(text, fn).encode()).hexdigest()
+    # Loading original functions must not invoke arbitrary upstream module
+    # statements, decorators or default-argument expressions.
+    if (any(value is not None for value in fn.args.kw_defaults)
+            or any(not isinstance(value, ast.Constant) or value.value is not None
+                   for value in fn.args.defaults)):
+        raise ValueError("unexpected_original_default_expression")
+    unit = compile(ast.Module(body=[fn], type_ignores=[]),
+                   "<sha-pinned-original-function>", "exec")
+    codes = [value for value in unit.co_consts
+             if isinstance(value, types.CodeType) and value.co_name == name]
+    if len(codes) != 1 or codes[0].co_freevars:
+        raise ValueError("unexpected_original_function_code")
+    function = types.FunctionType(codes[0], globals_, name,
+                                  tuple(None for _ in fn.args.defaults))
+    globals_[name] = function
+    return function, hashlib.sha256(ast.get_source_segment(text, fn).encode()).hexdigest()
 
 
 class _Query:
