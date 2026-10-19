@@ -48,6 +48,8 @@ def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
         raise ValueError("missing original module cache")
     candidates=[]
     roots=set()
+    unresolved_aliases=set()
+    module_records_seen=0
     for p in packages:
         if not isinstance(p,dict) or p.get("Error") or p.get("DepsErrors") or p.get("Incomplete"):
             raise ValueError("incomplete Go package")
@@ -55,9 +57,20 @@ def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
         m=p.get("Module")
         if not isinstance(name,str) or not isinstance(m,dict):
             continue
-        if name!=MODULE and not name.startswith(MODULE+"/"):
+        is_module=m.get("Path")==MODULE
+        is_path=name==MODULE or name.startswith(MODULE+"/")
+        if is_module:
+            module_records_seen+=1
+        if is_module and m.get("Version")!="v0.3.0":
+            raise ValueError("unverified Couchbase original module mapping")
+        if is_module and not is_path:
+            # Go's import graph can refer to a module via another import path.
+            # Do not treat this as an absence of licensing obligations.
+            unresolved_aliases.add(name)
             continue
-        if m.get("Path")!=MODULE or m.get("Version")!="v0.3.0":
+        if not is_path:
+            continue
+        if not is_module:
             raise ValueError("unverified Couchbase original module mapping")
         origin=m.get("Dir")
         pkgdir=p.get("Dir")
@@ -98,7 +111,29 @@ def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
                 "per_file_license_verified":False,
             })
     if not candidates:
-        raise ValueError("no compiled Couchbase source files in original go list")
+        if not unresolved_aliases or module_records_seen == 0:
+            raise ValueError("no compiled Couchbase source files in original go list")
+        return {
+            "schema":"ultrasec.gitea-couchbase-compiled-source-risk.v1",
+            "module":MODULE,
+            "module_version":"v0.3.0",
+            "imported_packages":0,
+            "inspected_source_files":0,
+            "files":[],
+            "unresolved_module_package_paths":sorted(unresolved_aliases),
+            "source_scope_status":"BLOCKED_IMPORT_ALIAS_REQUIRES_REVIEW",
+            "linked_license_documents":0,
+            "license_documents":[],
+            "licensed_work_observed":None,
+            "change_date_observed":None,
+            "license_applicability":"NOT_VERIFIED_IN_THIS_COMMIT",
+            "files_requiring_manual_adjudication":len(unresolved_aliases),
+            "commercial_distribution_cleared":False,
+            "standalone_package_distribution":"BLOCKED_UNTIL_SCOPE_AND_RIGHTS_REVIEW",
+            "gold_admitted":0,
+            "certification":"NOT_CERTIFIED",
+            "limitations":"Module recorded by Go with unmatched import path. No source file claimed audited. Investigate alias and true imported files before distribution.",
+        }
     if len(roots)!=1:
         raise ValueError("ambiguous original Couchbase module roots")
     root=next(iter(roots))
@@ -123,12 +158,15 @@ def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
         "imported_packages":len({r["package"] for r in candidates}),
         "inspected_source_files":len(candidates),
         "files":sorted(candidates,key=lambda x:(x["package"],x["path"])),
+        "unresolved_module_package_paths":sorted(unresolved_aliases),
+        "source_scope_status":("PARTIAL_IMPORT_MAPPING_REQUIRES_REVIEW"
+                               if unresolved_aliases else "FILE_HASHES_OBSERVED_APPLICABILITY_UNRESOLVED"),
         "linked_license_documents":len(artifacts),
         "license_documents":artifacts,
         "licensed_work_observed":licensed,
         "change_date_observed":change,
         "license_applicability":"REQUIRES_FILE_AND_LICENSE_SCOPE_REVIEW",
-        "files_requiring_manual_adjudication":len(candidates),
+        "files_requiring_manual_adjudication":len(candidates)+len(unresolved_aliases),
         "commercial_distribution_cleared":False,
         "standalone_package_distribution":"BLOCKED_UNTIL_SCOPE_AND_RIGHTS_REVIEW",
         "gold_admitted":0,
