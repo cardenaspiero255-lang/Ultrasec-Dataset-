@@ -116,27 +116,7 @@ jobs:
           sha256sum ultrasec-v7/verification/research/gitea_release_negative_control_test.go > gitea-control-source-sha256.txt
           cd upstream
           # Same supplemental test on the exact original upstream source for both matrix SHAs.
-          go test -tags sqlite -count=1 -timeout 5m -run '^TestUltraSecReleaseAllowedRename
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gitea-native-public-${{ matrix.version }}
-          path: |
-            source_sha.txt
-            test_provenance.txt
-            source_hashes.txt
-            gitea-original-files-${{ matrix.version }}.json
-            gitea-original-source-overlay-${{ matrix.version }}.json
-            gitea-${{ matrix.version }}.log
-            log_sha256.txt
-            native_verdict.txt
-            gitea-negative-control-*.log
-            gitea-control-source-sha256.txt
-            gitea_negative_verdict.txt
-            negative_control_sha256.txt
-          if-no-files-found: warn
-          retention-days: 14
- ./services/release -v 2>&1 | tee ../gitea-negative-control-${{ matrix.version }}.log
+          go test -tags sqlite -count=1 -timeout 5m -run '^TestUltraSecReleaseAllowedRename$' ./services/release -v 2>&1 | tee ../gitea-negative-control-${{ matrix.version }}.log
           test_exit="${PIPESTATUS[0]}"
           cd ..
           test "$test_exit" -eq 0
@@ -160,5 +140,9 @@ jobs:
             gitea-${{ matrix.version }}.log
             log_sha256.txt
             native_verdict.txt
+            gitea-negative-control-*.log
+            gitea-control-source-sha256.txt
+            gitea_negative_verdict.txt
+            negative_control_sha256.txt
           if-no-files-found: warn
           retention-days: 14
