@@ -25,6 +25,8 @@ _FIELDS = frozenset({'case_id','cve_id','project_fingerprint','mechanism_fingerp
 _KNOWN_CVES = frozenset({
     'CVE-2026-58428','CVE-2024-2395','CVE-2024-0683','CVE-2025-69015',
     'CVE-2023-42799','CVE-2024-48645','CVE-2024-11921','CVE-2024-12514',
+    'CVE-2026-73140','CVE-2023-43256','CVE-2026-61433',
+    'CVE-2026-42079','CVE-2026-68770',
 })
 _KNOWN_PROJECT_URLS = (
     'https://github.com/go-gitea/gitea',
@@ -35,6 +37,11 @@ _KNOWN_PROJECT_URLS = (
     'https://github.com/impress-org/givewp',
     'https://wordpress.org/plugins/3dvieweronline-wp/',
     'https://github.com/couchbase/goutils',
+    'https://github.com/MISP/cti-transmute',
+    'https://github.com/GladysAssistant/Gladys',
+    'https://github.com/MervinPraison/PraisonAI',
+    'https://github.com/icip-cas/PPTAgent',
+    'https://github.com/huggingface/sentence-transformers',
 )
 
 
