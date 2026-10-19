@@ -16,6 +16,9 @@ on:
       - 'ultrasec-v7/tests/test_private_python_ast_screen.py'
       - 'ultrasec-v7/tools/private_python_ast_screen.py'
       - 'ultrasec-v7/tools/private_holdout_preflight.py'
+      - 'ultrasec-v7/tools/delivery_scope_manifest.py'
+      - 'ultrasec-v7/tests/test_delivery_scope_manifest.py'
+      - 'ultrasec-v7/verification/research/DELIVERY_SCOPE_PUBLIC_METADATA_DRAFT.json'
       - 'ultrasec-v7/tools/reconcile_cve_research.py'
       - 'ultrasec-v7/verification/research/CVE_CANDIDATES_63_PUBLIC_METADATA.md'
       - 'ultrasec-v7/verification/research/CVE_VERIFICATION_7_OF_63_2026-10-17.md'
@@ -61,6 +64,20 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_holdout_preflight.py -v
       - name: Screen synthetic Python AST clones without exposing private source
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_python_ast_screen.py -v
+      - name: Test actual public delivery manifest and legal fail-closed restrictions
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_delivery_scope_manifest.py -v
+      - name: Hash exact candidate delivery files, without conferring resale rights
+        run: |
+          python3 ultrasec-v7/tools/delivery_scope_manifest.py \
+            --report ultrasec-v7/verification/research/DELIVERY_SCOPE_CI_INTEGRITY_REPORT.json
+          echo 'Proposed public metadata-only SKU. File digests match, but ownership, third-party terms and resale rights are NOT VERIFIED.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Attach public-only SKU file list with hashes, never private cases
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultrasec-v7-draft-metadata-sku-manifest
+          path: ultrasec-v7/verification/research/DELIVERY_SCOPE_CI_INTEGRITY_REPORT.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Test five-case historical license inventory without resale claims
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
       - name: Report original-source licenses separately from commercial clearance
