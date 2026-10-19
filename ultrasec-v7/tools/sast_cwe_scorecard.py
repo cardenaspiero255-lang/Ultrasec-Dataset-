@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 import math
 import re
+from premium_evidence import _PINNED_MITRE_CWES
 
 _IDENT = re.compile(r'[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z')
 _CWE = re.compile(r'CWE-[1-9][0-9]{0,5}\Z')
@@ -99,6 +100,8 @@ def calculate_diagnostic(gold_rows:list, prediction_rows:list) -> dict:
         problems['insufficient_test_rows']+=1
     if len(by_cwe)<12:
         problems['insufficient_cwes']+=1
+    if not _PINNED_MITRE_CWES.issubset(by_cwe.keys()):
+        problems['missing_pinned_cwe_family']+=1
     if any(classes!={True,False} for classes in by_cwe.values()):
         problems['cwe_without_both_classes']+=1
     missing=len(gold.keys()-pred.keys())
