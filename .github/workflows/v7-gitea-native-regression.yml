@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/v7-gitea-native-regression.yml'
       - 'ultrasec-v7/tests/test_upstream_workflow_integrity.py'
+      - 'ultrasec-v7/tests/test_original_negative_controls.py'
+      - 'ultrasec-v7/verification/research/gitea_release_negative_control_test.go'
       - 'ultrasec-v7/tools/gitea_source_scope.py'
       - 'ultrasec-v7/tests/test_gitea_source_scope.py'
       - 'ultrasec-v7/tools/gitea_source_overlay.py'
@@ -104,6 +106,45 @@ jobs:
             echo 'FIXED_GREEN_VERIFIED=true' | tee -a native_verdict.txt
           fi
           sha256sum gitea-${{ matrix.version }}.log native_verdict.txt > log_sha256.txt
+      - name: Execute legitimate original-tree rename/no-op controls in same Go environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ultrasec-v7/verification/research/gitea_release_negative_control_test.go
+          cp ultrasec-v7/verification/research/gitea_release_negative_control_test.go upstream/services/release/ultrasec_negative_control_test.go
+          cmp ultrasec-v7/verification/research/gitea_release_negative_control_test.go upstream/services/release/ultrasec_negative_control_test.go
+          sha256sum ultrasec-v7/verification/research/gitea_release_negative_control_test.go > gitea-control-source-sha256.txt
+          cd upstream
+          # Same supplemental test on the exact original upstream source for both matrix SHAs.
+          go test -tags sqlite -count=1 -timeout 5m -run '^TestUltraSecReleaseAllowedRename
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitea-native-public-${{ matrix.version }}
+          path: |
+            source_sha.txt
+            test_provenance.txt
+            source_hashes.txt
+            gitea-original-files-${{ matrix.version }}.json
+            gitea-original-source-overlay-${{ matrix.version }}.json
+            gitea-${{ matrix.version }}.log
+            log_sha256.txt
+            native_verdict.txt
+            gitea-negative-control-*.log
+            gitea-control-source-sha256.txt
+            gitea_negative_verdict.txt
+            negative_control_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
+ ./services/release -v 2>&1 | tee ../gitea-negative-control-${{ matrix.version }}.log
+          test_exit="${PIPESTATUS[0]}"
+          cd ..
+          test "$test_exit" -eq 0
+          grep -Fq "ULTRASEC_NEGATIVE_ALLOWED_RENAME=PASS" "gitea-negative-control-${{ matrix.version }}.log"
+          grep -Fq "ULTRASEC_NEGATIVE_NOOP=PASS" "gitea-negative-control-${{ matrix.version }}.log"
+          printf 'NEGATIVE_ALLOWED_RENAME_ORIGINAL_TREE=PASS\nNEGATIVE_METADATA_NOOP_ORIGINAL_TREE=PASS\nGOLD_ADMITTED=0\n' > gitea_negative_verdict.txt
+          sha256sum "gitea-negative-control-${{ matrix.version }}.log" gitea_negative_verdict.txt > negative_control_sha256.txt
+          echo 'Original Gitea trees: allowlisted ZIP rename and no-op verified under restrictive allowlist; no independent GOLD label inferred.' >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve public logs and SHA; never archive source
         if: always()
         uses: actions/upload-artifact@v4
