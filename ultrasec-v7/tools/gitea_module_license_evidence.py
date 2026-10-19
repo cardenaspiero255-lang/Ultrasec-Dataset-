@@ -78,8 +78,10 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
         if path not in expected_refs or version != expected_refs[path]:
             raise ValueError("module set/version differs from original immutable closure")
         directory=m.get("Dir")
-        replacement=bool(m.get("Replace"))
-        record=(directory,replacement)
+        replace_metadata=m.get("Replace")
+        replacement=bool(replace_metadata)
+        replace_path=replace_metadata.get("Path") if isinstance(replace_metadata,dict) else None
+        record=(directory,replacement,replace_path)
         if path in observed and observed[path]!=record:
             raise ValueError("inconsistent module directories or replacement")
         observed[path]=record
@@ -92,21 +94,24 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
     records=[]
     count=Counter()
     for name in sorted(expected_refs):
-        dirname,replaced=observed[name]
+        dirname,replaced,replace_path=observed[name]
         licenses,notices,flags=[],[],[]
-        if replaced:
-            status="MODULE_REPLACEMENT_REQUIRES_REVIEW"
-        elif not isinstance(dirname,str) or not dirname:
+        if not isinstance(dirname,str) or not dirname:
             status="MODULE_DIRECTORY_MISSING"
         else:
             root=Path(dirname).resolve(strict=False)
             if not root.is_relative_to(cache):
-                raise ValueError("external module directory outside explicit original cache")
-            if not root.is_dir():
+                if not replaced:
+                    raise ValueError("external module directory outside explicit original cache")
+                status="REPLACEMENT_SOURCE_OUTSIDE_CACHE"
+            elif not root.is_dir():
                 status="MODULE_DIRECTORY_MISSING"
             else:
                 licenses,notices,flags=_files_at_root(root)
-                if flags:
+                if replaced:
+                    # Even a found LICENSE does NOT clear a substituted dependency.
+                    status="MODULE_REPLACEMENT_REQUIRES_REVIEW"
+                elif flags:
                     status=sorted(flags)[0]
                 elif licenses:
                     status="LICENSE_FILE_PRESENT_CLASSIFICATION_PENDING"
@@ -123,6 +128,7 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
             count["modules_needing_evidence_remediation"]+=1
         records.append({
             "module":name,"version":expected_refs[name],"license_status":status,
+            "replacement_path":replace_path if replaced else None,
             "license_files":licenses,"notice_files":notices,
             "flags":sorted(set(flags)),"legal_conditions":"NOT_REVIEWED",
         })
