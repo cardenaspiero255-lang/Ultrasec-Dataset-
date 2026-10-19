@@ -1,0 +1,22 @@
+# PRE-REGISTRATION: future, as-yet UNSEEN independent sources only.
+# Known Gitea, Bulgarisation, Crowdsignal, Moonlight etc. are EXCLUDED.
+# Deliberately narrow baseline: does not imply CWE coverage or high recall.
+rules:
+  - id: ultrasec.future-unseen.python-direct-exec
+    languages: [python]
+    severity: WARNING
+    message: "Python exec call; inspect whether input is attacker-influenced."
+    pattern: exec($EXPR)
+    metadata:
+      cwe: "CWE-94"
+      preregistration: "future-unseen-only"
+      not_a_ground_truth_label: true
+  - id: ultrasec.future-unseen.python-direct-eval
+    languages: [python]
+    severity: WARNING
+    message: "Python eval call; inspect whether input is attacker-influenced."
+    pattern: eval($EXPR)
+    metadata:
+      cwe: "CWE-94"
+      preregistration: "future-unseen-only"
+      not_a_ground_truth_label: true
