@@ -8,6 +8,8 @@ on:
       - 'ultrasec-v7/tests/test_gitea_go_dependency_closure.py'
       - 'ultrasec-v7/tools/gitea_module_license_evidence.py'
       - 'ultrasec-v7/tests/test_gitea_module_license_evidence.py'
+      - 'ultrasec-v7/tools/gitea_couchbase_source_headers.py'
+      - 'ultrasec-v7/tests/test_gitea_couchbase_source_headers.py'
   workflow_dispatch:
 
 permissions:
@@ -33,6 +35,8 @@ jobs:
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_go_dependency_closure.py -v
       - name: Test safe file-level license evidence scanner on fictional Go modules
         run: python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_module_license_evidence.py -v
+      - name: Unit-test Couchbase compiled file-level BSL screening
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_couchbase_source_headers.py -v
       - name: Fetch public upstream Gitea exact immutable commit
         shell: bash
         env:
@@ -85,6 +89,15 @@ jobs:
             --output gitea-go-module-license-evidence.json
           echo 'Third-party module license FILE HASHES enumerated from Go cache. No inferred SPDX or commercial release clearance; unresolved files remain blocked.' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Investigate only actually compiled Couchbase sources and nested BSL notice
+        shell: bash
+        run: |
+          set -euo pipefail
+          module_cache="$(cd upstream && go env GOMODCACHE)"
+          python3 ultrasec-v7/tools/gitea_couchbase_source_headers.py \
+            --go-list go-list-original.json --cache "$module_cache" \
+            --output gitea-couchbase-actual-source-scope.json
+          echo 'Couchbase BSL per-file/Change Date needs qualified scope review; NO source bytes uploaded; autonomous package remains BLOCKED.' >> "$GITHUB_STEP_SUMMARY"
       - name: Archive dependency references only, never original repo files or private examples
         if: always()
         uses: actions/upload-artifact@v4
@@ -93,5 +106,6 @@ jobs:
           path: |
             gitea-go-closure.json
             gitea-go-module-license-evidence.json
+            gitea-couchbase-actual-source-scope.json
           if-no-files-found: warn
           retention-days: 14
