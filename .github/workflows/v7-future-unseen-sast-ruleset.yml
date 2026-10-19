@@ -7,6 +7,8 @@ on:
       - 'ultrasec-v7/verification/rules/future-unseen-python-cwe94.yml'
       - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN.json'
       - 'ultrasec-v7/tools/sast_ruleset_freeze.py'
+      - 'ultrasec-v7/tools/sast_target_coverage.py'
+      - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V2.json'
       - 'ultrasec-v7/tests/test_sast_*'
   workflow_dispatch:
 permissions:
@@ -40,6 +42,27 @@ jobs:
           assert receipt['blind_benchmark_ready'] is False
           assert receipt['external_chronology_verified'] is False
           print('PINNED_PUBLIC_RULE_BYTES_CHECKED; NOT A GOLD/HOLDOUT SCAN')
+          PY
+      - name: Verify V2 70 known-public exclusions and explicitly report 11 missing CWE
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/sast_target_coverage.py \
+            --plan ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V2.json \
+            --rules-root ultrasec-v7 > future-sast-v2-public-scope.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('future-sast-v2-public-scope.json',encoding='utf-8'))
+          assert x['rule_bytes_verified'] is True
+          assert x['researched_public_cves']==63
+          assert x['excluded_researched_public_cves']==63
+          assert x['all_researched_public_cves_excluded'] is True
+          assert x['declared_target_cwe_count']==1
+          assert x['missing_target_cwe_count']==11
+          assert x['complete_declared_byte_scope'] is False
+          assert x['blind_benchmark_ready'] is False
+          assert x['gold_admitted']==0
+          print('V2_PUBLIC_KNOWN_CVE_EXCLUSIONS=63/63; CWE_RULE_BYTES=1/12; HOLDOUT=NOT_RUN')
           PY
       - name: Install exact research Semgrep tool version
         run: |
@@ -75,6 +98,7 @@ jobs:
           name: future-unseen-sast-byte-lock-public
           path: |
             future-sast-byte-lock.json
+            future-sast-v2-public-scope.json
             future-rules-public-sha256.txt
           if-no-files-found: warn
           retention-days: 14
