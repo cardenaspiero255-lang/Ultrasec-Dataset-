@@ -139,6 +139,78 @@ def audit(training:list, holdout:list, minimum_train:int=100,
     }
 
 
+def audit_with_history(training:list, holdout:list, history:list,
+                       minimum_train:int=100, minimum_test:int=100,
+                       minimum_cwes:int=12, minimum_history:int=37)->dict:
+    """Enforce owner-private *prior research* exclusions before TEST selection.
+
+    These are NOT training labels and cannot be counted as GOLD. A structurally
+    valid historical row only proves it was previously considered, so it must
+    be excluded from a future-unseen holdout regardless of its admission status.
+    """
+    if (not isinstance(history,list) or type(minimum_history) is not int or
+            minimum_history < 1):
+        raise ValueError('invalid_private_history')
+    report=audit(training,holdout,minimum_train,minimum_test,minimum_cwes)
+    failures=Counter(report['failures'])
+    historical_cves=set()
+    historical_projects=set()
+    valid=0
+    for item in history:
+        if not isinstance(item,dict):
+            failures['invalid_private_history_record']+=1
+            continue
+        try:
+            cid=item.get('cve_id')
+            url=item.get('repo_url')
+            fix=item.get('fix_commit')
+            if (item.get('schema')!='ultrasec.public-cve-candidate.v1' or
+                    item.get('admission_status')!='NOT_ADMITTED' or
+                    item.get('commercial_rights')!='NOT_VERIFIED' or
+                    not isinstance(cid,str) or not CVE.fullmatch(cid) or
+                    not isinstance(fix,str) or not SHA40.fullmatch(fix)):
+                raise ValueError('invalid_private_history_record')
+            fp=project_fingerprint(url)
+        except (ValueError,TypeError,AttributeError):
+            failures['invalid_private_history_record']+=1
+            continue
+        valid+=1
+        if cid in historical_cves:
+            failures['duplicate_private_history_cve']+=1
+        historical_cves.add(cid)
+        historical_projects.add(fp)
+    if valid<minimum_history:
+        failures['insufficient_private_history']+=1
+
+    # Reject all original research IDs/projects, even if the new candidate
+    # supplies a different CVE or a case_id not seen before.
+    for row in holdout:
+        if _validate_row(row,'test') is not None:
+            continue  # Base audit already reported invalid rows.
+        if row['cve_id'] in historical_cves:
+            failures['private_history_cve_overlap']+=1
+        if row['project_fingerprint'] in historical_projects:
+            failures['private_history_project_overlap']+=1
+
+    known_cves=_KNOWN_CVES|_read_original_public_cves()|historical_cves
+    report.update({
+        'metadata_separation_pass':not bool(failures),
+        'private_prior_research_rows_checked':valid,
+        'known_research_cves_excluded':len(known_cves),
+        'known_research_projects_excluded':len({
+            project_fingerprint(s) for s in _KNOWN_PROJECT_URLS
+        }|historical_projects),
+        'known_research_inventory_completeness_verified':False,
+        'private_prior_research_labels_admitted':0,
+        'private_prior_research_provenance_independently_verified':False,
+        'blind_benchmark_ready':False,
+        'gold_admitted':0,
+        'certification':'NOT_CERTIFIED',
+        'failures':dict(sorted(failures.items())),
+    })
+    return report
+
+
 def _read_private_jsonl(p:Path)->tuple[list,bytes]:
     if p.is_symlink() or not p.is_file() or not stat.S_ISREG(p.stat().st_mode):
         raise ValueError('unsafe_private_manifest')
@@ -149,13 +221,14 @@ def _read_private_jsonl(p:Path)->tuple[list,bytes]:
     return rows,hashlib.sha256(raw).digest()
 
 
-def _write_private_receipt(p:Path,report:dict,train_sha:bytes,test_sha:bytes)->None:
+def _write_private_receipt(p:Path,report:dict,train_sha:bytes,test_sha:bytes,prior_sha:bytes)->None:
     if not p.parent.is_dir() or p.parent.is_symlink():
         raise ValueError('unsafe_private_receipt_destination')
     flags=os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0)
     with os.fdopen(os.open(p,flags,0o600),'w',encoding='utf-8') as f:
         json.dump({'report':report, 'training_manifest_sha256':train_sha.hex(),
                    'holdout_manifest_sha256':test_sha.hex(),
+                   'prior_research_manifest_sha256':prior_sha.hex(),
                    'signatures_verified':False},f,sort_keys=True)
         f.write('\n')
 
@@ -164,24 +237,31 @@ def main(argv:list[str]|None=None)->int:
     p=argparse.ArgumentParser(description='Owner-local TRAIN vs TEST metadata exclusion gate')
     p.add_argument('--train',type=Path,required=True)
     p.add_argument('--holdout',type=Path,required=True)
+    p.add_argument('--prior-research',type=Path,required=True,
+                   help='Owner-private 37+ previously researched NOT_ADMITTED candidates')
     p.add_argument('--minimum-train',type=int,default=100)
     p.add_argument('--minimum-test',type=int,default=100)
     p.add_argument('--minimum-cwes',type=int,default=12)
     p.add_argument('--private-receipt',type=Path)
     args=p.parse_args(argv)
     try:
-        train_path=args.train.resolve(strict=True)
-        test_path=args.holdout.resolve(strict=True)
-        if train_path==test_path or args.train.stat().st_ino==args.holdout.stat().st_ino and args.train.stat().st_dev==args.holdout.stat().st_dev:
+        # Paths and inodes must all be different, including hard-link aliases.
+        inputs=[args.train,args.holdout,args.prior_research]
+        canonical=[p.resolve(strict=True) for p in inputs]
+        identities={(p.stat().st_dev,p.stat().st_ino) for p in inputs}
+        if len(set(canonical))!=3 or len(identities)!=3:
             raise ValueError('same_manifest')
         repo=Path(__file__).resolve().parents[2]
-        if train_path.is_relative_to(repo) or test_path.is_relative_to(repo):
+        if any(p.is_relative_to(repo) for p in canonical):
             raise ValueError('private_manifest_in_public_repository')
         train,train_digest=_read_private_jsonl(args.train)
         test,test_digest=_read_private_jsonl(args.holdout)
-        report=audit(train,test,args.minimum_train,args.minimum_test,args.minimum_cwes)
+        prior,prior_digest=_read_private_jsonl(args.prior_research)
+        report=audit_with_history(train,test,prior,args.minimum_train,
+                                  args.minimum_test,args.minimum_cwes)
         if args.private_receipt:
-            _write_private_receipt(args.private_receipt,report,train_digest,test_digest)
+            _write_private_receipt(args.private_receipt,report,
+                                   train_digest,test_digest,prior_digest)
         print(json.dumps(report,sort_keys=True))
         return 0 if report['metadata_separation_pass'] else 1
     except (OSError,ValueError,TypeError,UnicodeError,json.JSONDecodeError):
