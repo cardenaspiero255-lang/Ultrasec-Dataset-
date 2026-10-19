@@ -148,8 +148,29 @@ def main(argv=None)->int:
         args.output.write_text(json.dumps(receipt,sort_keys=True,indent=2)+"\n",encoding="utf-8")
         print(json.dumps({k:v for k,v in receipt.items() if k not in ("files","license_documents")},sort_keys=True))
         return 0
-    except (ValueError,TypeError,OSError,UnicodeError,json.JSONDecodeError):
-        print("FAIL_CLOSED_COUCHBASE_SOURCE_SCOPE",file=sys.stderr)
+    except ValueError as exc:
+        # Messages deliberately contain no raw source, local directory or secrets.
+        safe_codes={
+            "no original Go list result",
+            "missing original module cache",
+            "incomplete Go package",
+            "unverified Couchbase original module mapping",
+            "missing module/package directory",
+            "source directory outside original Go cache",
+            "no genuine compiled source files",
+            "invalid go list source filename",
+            "missing or unreadable original source/notice",
+            "source or license outside original module",
+            "missing or oversized original file",
+            "empty original file",
+            "no unambiguous imported Couchbase source scope",
+            "unverified original nested license content",
+        }
+        code=str(exc) if str(exc) in safe_codes else "UNCLASSIFIED_VALIDATION_FAILURE"
+        print("FAIL_CLOSED_COUCHBASE_SOURCE_SCOPE: "+code,file=sys.stderr)
+        return 1
+    except (TypeError,OSError,UnicodeError,json.JSONDecodeError):
+        print("FAIL_CLOSED_COUCHBASE_SOURCE_SCOPE: INPUT_OR_IO",file=sys.stderr)
         return 1
 
 
