@@ -25,6 +25,56 @@ class GiteaModuleLicenseEvidenceTests(unittest.TestCase):
             "Module":{"Path":"example.org/original","Version":"v1.0.0","Dir":str(self.module)}
         }]
 
+    def test_mpl_2_recognizes_three_original_variants(self):
+        variants=(
+            b"Mozilla Public License, version 2.0\n1. Definitions\nCovered Software",
+            b"Mozilla Public License Version 2.0\n1. Definitions\nCovered Software",
+            b"Copyright IBM Corp.\nMozilla Public License, version 2.0\nCovered Software",
+        )
+        for raw in variants:
+            with self.subTest(raw=raw):
+                self.assertEqual(classify_original_license_text(raw),["MPL-2.0"])
+
+    def test_bsd_two_clause_not_mistaken_for_bsd_three(self):
+        raw=(b"Copyright 2015 Example\n"
+             b"Redistribution and use in source and binary forms, with or without\n"
+             b"modification, are permitted provided that the following conditions are met:\n"
+             b"Redistributions of source code must retain the above copyright notice\n"
+             b"Redistributions in binary form must reproduce the above copyright notice\n"
+             b'THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"\n')
+        self.assertEqual(classify_original_license_text(raw),["BSD-2-Clause"])
+
+    def test_bsd_three_clause_without_exact_neither_wording_still_recognized(self):
+        raw=(b"Redistribution and use in source and binary forms\n"
+             b"Redistributions of source code must retain\n"
+             b"Redistributions in binary form must reproduce\n"
+             b"My name, Example Author, may not be used to endorse or promote products\n"
+             b'THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS "AS IS"')
+        self.assertEqual(classify_original_license_text(raw),["BSD-3-Clause"])
+
+    def test_bsl_per_file_root_gets_risk_not_apache_approval(self):
+        root_license=(b"Source code in this repository is licensed under various licenses.\n"
+                      b"The Business Source License 1.1 (BSL) is one such license.\n"
+                      b"Each file indicates in a section at the beginning of the file\n"
+                      b"All licenses used in this repository are in the top-level licenses directory.\n")
+        (self.module/"LICENSE.txt").write_bytes(root_license)
+        self.assertEqual(classify_original_license_text(root_license),["PER_FILE_LICENSE_MAPPING_REQUIRED"])
+        r=collect_license_evidence(self.pkgs,self.closure,self.cache)
+        self.assertIn("PER_FILE_LICENSE_REVIEW",r["modules"][0]["license_status"])
+        self.assertTrue(r["modules"][0]["restricted_or_per_file_review"])
+        self.assertFalse(r["ready_to_distribute"])
+
+    def test_mpl_bsl_unknown_remain_undistributable_even_with_found_license(self):
+        for raw in (
+            b"Mozilla Public License, version 2.0\nCovered Software\n",
+            b"Business Source License 1.1\nLicensed Work: Example\nChange Date: March 1, 2029",
+        ):
+            with self.subTest(raw=raw):
+                (self.module/"LICENSE").write_bytes(raw)
+                r=collect_license_evidence(self.pkgs,self.closure,self.cache)
+                self.assertEqual(r["commercial_licenses_cleared"],0)
+                self.assertFalse(r["ready_to_distribute"])
+
     def test_classify_mit_with_original_permission_and_notice(self):
         raw=(b"MIT License\nPermission is hereby granted, free of charge, "
              b"to any person obtaining a copy\n"
