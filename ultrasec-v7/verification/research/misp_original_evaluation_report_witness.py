@@ -52,6 +52,8 @@ def _original_function(text: str, name: str, globals_: dict):
              if isinstance(value, types.CodeType) and value.co_name == name]
     if len(codes) != 1 or codes[0].co_freevars:
         raise ValueError("unexpected_original_function_code")
+    # FunctionType does not insert standard builtins into an empty namespace.
+    globals_.setdefault("__builtins__", __builtins__)
     function = types.FunctionType(codes[0], globals_, name,
                                   tuple(None for _ in fn.args.defaults))
     globals_[name] = function
