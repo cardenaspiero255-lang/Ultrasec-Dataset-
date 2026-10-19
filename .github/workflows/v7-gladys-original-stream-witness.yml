@@ -1,0 +1,100 @@
+# Public upstream RTSP path traversal witness. Neither proprietary corpus nor live service.
+name: V7 Gladys Original RTSP Traversal Witness
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-gladys-original-stream-witness.yml'
+      - 'ultrasec-v7/tests/test_gladys_original_witness_contract.py'
+      - 'ultrasec-v7/verification/research/gladys_original_stream_witness.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-rtsp-stream:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            sha: 8d09d2be050b4f505fefe4b2528f9b9b1d07f830
+          - phase: after
+            sha: f27d0ea4689c3deca5739b5f9ed45a2ddbf00b7b
+    steps:
+      - name: Checkout only UltraSec public harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Fetch exact original Gladys commit with sparse paths
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin https://github.com/GladysAssistant/Gladys.git
+          git -C upstream sparse-checkout init --cone
+          git -C upstream sparse-checkout set server/services/rtsp-camera
+          git -C upstream fetch --depth 1 --filter=blob:none origin "$EXPECTED_SHA"
+          git -C upstream checkout --quiet --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f upstream/server/services/rtsp-camera/api/rtspCamera.controller.js
+          test -f upstream/LICENSE
+          printf 'ORIGINAL_COMMIT=%s\n' "$EXPECTED_SHA" > source_commit.txt
+          git -C upstream rev-parse HEAD:server/services/rtsp-camera/api/rtspCamera.controller.js > original_controller_blob.txt
+          sha256sum upstream/server/services/rtsp-camera/api/rtspCamera.controller.js upstream/LICENSE > source_hashes.txt
+          if test "${{ matrix.phase }}" = after; then
+            test -f upstream/server/services/rtsp-camera/utils/validateStreamParams.js
+            git -C upstream rev-parse HEAD:server/services/rtsp-camera/utils/validateStreamParams.js > original_validator_blob.txt
+            sha256sum upstream/server/services/rtsp-camera/utils/validateStreamParams.js >> source_hashes.txt
+          else
+            test ! -e upstream/server/services/rtsp-camera/utils/validateStreamParams.js
+          fi
+
+      - name: Execute original source with safe isolated read boundary
+        shell: bash
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          node --version | tee original_node_version.txt
+          node --check ultrasec-v7/verification/research/gladys_original_stream_witness.js
+          sha256sum ultrasec-v7/verification/research/gladys_original_stream_witness.js > original_harness_sha256.txt
+          node ultrasec-v7/verification/research/gladys_original_stream_witness.js "$PHASE" upstream \
+            2>&1 | tee "gladys-original-stream-$PHASE.log"
+          if test "$PHASE" = before; then
+            grep -Fq 'BEFORE_CANARY_READ_CONFIRMED=true' "gladys-original-stream-$PHASE.log"
+            ! grep -Fq 'AFTER_PATH_TRAVERSAL_REJECTED=true' "gladys-original-stream-$PHASE.log"
+          else
+            grep -Fq 'AFTER_PATH_TRAVERSAL_REJECTED=true' "gladys-original-stream-$PHASE.log"
+            ! grep -Fq 'BEFORE_CANARY_READ_CONFIRMED=true' "gladys-original-stream-$PHASE.log"
+          fi
+          grep -Fq 'NEGATIVE_VALID_STREAM_PASS=true' "gladys-original-stream-$PHASE.log"
+          grep -Fq 'NEGATIVE_VALID_TS_PASS=true' "gladys-original-stream-$PHASE.log"
+          grep -Fq 'NO_EXTERNAL_IO=true' "gladys-original-stream-$PHASE.log"
+          grep -Fq 'GOLD_ADMITTED=0' "gladys-original-stream-$PHASE.log"
+          printf 'ORIGINAL_HANDLER_ORACLE=REPRODUCED_IN_LOCAL_ISOLATION\nPHASE=%s\nGOLD=0\nLICENSE_SCOPE=NOT_VERIFIED\n' "$PHASE" > native_verdict.txt
+          sha256sum "gladys-original-stream-$PHASE.log" source_hashes.txt \
+             original_harness_sha256.txt native_verdict.txt > native_verdict_sha256.txt
+          echo 'Original Gladys handler reached only synthetic mkdtemp files; not a live HTTP/FULL Gladys integration or a GOLD label.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve reproducibility receipts without copying third-party source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gladys-original-stream-${{ matrix.phase }}
+          path: |
+            source_commit.txt
+            source_hashes.txt
+            original_controller_blob.txt
+            original_validator_blob.txt
+            original_node_version.txt
+            original_harness_sha256.txt
+            gladys-original-stream-*.log
+            native_verdict.txt
+            native_verdict_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
