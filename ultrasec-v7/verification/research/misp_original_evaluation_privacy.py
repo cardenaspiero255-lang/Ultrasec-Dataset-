@@ -26,6 +26,9 @@ def _extract_original(path: Path, functions: set[str], namespace: dict) -> None:
                 and node.name in functions]
     if len(selected) != len(functions) or {node.name for node in selected} != functions:
         raise ValueError("ORIGINAL_FUNCTION_MISSING_OR_DUPLICATE")
+    # Constructed original function objects require explicit Python builtins;
+    # unlike exec(), FunctionType does not populate this namespace.
+    namespace.setdefault("__builtins__", __builtins__)
     for fn in selected:
         # Never evaluate decorators, executable default expressions or
         # module-level original statements in this isolated witness.
