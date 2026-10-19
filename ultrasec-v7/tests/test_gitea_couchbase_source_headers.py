@@ -97,6 +97,23 @@ class GoutilsActualSourceTests(unittest.TestCase):
         self.assertFalse(r["commercial_distribution_cleared"])
         self.assertTrue(r["files_requiring_manual_adjudication"])
 
+    def test_goutils_absent_from_original_closure_is_valid_not_licensing_clearance(self):
+        original=[{"ImportPath":"fmt","Standard":True}]
+        closure={"external_modules":[{"path":"other.org/module","version":"v1.0.0"}]}
+        r=scan_goutils_imported_files(original,self.cache,closure)
+        self.assertEqual(r["source_scope_status"],"NOT_IN_ORIGINAL_IMPORT_CLOSURE")
+        self.assertEqual(r["imported_packages"],0)
+        self.assertEqual(r["inspected_source_files"],0)
+        self.assertEqual(r["files"],[])
+        self.assertFalse(r["commercial_distribution_cleared"])
+        self.assertEqual(r["certification"],"NOT_CERTIFIED")
+
+    def test_declared_goutils_closure_missing_from_go_list_fails_closed(self):
+        original=[{"ImportPath":"fmt","Standard":True}]
+        closure={"external_modules":[{"path":MODULE,"version":"v0.3.0"}]}
+        with self.assertRaises(ValueError):
+            scan_goutils_imported_files(original,self.cache,closure)
+
     def test_module_alias_that_cannot_be_mapped_to_source_is_not_cleared(self):
         self.pkgs[0]["ImportPath"]="internal-alias-to-couchbase/logging"
         receipt=scan_goutils_imported_files(self.pkgs,self.cache)
