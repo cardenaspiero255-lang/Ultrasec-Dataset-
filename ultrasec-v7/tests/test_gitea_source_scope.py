@@ -20,7 +20,7 @@ class GiteaOriginalScopeTest(unittest.TestCase):
         self.assertEqual(result["errors"],[])
         self.assertEqual(result["changed_files"],6)
         self.assertEqual(result["runtime_files"],3)
-        self.assertEqual(result["verified_git_blob_ids"],18)
+        self.assertEqual(result["recorded_git_blob_ids"],18)
         self.assertEqual(result["reproducible_pair_gold"],0)
         self.assertEqual(result["commercial_distribution_authorized"],False)
         self.assertEqual(result["certification"],"NOT_CERTIFIED")
