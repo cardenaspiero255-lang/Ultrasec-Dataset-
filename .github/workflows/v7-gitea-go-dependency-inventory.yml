@@ -96,6 +96,7 @@ jobs:
           module_cache="$(cd upstream && go env GOMODCACHE)"
           python3 ultrasec-v7/tools/gitea_couchbase_source_headers.py \
             --go-list go-list-original.json --cache "$module_cache" \
+            --closure gitea-go-closure.json \
             --output gitea-couchbase-actual-source-scope.json
           echo 'Couchbase BSL per-file/Change Date needs qualified scope review; NO source bytes uploaded; autonomous package remains BLOCKED.' >> "$GITHUB_STEP_SUMMARY"
       - name: Archive dependency references only, never original repo files or private examples
