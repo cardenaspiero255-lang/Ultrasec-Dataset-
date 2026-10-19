@@ -83,7 +83,10 @@ def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
             if "business source license" in header:
                 indicators.append("BSL-1.1-REFERENCE")
             if "apache license" in header:
-                indicators.append("APACHE-2.0-REFERENCE")
+                indicators.append(
+                    "APACHE-2.0-FUTURE-CHANGE-REFERENCE"
+                    if "business source license" in header else "APACHE-2.0-REFERENCE"
+                )
             if "mozilla public license" in header:
                 indicators.append("MPL-2.0-REFERENCE")
             if "spdx-license-identifier: mit" in header:
