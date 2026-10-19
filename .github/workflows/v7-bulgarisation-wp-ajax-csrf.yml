@@ -155,9 +155,12 @@ jobs:
             local slug="$1" test_name="$2" path="mechanism-$1-$VER.log"
             set +e
             phpunit --bootstrap /tmp/ultrasec_wp_bootstrap.php --colors=never --verbose \
-              --filter "^$test_name$" /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php > "$path" 2>&1
+              --filter "$test_name" /tmp/UltraSec_Bulgarisation_Csrf_WP_Test.php > "$path" 2>&1
             local rc=$?
             set -e
+            # Diagnostic is an isolated public test log; fail-closed if filter runs zero cases.
+            tail -n 28 "$path"
+            ! grep -Fq 'No tests executed!' "$path"
             if test "$slug" = "authorized-manager"; then
               test "$rc" -eq 0
               grep -Fq 'AUTHORIZED_TERMINATION=BLOCKED_OUTBOUND_PROVIDER_REQUEST' "$path"
