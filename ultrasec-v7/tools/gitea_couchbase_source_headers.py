@@ -40,9 +40,44 @@ def _metadata_line(text:str,prefix:str)->str|None:
     return None
 
 
-def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
+def scan_goutils_imported_files(packages:list[dict],cache_root:Path,
+                               closure:dict|None=None)->dict:
     if not isinstance(packages,list) or not packages:
         raise ValueError("no original Go list result")
+    if closure is not None:
+        external=closure.get("external_modules") if isinstance(closure,dict) else None
+        if not isinstance(external,list):
+            raise ValueError("invalid original module closure")
+        declared=[m for m in external if isinstance(m,dict) and m.get("path")==MODULE]
+        if len(declared)>1:
+            raise ValueError("duplicated original module scope")
+        if not declared:
+            if any(isinstance(p,dict) and isinstance(p.get("Module"),dict)
+                   and p["Module"].get("Path")==MODULE for p in packages):
+                raise ValueError("Go package/module closure mismatch")
+            return {
+                "schema":"ultrasec.gitea-couchbase-compiled-source-risk.v1",
+                "module":MODULE,
+                "module_version":None,
+                "imported_packages":0,
+                "inspected_source_files":0,
+                "files":[],
+                "unresolved_module_package_paths":[],
+                "source_scope_status":"NOT_IN_ORIGINAL_IMPORT_CLOSURE",
+                "linked_license_documents":0,
+                "license_documents":[],
+                "licensed_work_observed":None,
+                "change_date_observed":None,
+                "license_applicability":"NOT_WITHIN_THIS_ORIGINAL_GO_SERVICE_IMPORT_CLOSURE",
+                "files_requiring_manual_adjudication":0,
+                "commercial_distribution_cleared":False,
+                "standalone_package_distribution":"NOT_EVALUATED_OR_AUTHORIZED",
+                "gold_admitted":0,
+                "certification":"NOT_CERTIFIED",
+                "limitations":"Go list module closure does not include goutils in this original revision; does not establish any external buyer bundle licensing or broader runtime closure.",
+            }
+        if declared[0].get("version")!="v0.3.0":
+            raise ValueError("unexpected original Couchbase module version")
     cache=cache_root.resolve(strict=True)
     if not cache.is_dir():
         raise ValueError("missing original module cache")
@@ -179,12 +214,14 @@ def main(argv=None)->int:
     ap=argparse.ArgumentParser()
     ap.add_argument("--go-list",required=True,type=Path)
     ap.add_argument("--cache",required=True,type=Path)
+    ap.add_argument("--closure",required=True,type=Path)
     ap.add_argument("--output",required=True,type=Path)
     args=ap.parse_args(argv)
     try:
         from gitea_go_dependency_closure import read_stream
         packages=read_stream(args.go_list.read_text(encoding="utf-8"))
-        receipt=scan_goutils_imported_files(packages,args.cache)
+        closure=json.loads(args.closure.read_text(encoding="utf-8"))
+        receipt=scan_goutils_imported_files(packages,args.cache,closure)
         args.output.write_text(json.dumps(receipt,sort_keys=True,indent=2)+"\n",encoding="utf-8")
         print(json.dumps({k:v for k,v in receipt.items() if k not in ("files","license_documents")},sort_keys=True))
         return 0
@@ -193,6 +230,10 @@ def main(argv=None)->int:
         safe_codes={
             "no original Go list result",
             "missing original module cache",
+            "invalid original module closure",
+            "duplicated original module scope",
+            "Go package/module closure mismatch",
+            "unexpected original Couchbase module version",
             "incomplete Go package",
             "unverified Couchbase original module mapping",
             "missing module/package directory",
