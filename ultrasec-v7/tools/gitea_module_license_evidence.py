@@ -19,6 +19,34 @@ LICENSE_NAME = re.compile(r"^(?:LICENSE|LICENCE|COPYING)(?:[._-][A-Za-z0-9._-]+)
 NOTICE_NAME = re.compile(r"^(?:NOTICE|COPYRIGHT|AUTHORS|PATENTS)(?:[._-][A-Za-z0-9._-]+)?$", re.I)
 MAX_FILE_BYTES = 1048576
 
+OBSERVED_OBLIGATIONS = {
+    "MIT": "MIT_RETAIN_COPYRIGHT_AND_PERMISSION_NOTICE",
+    "BSD-3-Clause": "BSD3_RETAIN_COPYRIGHT_CONDITIONS_DISCLAIMER_NO_ENDORSEMENT",
+    "Apache-2.0": "APACHE2_PRESERVE_LICENSE_NOTICES_CHANGES_AND_APPLICABLE_NOTICE_FILE",
+}
+
+
+def classify_original_license_text(payload:bytes)->list[str]:
+    """Conservative full-license-text indicators, not legal SPDX clearance.
+
+    Do not infer permissions from filename, repo label, or SPDX-only sentence.
+    Multiple matches mean possible multiple terms requiring human interpretation.
+    """
+    if not isinstance(payload,bytes):
+        return []
+    text=payload.decode("utf-8",errors="replace").lower()
+    observed=[]
+    if ("apache license" in text and "version 2.0" in text
+            and ("terms and conditions" in text or "http://www.apache.org/licenses" in text)):
+        observed.append("Apache-2.0")
+    if ("redistribution and use in source and binary forms" in text
+            and "neither the name" in text):
+        observed.append("BSD-3-Clause")
+    if ("permission is hereby granted, free of charge" in text
+            and "the above copyright notice and this permission notice shall be included" in text):
+        observed.append("MIT")
+    return sorted(observed)
+
 
 def _files_at_root(root:Path) -> tuple[list,list,list]:
     licenses, notices, flags = [], [], []
@@ -44,7 +72,10 @@ def _files_at_root(root:Path) -> tuple[list,list,list]:
             if not data.strip():
                 flags.append("EMPTY_LICENSE_FILE" if destination is licenses else "EMPTY_NOTICE_FILE")
                 continue
-            destination.append({"name":name,"sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data)})
+            entry={"name":name,"sha256":hashlib.sha256(data).hexdigest(),"bytes":len(data)}
+            if destination is licenses:
+                entry["observed_license_families"]=classify_original_license_text(data)
+            destination.append(entry)
         except OSError:
             flags.append("UNSAFE_OR_UNREADABLE_LICENSE_PATH")
     return licenses,notices,flags
@@ -81,7 +112,8 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
         replace_metadata=m.get("Replace")
         replacement=bool(replace_metadata)
         replace_path=replace_metadata.get("Path") if isinstance(replace_metadata,dict) else None
-        record=(directory,replacement,replace_path)
+        replace_version=replace_metadata.get("Version") if isinstance(replace_metadata,dict) else None
+        record=(directory,replacement,replace_path,replace_version)
         if path in observed and observed[path]!=record:
             raise ValueError("inconsistent module directories or replacement")
         observed[path]=record
@@ -94,7 +126,7 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
     records=[]
     count=Counter()
     for name in sorted(expected_refs):
-        dirname,replaced,replace_path=observed[name]
+        dirname,replaced,replace_path,replace_version=observed[name]
         licenses,notices,flags=[],[],[]
         if not isinstance(dirname,str) or not dirname:
             status="MODULE_DIRECTORY_MISSING"
@@ -126,9 +158,14 @@ def collect_license_evidence(packages:list[dict],closure:dict,go_cache_root:Path
             count["modules_with_notice_files"]+=1
         if status not in {"LICENSE_FILE_PRESENT_CLASSIFICATION_PENDING"}:
             count["modules_needing_evidence_remediation"]+=1
+        observed_families=sorted({family for file in licenses for family in file["observed_license_families"]})
         records.append({
             "module":name,"version":expected_refs[name],"license_status":status,
             "replacement_path":replace_path if replaced else None,
+            "replacement_version":replace_version if replaced else None,
+            "effective_module_version":replace_version if replaced else expected_refs[name],
+            "observed_license_families":observed_families,
+            "obligation_hints":[OBSERVED_OBLIGATIONS[family] for family in observed_families],
             "license_files":licenses,"notice_files":notices,
             "flags":sorted(set(flags)),"legal_conditions":"NOT_REVIEWED",
         })
