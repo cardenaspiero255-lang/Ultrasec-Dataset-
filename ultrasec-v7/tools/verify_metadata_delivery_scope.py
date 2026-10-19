@@ -9,7 +9,7 @@ requires a separate review. No package/archive is built by this tool.
 from __future__ import annotations
 
 import argparse
-import hashlib
+import subprocess
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -49,6 +49,26 @@ def _read_pinned(root:Path, rel:str)->bytes:
         raise ValueError('missing_delivery_file') from exc
 
 
+def git_blob_oid(payload:bytes)->str:
+    """Git's native object identity for SHA-1 repositories, NOT a security MAC.
+
+    Avoid treating the legacy object ID as a secure cryptographic signature.
+    The fixed manifest identifies exact source bytes; rights still unresolved.
+    """
+    try:
+        p=subprocess.run(['git','hash-object','--stdin'],input=payload,
+                         capture_output=True,timeout=5,check=True)
+    except (OSError,subprocess.SubprocessError) as exc:
+        raise ValueError('git_blob_unavailable') from exc
+    try:
+        result=p.stdout.decode('ascii').strip()
+    except UnicodeError as exc:
+        raise ValueError('invalid_git_blob_oid') from exc
+    if not _SHA1.fullmatch(result):
+        raise ValueError('invalid_git_blob_oid')
+    return result
+
+
 def inspect_scope(plan:object, root:Path)->dict:
     if not isinstance(plan,dict) or plan.get('schema')!=_SCHEMA:
         raise ValueError('invalid_delivery_manifest')
@@ -82,7 +102,7 @@ def inspect_scope(plan:object, root:Path)->dict:
         if not isinstance(blob,str) or not _SHA1.fullmatch(blob):
             raise ValueError('invalid_blob_reference')
         payload=_read_pinned(root,rel)
-        observed=hashlib.sha1(f'blob {len(payload)}\0'.encode()+payload).hexdigest()
+        observed=git_blob_oid(payload)
         if observed!=blob:
             raise ValueError('blob_mismatch')
     return {
