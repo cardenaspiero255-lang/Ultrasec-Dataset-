@@ -21,6 +21,7 @@ TOOLS_DIR=Path(__file__).resolve().parent
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0,str(TOOLS_DIR))
 from future_holdout_exposure import project_fingerprint, _KNOWN_CVES, _KNOWN_PROJECT_URLS, _read_original_public_cves
+from premium_evidence import _PINNED_MITRE_CWES
 
 SHA40=re.compile(r'[0-9a-f]{40}\Z')
 SHA256=re.compile(r'[0-9a-f]{64}\Z')
@@ -134,6 +135,10 @@ def audit(training:list, holdout:list, minimum_train:int=100,
     by_cwe=defaultdict(set)
     for row in clean_test:by_cwe[row['cwe_id']].add(row['vulnerable'])
     if len(by_cwe)<minimum_cwes:failures['insufficient_test_cwes']+=1
+    # A configurable small synthetic smoke may use fewer families, but a
+    # candidate real benchmark at 12+ must include the predeclared targets.
+    if minimum_cwes >= len(_PINNED_MITRE_CWES) and not _PINNED_MITRE_CWES.issubset(by_cwe):
+        failures['missing_pinned_test_cwe']+=1
     if any(labels!={True,False} for labels in by_cwe.values()):
         failures['test_cwe_without_both_classes']+=1
 
