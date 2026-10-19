@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 EXPECTED_SCHEMA="ultrasec.v7-exact-public-metadata-delivery-scope.v1"
@@ -65,7 +66,17 @@ def inspect(manifest: object, root: Path) -> dict:
         except (OSError,ValueError):
             errors["missing_proposed_file"]+=1
             continue
-        gitblob=hashlib.sha1(f"blob {len(original)}\0".encode("ascii")+original).hexdigest()
+        # Git object ID is a repository identifier, not a security signature.
+        # Query Git's native object encoder without shell expansion or network.
+        # SHA-256 below is the independent cryptographic integrity digest.
+        try:
+            gitblob=subprocess.run(
+                ["git","hash-object","--stdin"],
+                input=original,check=True,capture_output=True,timeout=10,
+            ).stdout.decode("ascii").strip()
+        except (OSError,subprocess.SubprocessError,UnicodeError):
+            errors["git_object_verification_failed"]+=1
+            continue
         digest=hashlib.sha256(original).hexdigest()
         if blob!=gitblob:
             errors["source_blob_mismatch"]+=1
