@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/v7-gitea-native-regression.yml'
       - 'ultrasec-v7/tests/test_upstream_workflow_integrity.py'
+      - 'ultrasec-v7/tools/gitea_source_scope.py'
+      - 'ultrasec-v7/tests/test_gitea_source_scope.py'
+      - 'ultrasec-v7/verification/research/GITEA_ORIGINAL_FILE_RIGHTS_SCOPE.json'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +27,8 @@ jobs:
           - version: 'after'
             sha: 'e4ef995f2a162e3aca3f3a0b536afae067975d71'
     steps:
+      - name: Checkout UltraSec public manifest and validation code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fetch original source with exact ref
         shell: bash
         env:
@@ -46,6 +51,14 @@ jobs:
           fi
           git -C upstream diff --check
           sha256sum upstream/go.mod upstream/services/release/release.go upstream/services/release/release_test.go > source_hashes.txt
+      - name: Independently confirm exact upstream changed files, license and Go lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/gitea_source_scope.py \
+            --original-repo upstream \
+            --receipt gitea-original-files-${{ matrix.version }}.json
+          echo 'Original six-file SHA / SPDX / Go lockfile audit completed; NO gold or commercial permission inferred.' >> "$GITHUB_STEP_SUMMARY"
       - name: Set up original Go toolchain
         uses: actions/setup-go@v5
         with:
@@ -84,6 +97,7 @@ jobs:
             source_sha.txt
             test_provenance.txt
             source_hashes.txt
+            gitea-original-files-${{ matrix.version }}.json
             gitea-${{ matrix.version }}.log
             log_sha256.txt
             native_verdict.txt
