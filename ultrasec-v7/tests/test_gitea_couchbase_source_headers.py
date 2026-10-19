@@ -97,6 +97,21 @@ class GoutilsActualSourceTests(unittest.TestCase):
         self.assertFalse(r["commercial_distribution_cleared"])
         self.assertTrue(r["files_requiring_manual_adjudication"])
 
+    def test_module_alias_that_cannot_be_mapped_to_source_is_not_cleared(self):
+        self.pkgs[0]["ImportPath"]="internal-alias-to-couchbase/logging"
+        receipt=scan_goutils_imported_files(self.pkgs,self.cache)
+        self.assertEqual(receipt["source_scope_status"],"BLOCKED_IMPORT_ALIAS_REQUIRES_REVIEW")
+        self.assertEqual(receipt["inspected_source_files"],0)
+        self.assertEqual(receipt["unresolved_module_package_paths"],["internal-alias-to-couchbase/logging"])
+        self.assertFalse(receipt["commercial_distribution_cleared"])
+        self.assertEqual(receipt["certification"],"NOT_CERTIFIED")
+
+    def test_missing_expected_module_is_not_mistaken_for_audit_pass(self):
+        self.pkgs[0]["Module"]["Path"]="github.com/other/company"
+        self.pkgs[0]["ImportPath"]="github.com/other/company/part"
+        with self.assertRaises(ValueError):
+            scan_goutils_imported_files(self.pkgs,self.cache)
+
     def test_document_missing_fails_closed(self):
         (self.module/"licenses/BSL-Couchbase.txt").unlink()
         with self.assertRaises(ValueError):
