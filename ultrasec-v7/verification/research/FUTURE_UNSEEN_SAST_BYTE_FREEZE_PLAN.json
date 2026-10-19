@@ -1,0 +1,29 @@
+{
+  "schema": "ultrasec.sast-rule-byte-plan.v1",
+  "certification": "NOT_CERTIFIED",
+  "gold_count": 0,
+  "holdout_status": "UNASSIGNED",
+  "scoring_enabled": false,
+  "purpose": "FUTURE_UNSEEN_PRE_REGISTRATION",
+  "known_case_exclusions": [
+    "CVE-2026-58428",
+    "CVE-2024-2395",
+    "CVE-2024-0683",
+    "CVE-2025-69015",
+    "CVE-2023-42799",
+    "CVE-2024-48645",
+    "CVE-2024-11921",
+    "CVE-2024-12514"
+  ],
+  "entries": [
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe94.yml",
+      "sha256": "6f3d784e3fa683b25336899fb5424b9f22ba34712147b7163714b25e9af65f00",
+      "cwes": [
+        "CWE-94"
+      ]
+    }
+  ]
+}
