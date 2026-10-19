@@ -97,8 +97,10 @@ def scan_goutils_imported_files(packages:list[dict],cache_root:Path)->dict:
                 "source_header_license_indicators":sorted(indicators),
                 "per_file_license_verified":False,
             })
-    if not candidates or len(roots)!=1:
-        raise ValueError("no unambiguous imported Couchbase source scope")
+    if not candidates:
+        raise ValueError("no compiled Couchbase source files in original go list")
+    if len(roots)!=1:
+        raise ValueError("ambiguous original Couchbase module roots")
     root=next(iter(roots))
     artifacts=[]
     values={}
@@ -163,7 +165,8 @@ def main(argv=None)->int:
             "source or license outside original module",
             "missing or oversized original file",
             "empty original file",
-            "no unambiguous imported Couchbase source scope",
+            "no compiled Couchbase source files in original go list",
+            "ambiguous original Couchbase module roots",
             "unverified original nested license content",
         }
         code=str(exc) if str(exc) in safe_codes else "UNCLASSIFIED_VALIDATION_FAILURE"
