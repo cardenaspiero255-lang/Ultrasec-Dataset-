@@ -20,7 +20,7 @@ import sys
 TOOLS_DIR=Path(__file__).resolve().parent
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0,str(TOOLS_DIR))
-from future_holdout_exposure import project_fingerprint, _KNOWN_CVES, _KNOWN_PROJECT_URLS
+from future_holdout_exposure import project_fingerprint, _KNOWN_CVES, _KNOWN_PROJECT_URLS, _read_original_public_cves
 
 SHA40=re.compile(r'[0-9a-f]{40}\Z')
 SHA256=re.compile(r'[0-9a-f]{64}\Z')
@@ -78,8 +78,11 @@ def audit(training:list, holdout:list, minimum_train:int=100,
     # The private owner must canonicalize project URLs; opaque fields alone
     # are insufficient to prevent forged project aliases.
     studied_projects={project_fingerprint(s) for s in _KNOWN_PROJECT_URLS}
+    # Every CVE previously recorded by public research is ineligible as new
+    # held-out evidence. Missing/truncated inventory blocks the entire audit.
+    known_cves = _KNOWN_CVES | _read_original_public_cves()
     for row in clean_test:
-        if row['cve_id'] in _KNOWN_CVES:
+        if row['cve_id'] in known_cves:
             failures['known_research_cve']+=1
         if row['project_fingerprint'] in studied_projects:
             failures['known_research_project']+=1
@@ -120,7 +123,7 @@ def audit(training:list, holdout:list, minimum_train:int=100,
        'training_rows_checked':len(clean_train),
        'test_rows_checked':len(clean_test),
        'test_cwes_checked':len(by_cwe),
-       'known_research_cves_excluded':len(_KNOWN_CVES),
+       'known_research_cves_excluded':len(known_cves),
        'known_research_projects_excluded':len(studied_projects),
        'causal_independence_certified':False,
        'source_provenance_externally_verified':False,
