@@ -1,5 +1,6 @@
 """TDD contracts: an exact public-metadata delivery proposal is not commercial clearance."""
 from copy import deepcopy
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -27,6 +28,12 @@ class DeliveryScopeTests(unittest.TestCase):
         self.assertEqual(result["source_distribution_allowed"],False)
         self.assertEqual(len(result["files"]),5)
         self.assertTrue(all(len(f["sha256"])==64 for f in result["files"]))
+
+    def test_sha256_checks_exact_disk_bytes_independent_of_git_object_id(self):
+        report=mod.inspect(self.doc,ROOT)
+        for entry in report["files"]:
+            payload=(ROOT/entry["path"]).read_bytes()
+            self.assertEqual(entry["sha256"],hashlib.sha256(payload).hexdigest())
 
     def test_changes_to_listed_file_fail_integrity(self):
         wrong=deepcopy(self.doc)
