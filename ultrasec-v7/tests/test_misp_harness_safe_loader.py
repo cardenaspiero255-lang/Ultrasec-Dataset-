@@ -34,9 +34,8 @@ class MispOriginalHarnessSecurityTest(unittest.TestCase):
                 spec=importlib.util.spec_from_file_location('safe_original_'+path.stem,path)
                 module=importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                source='def original_case(x, actor=None):\\n    return (x, actor)\\n'
+                source='def original_case(x, actor=None):\n    return (x, actor)\n'
                 # Literal newlines for a small trusted fixture, not arbitrary runtime source.
-                source=source.replace('\\\\n','\\n')
                 ns={}
                 if hasattr(module,'_extract_original'):
                     f=Path(d)/'original.py'
@@ -54,8 +53,7 @@ class MispOriginalHarnessSecurityTest(unittest.TestCase):
                 spec=importlib.util.spec_from_file_location('safe_original_decorator_'+path.stem,path)
                 module=importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                source='@unapproved_decorator\\ndef original_case(x):\\n    return x\\n'
-                source=source.replace('\\\\n','\\n')
+                source='@unapproved_decorator\ndef original_case(x):\n    return x\n'
                 ns={}
                 with self.assertRaises(ValueError):
                     if hasattr(module,'_extract_original'):
