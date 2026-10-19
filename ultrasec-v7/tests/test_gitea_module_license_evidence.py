@@ -75,6 +75,28 @@ class GiteaModuleLicenseEvidenceTests(unittest.TestCase):
                 self.assertEqual(r["commercial_licenses_cleared"],0)
                 self.assertFalse(r["ready_to_distribute"])
 
+    def test_wrapped_mit_original_notice_is_recognized(self):
+        raw=(b"Copyright 2012 Person\n"
+             b"Permission is hereby granted, free of charge, to any person obtaining\n"
+             b"a copy of this software and associated documentation files\n"
+             b"The above copyright notice and this permission notice shall be\n"
+             b"included in all copies or substantial portions of the Software.\n")
+        self.assertEqual(classify_original_license_text(raw),["MIT"])
+
+    def test_xi2_explicit_public_domain_statement_not_commercial_clearance(self):
+        raw=(b"Licensing of github.com/xi2/xz\n"
+             b"All these files have been put\n into the public domain.\n"
+             b"You can do whatever you want with these files.\n"
+             b'This software is provided "as is"\n')
+        self.assertEqual(classify_original_license_text(raw),
+                         ["PUBLIC_DOMAIN_CLAIM_UNSTANDARDIZED"])
+        (self.module/"LICENSE").write_bytes(raw)
+        report=collect_license_evidence(self.pkgs,self.closure,self.cache)
+        self.assertEqual(report["modules"][0]["license_status"],
+                         "PUBLIC_DOMAIN_PROVENANCE_REVIEW_REQUIRED")
+        self.assertTrue(report["modules"][0]["restricted_or_per_file_review"])
+        self.assertEqual(report["commercial_licenses_cleared"],0)
+
     def test_classify_mit_with_original_permission_and_notice(self):
         raw=(b"MIT License\nPermission is hereby granted, free of charge, "
              b"to any person obtaining a copy\n"
