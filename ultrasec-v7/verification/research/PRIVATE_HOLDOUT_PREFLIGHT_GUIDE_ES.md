@@ -46,3 +46,16 @@ python3 ultrasec-v7/tools/private_python_ast_screen.py \
 
 **Un choque entre train y test o dentro del test requiere revisión manual del mecanismo** y el programa devuelve error. La ausencia de colisiones no acredita independencia causal; otras lenguas (JavaScript, PHP, C) requieren analizadores propios y análisis de flujo de datos. Los resultados impresos son solo conteos/errores agregados: no compartir el JSONL privado, sus hashes o código en Actions, issues ni PR.
 
+
+## Corrección TDD del 19-10-2026 — pares originales repetidos dentro del mismo split
+
+El preflight antes detectaba algunos duplicados en `test` y cruces entre splits, pero podía aceptar **dos registros diferentes en train o validation con el mismo par before/after de commits o contenidos**. Esto inflaba artificialmente el total de casos independientes aunque los identificadores y CVE fueran distintos.
+
+El validador ahora rechaza, en **todos** los splits, pares ordenados idénticos con dos códigos de error agregados, sin imprimir hashes ni IDs:
+
+- `duplicate_source_pair`: coincidencia exacta de `(source_commit, fix_commit)`.
+- `duplicate_content_pair`: coincidencia exacta de `(source_sha256, fix_sha256)`.
+
+Una coincidencia aislada del proyecto o de un archivo individual **no** se interpreta por sí sola como duplicación de dos defectos distintos. La detección no equivale a deduplicación semántica, ni comprueba autenticidad de los SHA declarados.
+
+Evidencia TDD: [run RED 39256845262](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39256845262) (tres regresiones fallidas en el commit `8e6f6ef804f4e8ec5a6c3811f84e73da33034628`), [run GREEN 39256954302](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39256954302) (396 pruebas correctas, 97% de cobertura del módulo público de referencia, HEAD `a55c5d35b2088834af3bffc36035f9c8a73b71e5`). `GOLD=0`; sin muestras privadas incorporadas.
