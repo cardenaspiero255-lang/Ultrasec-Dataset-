@@ -47,7 +47,7 @@ class GoutilsActualSourceTests(unittest.TestCase):
         self.assertEqual(f["path"],"logging/logger.go")
         self.assertEqual(f["sha256"],hashlib.sha256(self.text).hexdigest())
         self.assertEqual(f["source_header_license_indicators"],["APACHE-2.0-FUTURE-CHANGE-REFERENCE","BSL-1.1-REFERENCE"])
-        self.assertEqual(r["linked_license_documents"],2)
+        self.assertEqual(r["linked_license_documents"],3)
         self.assertEqual(r["licensed_work_observed"],"Couchbase Server Version 8.0")
         self.assertEqual(r["change_date_observed"],"March 1, 2029")
         self.assertEqual(r["license_applicability"],"REQUIRES_FILE_AND_LICENSE_SCOPE_REVIEW")
