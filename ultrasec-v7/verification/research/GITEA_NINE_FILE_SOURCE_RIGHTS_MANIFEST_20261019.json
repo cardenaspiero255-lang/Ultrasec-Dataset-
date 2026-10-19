@@ -1,0 +1,119 @@
+{
+  "schema": "ultrasec.gitea-nine-file-original-rights-manifest.v1",
+  "upstream": "https://github.com/go-gitea/gitea",
+  "before_commit": "7fdfb8d642201b388014f29889ef28e35b8c1872",
+  "fixed_commit": "e4ef995f2a162e3aca3f3a0b536afae067975d71",
+  "proposed_mode": "minimal_reproducible_source_pairs",
+  "origin_scope": "ORIGINAL_NINE_RECONSTRUCTION_FILES_RESEARCH_ONLY",
+  "source_bytes_in_research_repo": false,
+  "buyer_delivery_manifest_status": "UNDEFINED",
+  "license_root_blob_sha": "a8d4b49dd073a4a38a7e58385eeff7cc52568697",
+  "original_patch_files": 6,
+  "couchbase_compiled_files_unresolved": 4,
+  "go_dependency_license_exceptions_unresolved": 16,
+  "commercial_rights": "NOT_VERIFIED",
+  "legal_opinion": "NOT_RECEIVED",
+  "distribution_allowed": false,
+  "certification": "NOT_CERTIFIED",
+  "files": [
+    {
+      "path": "routers/web/repo/release.go",
+      "before_blob_sha": "128fcd5369505d4d27c33842a646bf41d1f289af",
+      "fixed_blob_sha": "f8757ee53d1544efaa77dd45a85a1a860568fda4",
+      "license_evidence": "SPDX_MIT_PER_FILE",
+      "copyright_observed": "Gogs Authors; Gitea Authors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "routers/web/repo/release_test.go",
+      "before_blob_sha": "82f3115ee5d34a3e09d0f8fab4fe6531e413ba8c",
+      "fixed_blob_sha": "57f831bffda8fc9347cba771283a378a6d5d09e8",
+      "license_evidence": "SPDX_MIT_PER_FILE",
+      "copyright_observed": "Gitea Authors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "services/release/release.go",
+      "before_blob_sha": "1be60731a930b2c442aafcb5174f6b727c930b97",
+      "fixed_blob_sha": "5d4063c083915b231c8c7dc44f317202ba637180",
+      "license_evidence": "SPDX_MIT_PER_FILE",
+      "copyright_observed": "Gitea Authors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "services/release/release_test.go",
+      "before_blob_sha": "579d92f2f4b26c4b5d3f78e50a996ef621526fe6",
+      "fixed_blob_sha": "1c0f910bbfb712caabc4906124cbd739d38a9ae8",
+      "license_evidence": "SPDX_MIT_PER_FILE",
+      "copyright_observed": "Gitea Authors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "templates/repo/release/new.tmpl",
+      "before_blob_sha": "cc73bdf13c50e8b7e88579cd8484f0384b132890",
+      "fixed_blob_sha": "a930664554e716872d83c2c5d6132150b42591e8",
+      "license_evidence": "ROOT_MIT_LICENSE_ONLY_NO_FILE_HEADER",
+      "copyright_observed": "Root Gitea Authors; template header lacks SPDX",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "tests/integration/release_test.go",
+      "before_blob_sha": "320661420ed80b53acd5a9e85914a1176c9c74bf",
+      "fixed_blob_sha": "f495e417d9301b00bffcb7aa49ba3a337879a8e5",
+      "license_evidence": "SPDX_MIT_PER_FILE",
+      "copyright_observed": "Gitea Authors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "LICENSE",
+      "before_blob_sha": "a8d4b49dd073a4a38a7e58385eeff7cc52568697",
+      "fixed_blob_sha": "a8d4b49dd073a4a38a7e58385eeff7cc52568697",
+      "license_evidence": "UPSTREAM_ROOT_MIT_LICENSE_TEXT",
+      "copyright_observed": "Gitea Authors; Gogs Authors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "go.mod",
+      "before_blob_sha": "1f2e923ce21ee69e26b6e90e37146a633d3ad273",
+      "fixed_blob_sha": "1f2e923ce21ee69e26b6e90e37146a633d3ad273",
+      "license_evidence": "DEPENDENCY_MANIFEST_NOT_LICENSE_CLEARANCE",
+      "copyright_observed": "Multiple transitive module licensors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    },
+    {
+      "path": "go.sum",
+      "before_blob_sha": "34ab2024ed6e41ae05212044f383e846901e9c5e",
+      "fixed_blob_sha": "34ab2024ed6e41ae05212044f383e846901e9c5e",
+      "license_evidence": "DEPENDENCY_MANIFEST_NOT_LICENSE_CLEARANCE",
+      "copyright_observed": "Multiple transitive module licensors",
+      "commercial_rights": "NOT_VERIFIED",
+      "notice_obligations": "PENDING_FILE_LEVEL_REVIEW",
+      "buyer_package_inclusion": "NOT_APPROVED",
+      "source_distributed": false
+    }
+  ]
+}
