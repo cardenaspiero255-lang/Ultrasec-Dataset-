@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from sast_cwe_scorecard import calculate_diagnostic
+from premium_evidence import _PINNED_MITRE_CWES
+TARGET_CWES=sorted(_PINNED_MITRE_CWES)
 
 
 def balanced_fixture():
@@ -14,7 +16,7 @@ def balanced_fixture():
     for i in range(120):
         gold.append({
           'record_id':f'synth-{i:03d}', 'split':'test',
-          'cwe_id':f'CWE-{22+(i % 12)}',
+          'cwe_id':TARGET_CWES[i % 12],
           'expected_vulnerable':bool((i//12)%2)
         })
     preds=[{'record_id':r['record_id'],
@@ -63,15 +65,23 @@ class DiagnosticPerCweScorerTests(unittest.TestCase):
     def test_less_than_12_cwes_are_not_scored(self):
         gold,preds=balanced_fixture()
         for g in gold:
-            if g['cwe_id']=='CWE-33':g['cwe_id']='CWE-22'
+            if g['cwe_id']==TARGET_CWES[-1]:g['cwe_id']=TARGET_CWES[0]
         result=calculate_diagnostic(gold,preds)
         self.assertIn('insufficient_cwes',result['failures'])
         self.assertEqual(result['by_cwe'],[])
 
+    def test_twelve_arbitrary_easy_cwes_cannot_replace_pinned_target_families(self):
+        gold,preds=balanced_fixture()
+        for i,g in enumerate(gold):
+            g['cwe_id']=f'CWE-{100+(i%12)}'
+        result=calculate_diagnostic(gold,preds)
+        self.assertIn('missing_pinned_cwe_family',result['failures'])
+        self.assertFalse(result['arithmetic_valid'])
+
     def test_single_class_in_any_cwe_is_not_scored(self):
         gold,preds=balanced_fixture()
         for g in gold:
-            if g['cwe_id']=='CWE-22':g['expected_vulnerable']=True
+            if g['cwe_id']==TARGET_CWES[0]:g['expected_vulnerable']=True
         result=calculate_diagnostic(gold,preds)
         self.assertIn('cwe_without_both_classes',result['failures'])
 
