@@ -72,6 +72,8 @@ def preflight(rows: list[dict], minimum_cases: int = 100,
     test_projects = set()
     test_commits = set()
     test_contents = set()
+    seen_source_pairs = set()
+    seen_content_pairs = set()
 
     def observe(key: str, value: str, split: str, failure: str) -> None:
         old = seen_by_split[key].setdefault(value, split)
@@ -96,6 +98,17 @@ def preflight(rows: list[dict], minimum_cases: int = 100,
             errors["unassigned_or_invalid_split"] += 1
             continue
         count_by_split[split] += 1
+        # Two records that reuse the same complete original before/after pair
+        # are ONE piece of evidence, regardless of their case IDs or split.
+        # Individual files/projects can legitimately occur in distinct patches.
+        source_pair = (row["source_commit"], row["fix_commit"])
+        content_pair = (row["source_sha256"], row["fix_sha256"])
+        if source_pair in seen_source_pairs:
+            errors["duplicate_source_pair"] += 1
+        seen_source_pairs.add(source_pair)
+        if content_pair in seen_content_pairs:
+            errors["duplicate_content_pair"] += 1
+        seen_content_pairs.add(content_pair)
         if split == "test":
             test_cwe_classes[cwe].add(row["vulnerable"])
             project = row["project_fingerprint"]
