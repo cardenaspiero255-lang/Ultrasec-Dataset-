@@ -1,0 +1,91 @@
+# Public upstream study, never independent GOLD nor a complete web/DB E2E.
+name: V7 MISP Original Evaluation Comment Privacy Witness
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-misp-original-evaluation-privacy.yml'
+      - 'ultrasec-v7/tests/test_misp_original_privacy_contract.py'
+      - 'ultrasec-v7/verification/research/misp_original_evaluation_privacy.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-builder-privacy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            sha: 06d408e3496fdfc31da22d7b2b427434c67eae94
+          - phase: after
+            sha: 5dbd19b39a61eab793586731f1a80d8c38907c42
+    steps:
+      - name: Checkout public replay harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Fetch original MISP source and AGPL license at immutable SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin https://github.com/MISP/cti-transmute.git
+          git -C upstream sparse-checkout init --cone
+          git -C upstream sparse-checkout set website/web/evaluate website/lib
+          git -C upstream fetch --depth 1 --filter=blob:none origin "$EXPECTED_SHA"
+          git -C upstream checkout --quiet --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f upstream/website/web/evaluate/evaluate_core.py
+          test -f upstream/website/lib/access.py
+          test -f upstream/LICENSE
+          head -n 3 upstream/LICENSE | grep -q "GNU AFFERO GENERAL PUBLIC LICENSE"
+          git -C upstream rev-parse HEAD:website/web/evaluate/evaluate_core.py > original_builder_blob.txt
+          printf 'ORIGINAL_COMMIT=%s\n' "$EXPECTED_SHA" > source_commit.txt
+          sha256sum upstream/website/web/evaluate/evaluate_core.py \
+            upstream/website/lib/access.py upstream/LICENSE > source_hashes.txt
+      - name: Execute exact original builder AST with in-memory privacy controls
+        shell: bash
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          python3 -V | tee original_python_version.txt
+          python3 -m py_compile ultrasec-v7/verification/research/misp_original_evaluation_privacy.py
+          sha256sum ultrasec-v7/verification/research/misp_original_evaluation_privacy.py > harness_sha256.txt
+          python3 ultrasec-v7/verification/research/misp_original_evaluation_privacy.py "$PHASE" upstream \
+            2>&1 | tee "misp-evaluation-privacy-$PHASE.log"
+          grep -Fq 'ORIGINAL_EVALUATION_FUNCTION_AST=true' "misp-evaluation-privacy-$PHASE.log"
+          grep -Fq 'NEGATIVE_PUBLIC_COMMENT_PRESERVED=true' "misp-evaluation-privacy-$PHASE.log"
+          grep -Fq 'NO_NETWORK_NO_EXTERNAL_DATABASE=true' "misp-evaluation-privacy-$PHASE.log"
+          grep -Fq 'GOLD_ADMITTED=0' "misp-evaluation-privacy-$PHASE.log"
+          if test "$PHASE" = before; then
+            grep -Fq 'BEFORE_PRIVATE_COMMENT_EXPOSED=true' "misp-evaluation-privacy-$PHASE.log"
+          else
+            grep -Fq 'AFTER_PRIVATE_COMMENT_REDACTED=true' "misp-evaluation-privacy-$PHASE.log"
+            grep -Fq 'NEGATIVE_OWNER_SEES_PRIVATE=true' "misp-evaluation-privacy-$PHASE.log"
+            grep -Fq 'NEGATIVE_AUTHOR_SEES_PRIVATE=true' "misp-evaluation-privacy-$PHASE.log"
+            grep -Fq 'NEGATIVE_ADMIN_SEES_PRIVATE=true' "misp-evaluation-privacy-$PHASE.log"
+          fi
+          printf 'ORIGINAL_REPORT_BUILDER_AST=EXECUTED\nPHASE=%s\nGOLD_ADMITTED=0\nLICENSE_SCOPE=AGPL3_OBSERVED_NOT_COMMERCIAL_CLEARED\n' "$PHASE" > native_verdict.txt
+          sha256sum "misp-evaluation-privacy-$PHASE.log" source_hashes.txt \
+            harness_sha256.txt native_verdict.txt > native_verdict_sha256.txt
+          echo 'Original report builder + original pure access helper isolated with no Flask/DB/network. No GOLD or resale permission.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload original source hashes and logs, never third-party source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misp-evaluation-privacy-${{ matrix.phase }}
+          path: |
+            original_builder_blob.txt
+            source_commit.txt
+            source_hashes.txt
+            original_python_version.txt
+            harness_sha256.txt
+            misp-evaluation-privacy-*.log
+            native_verdict.txt
+            native_verdict_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
