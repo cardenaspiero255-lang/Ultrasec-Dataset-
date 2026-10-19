@@ -98,6 +98,27 @@ def audit(training:list, holdout:list, minimum_train:int=100,
         }
     x=groups(clean_train)
     y=groups(clean_test)
+
+    # Distinct identifiers/projects are not proof that original vulnerable/fix
+    # pairs are independent. Detect same-split reuse BEFORE claiming that
+    # minimum row-count thresholds represent independent examples.
+    for rows, split_name in ((clean_train, 'train'), (clean_test, 'test')):
+        if split_name == 'train' and len({r['case_id'] for r in rows}) < len(rows):
+            failures['duplicate_train_case_id'] += 1
+        original_pairs={(r['source_commit'],r['fix_commit']) for r in rows}
+        content_pairs={(r['source_sha256'],r['fix_sha256']) for r in rows}
+        if len(original_pairs)<len(rows):
+            failures['duplicate_'+split_name+'_original_pair'] += 1
+        if len(content_pairs)<len(rows):
+            failures['duplicate_'+split_name+'_content_pair'] += 1
+        if split_name == 'test':
+            # A source reused as another case's fix creates a leakage risk,
+            # even if the combined before/after pairs differ.
+            all_content=[sha for r in rows for sha in
+                         (r['source_sha256'],r['fix_sha256'])]
+            if len(set(all_content))<len(all_content):
+                failures['shared_test_content_requires_grouping'] += 1
+
     for field,label in (('case','case_id_overlap'),('cve','cve_overlap'),
                         ('project','project_overlap'),('mechanism','mechanism_overlap'),
                         ('commit','commit_overlap'),('content','content_overlap')):
