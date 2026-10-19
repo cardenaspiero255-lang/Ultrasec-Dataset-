@@ -31,6 +31,13 @@ class GiteaFileRightsGateTest(unittest.TestCase):
         self.assertFalse(receipt['legal_rights_verified'])
         self.assertEqual(receipt['certification'],'NOT_CERTIFIED')
 
+    def test_minimal_source_overlay_excludes_couchbase_bytes_but_not_legal_review(self):
+        report=validate(fixture())
+        self.assertEqual(report['couchbase_source_files_inside_nine_file_overlay'],0)
+        self.assertTrue(report['source_overlay_reconstructed_from_upstream_only'])
+        self.assertFalse(report['buyer_package_manifest_verified'])
+        self.assertFalse(report['full_source_distribution_allowed'])
+
     def test_any_missing_file_is_not_an_inventoried_package(self):
         doc=fixture()
         doc['files'].pop()
