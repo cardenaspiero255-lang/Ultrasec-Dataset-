@@ -22,6 +22,19 @@ CHANGED=(
 )
 ENV_FILES=("LICENSE","go.mod","go.sum")
 SHA40=re.compile(r"^[0-9a-f]{40}$")
+MIT_SPDX_GO_COMMENT=re.compile(rb"^[ \t]*//[ \t]*SPDX-License-Identifier:[ \t]*MIT[ \t]*$")
+
+
+def has_go_mit_spdx_header(payload:object)->bool:
+    """Check actual MIT SPDX Go header comments, not arbitrary source substrings.
+
+    Gitea uses '// SPDX-License-Identifier: MIT'. A bare byte-string membership
+    test against splitlines() mistakenly rejects valid commented SPDX headers.
+    """
+    return isinstance(payload,bytes) and any(
+        MIT_SPDX_GO_COMMENT.fullmatch(line) is not None
+        for line in payload.splitlines()[:6]
+    )
 
 def check_scope(doc:object)->dict:
     errors=set()
@@ -124,7 +137,7 @@ def verify_original_repository(doc:dict,upstream:Path)->dict:
                 if blob!=row[key]:
                     errors.add("original_blob_mismatch")
                 hashes[phase]={"git_blob":blob,"sha256":hashlib.sha256(payload).hexdigest(),"bytes":len(payload)}
-                if path.endswith(".go") and b"SPDX-License-Identifier: MIT" not in payload.splitlines()[:6]:
+                if path.endswith(".go") and not has_go_mit_spdx_header(payload):
                     errors.add("go_header_license_mismatch")
                 if path=="templates/repo/release/new.tmpl" and b"SPDX-License-Identifier:" in payload.splitlines()[:6]:
                     errors.add("template_license_assumption_mismatch")
