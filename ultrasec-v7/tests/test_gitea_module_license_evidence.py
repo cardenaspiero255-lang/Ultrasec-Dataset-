@@ -86,6 +86,27 @@ class GiteaModuleLicenseEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             collect_license_evidence(self.pkgs,self.closure,self.cache)
 
+    def test_replacement_license_hash_is_preserved_but_rights_blocked(self):
+        self.pkgs[0]["Module"]["Replace"]={"Path":"other.net/fork","Version":"v1.0.0","Dir":str(self.module)}
+        (self.module/"LICENSE").write_bytes(b"Copyright Third Party\n")
+        r=collect_license_evidence(self.pkgs,self.closure,self.cache)
+        self.assertEqual(r["modules_with_license_files"],1)
+        self.assertEqual(r["modules_without_root_license_files"],0)
+        self.assertEqual(r["modules"][0]["license_status"],"MODULE_REPLACEMENT_REQUIRES_REVIEW")
+        self.assertEqual(r["modules"][0]["replacement_path"],"other.net/fork")
+        self.assertEqual(r["modules"][0]["license_files"][0]["name"],"LICENSE")
+        self.assertEqual(r["commercial_licenses_cleared"],0)
+
+    def test_replacement_outside_cache_never_exposes_source(self):
+        outside=Path(self.temp.name)/"outside"
+        outside.mkdir()
+        (outside/"LICENSE").write_bytes(b"DO NOT READ")
+        self.pkgs[0]["Module"]["Dir"]=str(outside)
+        self.pkgs[0]["Module"]["Replace"]={"Path":"other.net/fork","Version":"v1.0.0"}
+        r=collect_license_evidence(self.pkgs,self.closure,self.cache)
+        self.assertEqual(r["modules"][0]["license_status"],"REPLACEMENT_SOURCE_OUTSIDE_CACHE")
+        self.assertNotIn("DO NOT READ",json.dumps(r))
+
     def test_unresolved_replacement_requires_manual_scope_review(self):
         self.pkgs[0]["Module"]["Replace"]={"Path":"other.net/fork","Version":"v1.0.0","Dir":str(self.module)}
         r=collect_license_evidence(self.pkgs,self.closure,self.cache)
