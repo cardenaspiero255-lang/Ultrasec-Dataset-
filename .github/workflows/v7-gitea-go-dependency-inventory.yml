@@ -1,0 +1,79 @@
+# Public upstream-only import graph, not a legal SPDX clearance or new independent gold.
+name: V7 Gitea static Go import closure research
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-gitea-go-dependency-inventory.yml'
+      - 'ultrasec-v7/tools/gitea_go_dependency_closure.py'
+      - 'ultrasec-v7/tests/test_gitea_go_dependency_closure.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitea-import-closure:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: vulnerable
+            sha: '7fdfb8d642201b388014f29889ef28e35b8c1872'
+          - phase: fixed
+            sha: 'e4ef995f2a162e3aca3f3a0b536afae067975d71'
+    steps:
+      - name: Fetch UltraSec audit scripts (no private corpus)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify metadata parser on fictional fixtures
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_go_dependency_closure.py -v
+      - name: Fetch public upstream Gitea exact immutable commit
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/go-gitea/gitea.git
+          git -C upstream fetch --depth 1 origin "$SOURCE_SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git -C upstream rev-parse HEAD:LICENSE)" = a8d4b49dd073a4a38a7e58385eeff7cc52568697
+          test "$(git -C upstream rev-parse HEAD:go.mod)" = 1f2e923ce21ee69e26b6e90e37146a633d3ad273
+          test "$(git -C upstream rev-parse HEAD:go.sum)" = 34ab2024ed6e41ae05212044f383e846901e9c5e
+      - name: Install Go release specified by original go.mod
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: upstream/go.mod
+          cache: false
+      - name: Resolve original Go service import closure with pinned module hashes
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          cd upstream
+          export GOSUMDB=sum.golang.org
+          export GOPROXY=https://proxy.golang.org
+          go version
+          go list -mod=readonly -tags sqlite -deps -json ./services/release > ../go-list-original.json
+          cd ..
+          mod_hash="$(sha256sum upstream/go.mod | cut -d' ' -f1)"
+          sum_hash="$(sha256sum upstream/go.sum | cut -d' ' -f1)"
+          license_hash="$(sha256sum upstream/LICENSE | cut -d' ' -f1)"
+          python3 ultrasec-v7/tools/gitea_go_dependency_closure.py \
+            --input go-list-original.json --commit "$SOURCE_SHA" \
+            --go-mod-sha256 "$mod_hash" --go-sum-sha256 "$sum_hash" \
+            --license-sha256 "$license_hash" --output gitea-go-closure.json
+          echo 'Go import-closure derived from real original upstream, but file-level licenses, test dependencies, dynamic resources and commercialization remain NOT_VERIFIED.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive dependency references only, never original repo files or private examples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitea-public-go-import-closure-${{ matrix.phase }}
+          path: gitea-go-closure.json
+          if-no-files-found: warn
+          retention-days: 14
