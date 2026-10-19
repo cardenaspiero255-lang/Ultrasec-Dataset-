@@ -43,7 +43,7 @@ jobs:
           test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
           echo "$EXPECTED_SHA" > source_sha.txt
           if test "${{ matrix.version }}" = "before"; then
-            git -C upstream fetch --depth 1 origin e4ef995f2a162e3aca3f3a0b536afae067975d71
+            git -C upstream fetch --depth 2 origin e4ef995f2a162e3aca3f3a0b536afae067975d71
             git -C upstream show e4ef995f2a162e3aca3f3a0b536afae067975d71:services/release/release_test.go > upstream/services/release/release_test.go
             echo 'TEST_SOURCE=FIX_REGRESSION_TRANSPLANTED_TO_PARENT' > test_provenance.txt
           else
