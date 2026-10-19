@@ -7,6 +7,8 @@ on:
       - 'ultrasec-v7/tests/test_upstream_workflow_integrity.py'
       - 'ultrasec-v7/tools/gitea_source_scope.py'
       - 'ultrasec-v7/tests/test_gitea_source_scope.py'
+      - 'ultrasec-v7/tools/gitea_source_overlay.py'
+      - 'ultrasec-v7/tests/test_gitea_source_overlay.py'
       - 'ultrasec-v7/verification/research/GITEA_ORIGINAL_FILE_RIGHTS_SCOPE.json'
   workflow_dispatch:
 
@@ -59,6 +61,20 @@ jobs:
             --original-repo upstream \
             --receipt gitea-original-files-${{ matrix.version }}.json
           echo 'Original six-file SHA / SPDX / Go lockfile audit completed; NO gold or commercial permission inferred.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify minimal original source overlay and retained MIT notice (runner-local only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_source_overlay.py -v
+          phase=fixed
+          if test "${{ matrix.version }}" = before; then phase=vulnerable; fi
+          ephemeral_zip="$(mktemp --suffix=.zip)"
+          trap 'rm -f "$ephemeral_zip"' EXIT
+          python3 ultrasec-v7/tools/gitea_source_overlay.py \
+            --upstream upstream --phase "$phase" \
+            --overlay "$ephemeral_zip" \
+            --receipt gitea-original-source-overlay-${{ matrix.version }}.json
+          echo 'Nine original source+lockfile+MIT LICENSE bytes packaged and round-trip verified in CI; ZIP NOT uploaded, not standalone or rights-cleared. Native Go regression follows on original upstream.' >> "$GITHUB_STEP_SUMMARY"
       - name: Set up original Go toolchain
         uses: actions/setup-go@v5
         with:
@@ -98,6 +114,7 @@ jobs:
             test_provenance.txt
             source_hashes.txt
             gitea-original-files-${{ matrix.version }}.json
+            gitea-original-source-overlay-${{ matrix.version }}.json
             gitea-${{ matrix.version }}.log
             log_sha256.txt
             native_verdict.txt
