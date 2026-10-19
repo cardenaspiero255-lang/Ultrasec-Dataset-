@@ -142,6 +142,7 @@ jobs:
           test "$test_exit" -eq 0
           grep -Fq "ULTRASEC_NEGATIVE_ALLOWED_RENAME=PASS" "gitea-negative-control-${{ matrix.version }}.log"
           grep -Fq "ULTRASEC_NEGATIVE_NOOP=PASS" "gitea-negative-control-${{ matrix.version }}.log"
+          grep -Fq -- '--- PASS: TestUltraSecReleaseAllowedRename' "gitea-negative-control-${{ matrix.version }}.log"
           printf 'NEGATIVE_ALLOWED_RENAME_ORIGINAL_TREE=PASS\nNEGATIVE_METADATA_NOOP_ORIGINAL_TREE=PASS\nGOLD_ADMITTED=0\n' > gitea_negative_verdict.txt
           sha256sum "gitea-negative-control-${{ matrix.version }}.log" gitea_negative_verdict.txt > negative_control_sha256.txt
           echo 'Original Gitea trees: allowlisted ZIP rename and no-op verified under restrictive allowlist; no independent GOLD label inferred.' >> "$GITHUB_STEP_SUMMARY"
