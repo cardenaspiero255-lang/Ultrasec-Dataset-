@@ -27,6 +27,7 @@ _KNOWN_CVES = frozenset({
     'CVE-2023-42799','CVE-2024-48645','CVE-2024-11921','CVE-2024-12514',
     'CVE-2026-73140','CVE-2023-43256','CVE-2026-61433',
     'CVE-2026-42079','CVE-2026-68770',
+    'CVE-2020-36280','CVE-2021-25932',
 })
 _KNOWN_PROJECT_URLS = (
     'https://github.com/go-gitea/gitea',
@@ -42,6 +43,8 @@ _KNOWN_PROJECT_URLS = (
     'https://github.com/MervinPraison/PraisonAI',
     'https://github.com/icip-cas/PPTAgent',
     'https://github.com/huggingface/sentence-transformers',
+    'https://github.com/DanBloomberg/leptonica',
+    'https://github.com/OpenNMS/opennms',
 )
 
 
