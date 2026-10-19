@@ -8,16 +8,22 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT / 'tools'))
-from verify_metadata_delivery_scope import inspect_scope
+from verify_metadata_delivery_scope import inspect_scope, git_blob_oid
 
 MANIFEST = ROOT / 'verification/research/DELIVERY_SCOPE_PUBLIC_METADATA_DRAFT.json'
 
 
 class MetadataDeliveryScopeTests(unittest.TestCase):
+    def test_git_blob_compatibility_uses_native_git_hash_object(self):
+        blob=b'public-metadata-binary-safe'
+        expected=subprocess.check_output(['git','hash-object','--stdin'],input=blob).decode().strip()
+        self.assertEqual(git_blob_oid(blob),expected)
+
     def test_real_pinned_original_research_files_remain_blocked_for_sale(self):
         plan = json.loads(MANIFEST.read_text(encoding='utf-8'))
         report = inspect_scope(plan, ROOT)
