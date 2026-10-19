@@ -33,3 +33,25 @@ Los 6 paths corresponden exactamente a los 6 archivos del commit upstream. Las 1
 La prueba RED/GREEN del servicio es real, pero **se conoce el commit correctivo y el test positivo procede de ese commit**. Puede usarse como prueba de regresión conocida para desarrollar herramientas; **no** debe adjudicarse como defecto desconocido de un benchmark ciego, ni proporciona un nuevo caso negativo independiente. El corpus gold y holdout permanecen `NOT_VERIFIED` y `NOT_ADMITTED`. La doble revisión humana continúa aplazada.
 
 **Estado:** `ORIGINAL_PATCH_FILES=6`, `SPDX_MIT_FILE_HEADERS=5`, `ROOT_MIT_LICENSE_OBSERVED=true`, `MATERIALS_ACTUALLY_AUTHORIZED_FOR_B2B_PACKAGE=NOT_VERIFIED`, `THIRD_PARTY_LICENSE_OBLIGATIONS=NOT_AUDITED`, `REAL_BLIND_GOLD=0`, `CERTIFICATION=NOT_CERTIFIED`.
+
+## Importación real Go: resultados de los dos commits originales
+
+La CI [V7 Gitea static Go import closure research — run 39189224447](https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39189224447) terminó con `go list -mod=readonly -tags sqlite -deps -json ./services/release`, usando `Go 1.26.4` sobre los **dos árboles upstream completos**. Ambos trabajos reportaron SHA-256 idénticos para `go.mod`, `go.sum` y `LICENSE`, y conservaron artefactos JSON de metadatos (sin código fuente de Gitea).
+
+| Conteo del grafo de imports del servicio | Anterior | Corregido |
+| --- | ---: | ---: |
+| Paquetes Go importados | 849 | 987 |
+| Paquetes locales `gitea.dev` | 119 | 154 |
+| Paquetes de biblioteca estándar | 238 | 240 |
+| Módulos de terceros distintos | 118 | 155 |
+
+El contraste entre los dos manifiestos JSON originales da **37 módulos externos adicionales en la clausura de imports corregida, 0 eliminados y 0 cambios de versión para los módulos compartidos**. Esto no es una actualización de `go.mod`: dicho archivo tiene idéntico blob en ambas revisiones. La diferencia surge del **alcance del grafo de imports activado por el código**, y se debe tratar por separado de la lista total de módulos declarados.
+
+Evidencia exacta:
+- `go.mod` SHA-256: `77d52f4cb8fb301cb0b378fa67780fcfb7d4842c0d1971dab036933d24260ae5`.
+- `go.sum` SHA-256: `6cd5eee6dda93b278b3dcb822d5435d68a4d2e5081a8ecb184b059bcb7e2b7e0`.
+- `LICENSE` SHA-256: `ed2f10a9d78b8c6c9ef33f1420d0eb266981891caf2f15d630553f02dc60d3ae`.
+- Hash agregado de referencias a módulos externos anteriores: `6ad045ac6640d2241b1b5c28e36a7278b0a0bd68c023e32b7e2c81619b6fc845`.
+- Hash agregado del conjunto corregido: `13baa31b4292eef325731f3d6669ae4bfc2cc1687b5cb3e9537fb6e186eb6058`.
+
+**Próxima acreditación de licencia:** localizar LICENCE/COPYING/NOTICE originales para los **155 módulos externos del grafo corregido**, identificar titulares/condiciones por archivo, y resolver excepciones. No asumir MIT para módulos dependientes. El validador publica explícitamente `commercial_distribution_cleared_modules=0`, `third_party_licenses_audited=false`; un manifiesto de dependencias, aunque exacto y reproducible, **no** acredita titularidad o permiso contractual de venta del bundle.
