@@ -8,8 +8,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT / 'tools'))
 from verify_metadata_delivery_scope import inspect_scope
 
 MANIFEST = ROOT / 'verification/research/DELIVERY_SCOPE_PUBLIC_METADATA_DRAFT.json'
