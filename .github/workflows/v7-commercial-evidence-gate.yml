@@ -1,0 +1,30 @@
+name: UltraSec V7 Commercial Evidence - Fail Closed
+# Verifies only the public evidence index. Never reads private corpus or releases.
+on:
+  pull_request:
+    paths:
+      - 'ultrasec-v7/tools/v7_evidence_release_gate.py'
+      - 'ultrasec-v7/tests/test_v7_evidence_release_gate.py'
+      - 'ultrasec-v7/verification/COMMERCIAL_EVIDENCE_INDEX.json'
+      - '.github/workflows/v7-commercial-evidence-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ultrasec-v7/tools/v7_evidence_release_gate.py'
+      - 'ultrasec-v7/tests/test_v7_evidence_release_gate.py'
+      - 'ultrasec-v7/verification/COMMERCIAL_EVIDENCE_INDEX.json'
+      - '.github/workflows/v7-commercial-evidence-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence-index-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run evidence integrity adversarial tests
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p 'test_v7_evidence_release_gate.py' -v
+      - name: Reject premature public certification claims
+        run: python3 ultrasec-v7/tools/v7_evidence_release_gate.py --manifest ultrasec-v7/verification/COMMERCIAL_EVIDENCE_INDEX.json --root . --expect-blocked
