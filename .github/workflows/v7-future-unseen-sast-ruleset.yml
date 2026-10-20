@@ -8,6 +8,10 @@ on:
       - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN.json'
       - 'ultrasec-v7/tools/sast_ruleset_freeze.py'
       - 'ultrasec-v7/tools/sast_target_coverage.py'
+      - 'ultrasec-v7/tools/sast_synthetic_rule_smoke.py'
+      - 'ultrasec-v7/verification/rules/future-unseen-*.yml'
+      - 'ultrasec-v7/verification/fixtures/future-sast/**'
+      - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V3.json'
       - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V2.json'
       - 'ultrasec-v7/tests/test_sast_*'
   workflow_dispatch:
@@ -68,6 +72,26 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check 'semgrep==1.180.0'
           semgrep --version
+      - name: Execute 11 NEW Semgrep research rules on positive and negative synthetic controls
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/sast_synthetic_rule_smoke.py \
+            --plan ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V3.json \
+            --rules-root ultrasec-v7 \
+            --out future-sast-v3-public-synthetic.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('future-sast-v3-public-synthetic.json',encoding='utf-8'))
+          assert x['synthetic_rule_scopes_exercised']==11
+          assert x['synthetic_positive_hits']==11
+          assert x['synthetic_negative_hits']==0
+          assert x['benchmark_ready'] is False
+          assert x['gold_admitted']==0
+          print('V3_SYNTHETIC_RULE_SMOKE=11/11; NEGATIVE_CONTROLS=11/11; GOLD=0; REAL_HOLDOUT=NOT_RUN')
+          PY
       - name: Run only safe synthetic detection smoke, not known CVE code
         shell: bash
         env:
@@ -99,6 +123,7 @@ jobs:
           path: |
             future-sast-byte-lock.json
             future-sast-v2-public-scope.json
+            future-sast-v3-public-synthetic.json
             future-rules-public-sha256.txt
           if-no-files-found: warn
           retention-days: 14

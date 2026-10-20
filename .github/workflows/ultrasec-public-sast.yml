@@ -39,7 +39,7 @@ jobs:
         env:
           SEMGREP_SEND_METRICS: "off"
         run: |
-          semgrep scan --oss-only --disable-version-check --metrics off --json --output /tmp/ultrasec-semgrep.json --config p/security-audit ultrasec-v7/verification ultrasec-v7/tests ultrasec-v7/tools
+          semgrep scan --oss-only --disable-version-check --metrics off --json --output /tmp/ultrasec-semgrep.json --config p/security-audit --exclude 'ultrasec-v7/verification/fixtures/future-sast/**' ultrasec-v7/verification ultrasec-v7/tests ultrasec-v7/tools
           python3 - <<'PY'
           import json,os
           data=json.load(open('/tmp/ultrasec-semgrep.json'))
@@ -73,6 +73,7 @@ jobs:
         with:
           languages: python
           queries: security-extended
+          config-file: .github/codeql/ultrasec-public-scope.yml
       - name: Analyze real public code with CodeQL
         id: codeql_analysis
         uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3 verified immutable release
