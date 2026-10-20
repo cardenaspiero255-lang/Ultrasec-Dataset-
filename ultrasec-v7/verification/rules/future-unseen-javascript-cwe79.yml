@@ -1,0 +1,14 @@
+# Research-only, pre-holdout syntactic risk indicator; NOT validated CWE coverage.
+# Positive/negative examples are synthetic and cannot establish recall or gold.
+rules:
+  - id: ultrasec.future-unseen.cwe79
+    languages: [javascript]
+    severity: WARNING
+    message: "HTML sink document.write; determine whether HTML originates from untrusted input."
+    pattern: document.write($HTML)
+    metadata:
+      cwe: "CWE-79"
+      preregistration: "future-unseen-only"
+      result_type: "research-syntactic-risk-indicator"
+      not_a_ground_truth_label: true
+      scanner_semantics_verified: false

@@ -1,0 +1,194 @@
+{
+  "schema": "ultrasec.sast-rule-byte-plan.v1",
+  "certification": "NOT_CERTIFIED",
+  "gold_count": 0,
+  "holdout_status": "UNASSIGNED",
+  "scoring_enabled": false,
+  "purpose": "FUTURE_UNSEEN_PRE_REGISTRATION",
+  "known_case_exclusions": [
+    "CVE-2006-5612",
+    "CVE-2008-4078",
+    "CVE-2008-6843",
+    "CVE-2010-2695",
+    "CVE-2015-5469",
+    "CVE-2016-10754",
+    "CVE-2016-7449",
+    "CVE-2017-17020",
+    "CVE-2017-6325",
+    "CVE-2018-5782",
+    "CVE-2018-5844",
+    "CVE-2019-14699",
+    "CVE-2020-0330",
+    "CVE-2020-36280",
+    "CVE-2020-6341",
+    "CVE-2021-25932",
+    "CVE-2021-32422",
+    "CVE-2021-46830",
+    "CVE-2022-0760",
+    "CVE-2022-1519",
+    "CVE-2022-32629",
+    "CVE-2022-3538",
+    "CVE-2022-37886",
+    "CVE-2022-47335",
+    "CVE-2023-21042",
+    "CVE-2023-42799",
+    "CVE-2023-43256",
+    "CVE-2023-51254",
+    "CVE-2024-0683",
+    "CVE-2024-11921",
+    "CVE-2024-12514",
+    "CVE-2024-2395",
+    "CVE-2024-28423",
+    "CVE-2024-36074",
+    "CVE-2024-38638",
+    "CVE-2024-46724",
+    "CVE-2024-48645",
+    "CVE-2024-49266",
+    "CVE-2024-53015",
+    "CVE-2024-54386",
+    "CVE-2024-54506",
+    "CVE-2025-11610",
+    "CVE-2025-20715",
+    "CVE-2025-23508",
+    "CVE-2025-32279",
+    "CVE-2025-45843",
+    "CVE-2025-46078",
+    "CVE-2025-50090",
+    "CVE-2025-54038",
+    "CVE-2025-56108",
+    "CVE-2025-56122",
+    "CVE-2025-60109",
+    "CVE-2025-60173",
+    "CVE-2025-6130",
+    "CVE-2025-69015",
+    "CVE-2025-6988",
+    "CVE-2026-0461",
+    "CVE-2026-106058",
+    "CVE-2026-109624",
+    "CVE-2026-29035",
+    "CVE-2026-42079",
+    "CVE-2026-42168",
+    "CVE-2026-58428",
+    "CVE-2026-60002",
+    "CVE-2026-61433",
+    "CVE-2026-63048",
+    "CVE-2026-68770",
+    "CVE-2026-73140",
+    "CVE-2026-7929",
+    "CVE-2026-85359"
+  ],
+  "entries": [
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-c-cwe120.yml",
+      "sha256": "0218c2b264435c586cd77db201a780df3c817b0304835bb293ec08718a200ea3",
+      "cwes": [
+        "CWE-120"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-c-cwe125.yml",
+      "sha256": "eeaac2d13b2987045745623ee7117ef75930332903bebe50215a8564b238ebeb",
+      "cwes": [
+        "CWE-125"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-c-cwe416.yml",
+      "sha256": "525bb74d031124b80555054efe3cdce4356f719d5024f06027041fd9082f2da6",
+      "cwes": [
+        "CWE-416"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-c-cwe787.yml",
+      "sha256": "eb55406020689f21bdc99de3a496e9a27b753876c5ac927edae88f7844a29fbf",
+      "cwes": [
+        "CWE-787"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-javascript-cwe79.yml",
+      "sha256": "b39278dfbc2ca2f7d239b11d1845b416634e5eab62d04e19bc5b23c1e1154783",
+      "cwes": [
+        "CWE-79"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-php-cwe434.yml",
+      "sha256": "ec0ee5972b43606e610a3d690d6c3aba2a96299da6b536802e55b98f753277c1",
+      "cwes": [
+        "CWE-434"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe22.yml",
+      "sha256": "47dd7441593863c90420155737d2269181f5c43fd1cc882d15251d24e94c3344",
+      "cwes": [
+        "CWE-22"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe352.yml",
+      "sha256": "a9df1f097b4d71070b588e6bbee9df9b859a57b7d367bb25f48996f96bffd777",
+      "cwes": [
+        "CWE-352"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe78.yml",
+      "sha256": "066c462fb55864e2ebf47eaa2e506aee7848c2bef0f0da1d470916de556936bb",
+      "cwes": [
+        "CWE-78"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe862.yml",
+      "sha256": "ff6b5ec25725264b97556e07fb4416b097a3e7dfff295299b1dc9e4d38c51551",
+      "cwes": [
+        "CWE-862"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe89.yml",
+      "sha256": "d62ab465c4c44312713c1d832b1137058298335faf9bb3ce5a378298edc97572",
+      "cwes": [
+        "CWE-89"
+      ]
+    },
+    {
+      "tool": "semgrep",
+      "version": "1.180.0",
+      "path": "verification/rules/future-unseen-python-cwe94.yml",
+      "sha256": "6f3d784e3fa683b25336899fb5424b9f22ba34712147b7163714b25e9af65f00",
+      "cwes": [
+        "CWE-94"
+      ]
+    }
+  ],
+  "rulepack_classification": "EXPLORATORY_TRIAGE_INDICATORS_NO_REAL_WORLD_DETECTION_VALIDATION",
+  "scanner_semantics_verified": false,
+  "original_oracles_verified": false,
+  "holdout_chronology_verified": false
+}

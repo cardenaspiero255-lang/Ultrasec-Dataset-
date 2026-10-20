@@ -1,0 +1,14 @@
+# Research-only, pre-holdout syntactic risk indicator; NOT validated CWE coverage.
+# Positive/negative examples are synthetic and cannot establish recall or gold.
+rules:
+  - id: ultrasec.future-unseen.cwe787
+    languages: [c]
+    severity: WARNING
+    message: "Unbounded C sprintf destination write; inspect actual capacity and reachable input."
+    pattern: sprintf($DEST, ...)
+    metadata:
+      cwe: "CWE-787"
+      preregistration: "future-unseen-only"
+      result_type: "research-syntactic-risk-indicator"
+      not_a_ground_truth_label: true
+      scanner_semantics_verified: false
