@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "controls": [
+    {
+      "id": "causal_labels",
+      "status": "NOT_VERIFIED"
+    },
+    {
+      "id": "corpus_inventory",
+      "status": "NOT_VERIFIED"
+    },
+    {
+      "id": "distribution_rights",
+      "status": "NOT_VERIFIED"
+    },
+    {
+      "id": "sast_blind",
+      "status": "NOT_VERIFIED"
+    },
+    {
+      "id": "source_reproduction",
+      "status": "NOT_VERIFIED"
+    },
+    {
+      "id": "split_integrity",
+      "status": "NOT_VERIFIED"
+    }
+  ]
+}
