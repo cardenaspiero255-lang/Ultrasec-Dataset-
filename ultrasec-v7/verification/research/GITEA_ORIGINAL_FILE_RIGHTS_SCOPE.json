@@ -1,0 +1,123 @@
+{
+  "schema": "ultrasec.gitea-source-rights-audit.v1",
+  "cve_id": "CVE-2026-58428",
+  "upstream_url": "https://github.com/go-gitea/gitea",
+  "parent_commit": "7fdfb8d642201b388014f29889ef28e35b8c1872",
+  "fix_commit": "e4ef995f2a162e3aca3f3a0b536afae067975d71",
+  "upstream_patch_file_count": 6,
+  "scope": "SIX_ORIGINAL_PATCH_FILES_PLUS_THREE_ENV_LICENSE_METADATA_FILES",
+  "diff_origin": "UPSTREAM_PATCH_EXACT_PARENT_AND_CHILD",
+  "runtime": "Go 1.26.4 (go.mod); go test -tags sqlite -run '^TestRelease_Update$' ./services/release; official full Gitea tree needed",
+  "test_source_derived_from_fix": true,
+  "witness_run_url": "https://github.com/cardenaspiero255-lang/Ultrasec-Dataset-/actions/runs/39181171504",
+  "test_witness_scope": "service-level only; upstream patched TestRelease_Update transplanted into original vulnerable full Gitea tree, failing as expected",
+  "holdout_blindness": "NOT_BLIND_PATCH_KNOWN",
+  "dependency_scope": "module versions pinned by go.mod/go.sum; complete closure and third-party notices not audited",
+  "third_party_dependency_licenses_verified": false,
+  "root_license_observed": "MIT",
+  "root_license_copyright": "The Gitea Authors; The Gogs Authors",
+  "file_level_chain_of_title_verified": false,
+  "commercial_distribution_authorized": false,
+  "packaged_source_paths": [],
+  "commercial_product_package_ready": false,
+  "private_gold_admitted": 0,
+  "certification": "NOT_CERTIFIED",
+  "changed_files": [
+    {
+      "path": "services/release/release.go",
+      "vulnerable_git_blob": "1be60731a930b2c442aafcb5174f6b727c930b97",
+      "fixed_git_blob": "5d4063c083915b231c8c7dc44f317202ba637180",
+      "observed_spdx": "MIT",
+      "license_evidence": "UPSTREAM_FILE_HEADER",
+      "file_level_rights_cleared": false,
+      "commercial_packaging": "NOT_AUTHORIZED",
+      "copyright_obligations": "RETAIN_ALL_APPLICABLE_ORIGINAL_NOTICES",
+      "verification": "BLOB_IDS_OBSERVED_IN_ORIGINAL_SHA_SNAPSHOTS"
+    },
+    {
+      "path": "services/release/release_test.go",
+      "vulnerable_git_blob": "579d92f2f4b26c4b5d3f78e50a996ef621526fe6",
+      "fixed_git_blob": "1c0f910bbfb712caabc4906124cbd739d38a9ae8",
+      "observed_spdx": "MIT",
+      "license_evidence": "UPSTREAM_FILE_HEADER",
+      "file_level_rights_cleared": false,
+      "commercial_packaging": "NOT_AUTHORIZED",
+      "copyright_obligations": "RETAIN_ALL_APPLICABLE_ORIGINAL_NOTICES",
+      "verification": "BLOB_IDS_OBSERVED_IN_ORIGINAL_SHA_SNAPSHOTS"
+    },
+    {
+      "path": "routers/web/repo/release.go",
+      "vulnerable_git_blob": "128fcd5369505d4d27c33842a646bf41d1f289af",
+      "fixed_git_blob": "f8757ee53d1544efaa77dd45a85a1a860568fda4",
+      "observed_spdx": "MIT",
+      "license_evidence": "UPSTREAM_FILE_HEADER",
+      "file_level_rights_cleared": false,
+      "commercial_packaging": "NOT_AUTHORIZED",
+      "copyright_obligations": "RETAIN_ALL_APPLICABLE_ORIGINAL_NOTICES",
+      "verification": "BLOB_IDS_OBSERVED_IN_ORIGINAL_SHA_SNAPSHOTS"
+    },
+    {
+      "path": "routers/web/repo/release_test.go",
+      "vulnerable_git_blob": "82f3115ee5d34a3e09d0f8fab4fe6531e413ba8c",
+      "fixed_git_blob": "57f831bffda8fc9347cba771283a378a6d5d09e8",
+      "observed_spdx": "MIT",
+      "license_evidence": "UPSTREAM_FILE_HEADER",
+      "file_level_rights_cleared": false,
+      "commercial_packaging": "NOT_AUTHORIZED",
+      "copyright_obligations": "RETAIN_ALL_APPLICABLE_ORIGINAL_NOTICES",
+      "verification": "BLOB_IDS_OBSERVED_IN_ORIGINAL_SHA_SNAPSHOTS"
+    },
+    {
+      "path": "templates/repo/release/new.tmpl",
+      "vulnerable_git_blob": "cc73bdf13c50e8b7e88579cd8484f0384b132890",
+      "fixed_git_blob": "a930664554e716872d83c2c5d6132150b42591e8",
+      "observed_spdx": null,
+      "license_evidence": "ROOT_LICENSE_SCOPE_REQUIRES_REVIEW",
+      "file_level_rights_cleared": false,
+      "commercial_packaging": "NOT_AUTHORIZED",
+      "copyright_obligations": "RETAIN_ALL_APPLICABLE_ORIGINAL_NOTICES",
+      "verification": "BLOB_IDS_OBSERVED_IN_ORIGINAL_SHA_SNAPSHOTS"
+    },
+    {
+      "path": "tests/integration/release_test.go",
+      "vulnerable_git_blob": "320661420ed80b53acd5a9e85914a1176c9c74bf",
+      "fixed_git_blob": "f495e417d9301b00bffcb7aa49ba3a337879a8e5",
+      "observed_spdx": "MIT",
+      "license_evidence": "UPSTREAM_FILE_HEADER",
+      "file_level_rights_cleared": false,
+      "commercial_packaging": "NOT_AUTHORIZED",
+      "copyright_obligations": "RETAIN_ALL_APPLICABLE_ORIGINAL_NOTICES",
+      "verification": "BLOB_IDS_OBSERVED_IN_ORIGINAL_SHA_SNAPSHOTS"
+    }
+  ],
+  "runtime_files": [
+    {
+      "path": "LICENSE",
+      "vulnerable_git_blob": "a8d4b49dd073a4a38a7e58385eeff7cc52568697",
+      "fixed_git_blob": "a8d4b49dd073a4a38a7e58385eeff7cc52568697",
+      "purpose": "ROOT_LICENSE_MIT_NOTICES",
+      "license_scope": "OBSERVED_NOT_CLEARED"
+    },
+    {
+      "path": "go.mod",
+      "vulnerable_git_blob": "1f2e923ce21ee69e26b6e90e37146a633d3ad273",
+      "fixed_git_blob": "1f2e923ce21ee69e26b6e90e37146a633d3ad273",
+      "purpose": "GO_MODULE_DECLARATIONS_AND_TOOLCHAIN",
+      "license_scope": "DEPENDENCIES_NOT_CLEARED"
+    },
+    {
+      "path": "go.sum",
+      "vulnerable_git_blob": "34ab2024ed6e41ae05212044f383e846901e9c5e",
+      "fixed_git_blob": "34ab2024ed6e41ae05212044f383e846901e9c5e",
+      "purpose": "DEPENDENCY_CHECKSUM_LOCK_EVIDENCE",
+      "license_scope": "DEPENDENCIES_NOT_CLEARED"
+    }
+  ],
+  "release_open_items": [
+    "which non-patch Gitea original source modules are strictly needed for a minimized runnable redistributable bundle",
+    "file-level third-party attributions and licenses including templates and generated or vendored files",
+    "full recursive Go module SBOM, notice/license applicability and transitive closure",
+    "license-compliant contractual delivery model including appropriate source/notice preservation",
+    "separate independent original diagnosis, test failure causal witness and holdout project disjointness"
+  ]
+}

@@ -20,7 +20,17 @@ spec.loader.exec_module(policy)
 class CiHardeningTests(unittest.TestCase):
     def test_semgrep_blocks_actual_findings(self):
         sast = (WORKFLOW_DIR / "ultrasec-public-sast.yml").read_text()
-        self.assertIn("semgrep scan --error ", sast)
+        # GitHub may choose CLI --error or a stronger fail-closed JSON gate.
+        # Never accept warning-only scans that silently succeed on findings.
+        cli_blocks = "semgrep scan --error " in sast
+        json_gate_blocks = (
+            "semgrep scan --oss-only " in sast
+            and "if errors: raise SystemExit(" in sast
+            and "if findings: raise SystemExit(" in sast
+            and "SEMGREP_FINDING:" in sast
+        )
+        self.assertTrue(cli_blocks or json_gate_blocks,
+                        "Semgrep must block on real findings and parser errors")
 
     def test_semgrep_covers_policy_validator(self):
         sast = (WORKFLOW_DIR / "ultrasec-public-sast.yml").read_text()

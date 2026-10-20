@@ -1,0 +1,6 @@
+# Include all public source except intentionally insecure synthetic fixtures.
+# Never excludes production validation scripts, tests, original third-party
+# research, or actual private holdout (which is not checked into Git).
+name: UltraSec public verifier source (exclude only synthetic vulnerable examples)
+paths-ignore:
+  - 'ultrasec-v7/verification/fixtures/future-sast/**'

@@ -1,0 +1,87 @@
+# Replays the original MISP function in an isolated stdlib-only harness.
+# NO Flask/DB/network execution, no copies of original source in artifacts.
+name: V7 MISP original evaluation-comment privacy witness
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-misp-comment-export-witness.yml'
+      - 'ultrasec-v7/verification/research/misp_original_evaluation_report_witness.py'
+      - 'ultrasec-v7/tests/test_misp_original_witness_contract.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-original-function:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            source_sha: '06d408e3496fdfc31da22d7b2b427434c67eae94'
+          - phase: after
+            source_sha: '5dbd19b39a61eab793586731f1a80d8c38907c42'
+    steps:
+      - name: Checkout public reproducibility instructions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Fetch exact external source into ephemeral directory
+        shell: bash
+        env:
+          ORIGINAL_COMMIT: ${{ matrix.source_sha }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin https://github.com/MISP/cti-transmute.git
+          git -C upstream fetch --depth 1 origin "$ORIGINAL_COMMIT"
+          git -C upstream checkout --quiet --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$ORIGINAL_COMMIT"
+          git -C upstream status --porcelain | tee upstream-status.txt
+          test ! -s upstream-status.txt
+          sha256sum upstream/website/web/evaluate/evaluate_core.py upstream/website/lib/access.py > source_sha256.txt
+      - name: Execute exact original function and independent benign/privacy scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/verification/research/misp_original_evaluation_report_witness.py \
+            --tree upstream --phase ${{ matrix.phase }} > misp-original-${{ matrix.phase }}.json
+          cat misp-original-${{ matrix.phase }}.json
+          python3 - <<'PY'
+          import json
+          doc=json.load(open('misp-original-${{ matrix.phase }}.json'))
+          assert doc['scope']=='ORIGINAL_FUNCTION_ISOLATED_NOT_FULL_APPLICATION'
+          assert doc['phase']=='${{ matrix.phase }}'
+          assert doc['cases']==5
+          assert doc['legitimate_owner_comment'] is True
+          assert doc['private_author_comment'] is True
+          assert doc['admin_comment'] is True
+          assert doc['public_comment'] is True
+          assert doc['non_evaluation_comment_excluded'] is True
+          assert doc['gold_admitted']==0
+          assert doc['benchmark_eligible'] is False
+          if doc['phase']=='before':
+              assert doc['causal_result']=='VULNERABLE_LEAK_OBSERVED'
+              assert doc['outsider_private_comment'] is True
+              assert doc['anonymous_private_comment'] is True
+          else:
+              assert doc['causal_result']=='FIX_GUARD_REJECTS_PRIVATE_COMMENT'
+              assert doc['outsider_private_comment'] is False
+              assert doc['anonymous_private_comment'] is False
+          print('MISP_ORIGINAL_ISOLATED_BEHAVIOR_VERIFIED; GOLD_ADMITTED=0')
+          PY
+          sha256sum misp-original-${{ matrix.phase }}.json \
+            ultrasec-v7/verification/research/misp_original_evaluation_report_witness.py \
+            > witness_sha256.txt
+      - name: Preserve only original source SHA and non-sensitive verdicts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: misp-original-comment-export-public-${{ matrix.phase }}
+          path: |
+            source_sha256.txt
+            upstream-status.txt
+            misp-original-${{ matrix.phase }}.json
+            witness_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14

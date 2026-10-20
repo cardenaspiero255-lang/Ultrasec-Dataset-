@@ -1,0 +1,129 @@
+# Public future-unseen SAST ruleset preregistration smoke. NEVER a private holdout benchmark.
+name: UltraSec V7 Future-Unseen SAST Ruleset Byte Lock
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-future-unseen-sast-ruleset.yml'
+      - 'ultrasec-v7/verification/rules/future-unseen-python-cwe94.yml'
+      - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN.json'
+      - 'ultrasec-v7/tools/sast_ruleset_freeze.py'
+      - 'ultrasec-v7/tools/sast_target_coverage.py'
+      - 'ultrasec-v7/tools/sast_synthetic_rule_smoke.py'
+      - 'ultrasec-v7/verification/rules/future-unseen-*.yml'
+      - 'ultrasec-v7/verification/fixtures/future-sast/**'
+      - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V3.json'
+      - 'ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V2.json'
+      - 'ultrasec-v7/tests/test_sast_*'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  freeze-public-rules:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout immutable PR source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run synthetic fail-closed rule freeze unit tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s ultrasec-v7/tests -p 'test_sast_*' -v
+      - name: Validate actual committed rule bytes, not remote mutable registry aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/sast_ruleset_freeze.py \
+            --plan ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN.json \
+            --rules-root ultrasec-v7 > future-sast-byte-lock.json
+          python3 - <<'PY'
+          import json
+          receipt=json.load(open('future-sast-byte-lock.json',encoding='utf-8'))
+          assert receipt['rulepack_sha256']=='1c4ea1fdfcf1955e28adf758e8c08421ab8cd279cfa058a378cb0bef84ab2eb3'
+          assert receipt['rule_bytes_verified'] is True
+          assert receipt['known_research_exclusions']==8
+          assert receipt['gold_admitted']==0
+          assert receipt['blind_benchmark_ready'] is False
+          assert receipt['external_chronology_verified'] is False
+          print('PINNED_PUBLIC_RULE_BYTES_CHECKED; NOT A GOLD/HOLDOUT SCAN')
+          PY
+      - name: Verify V2 70 known-public exclusions and explicitly report 11 missing CWE
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/sast_target_coverage.py \
+            --plan ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V2.json \
+            --rules-root ultrasec-v7 > future-sast-v2-public-scope.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('future-sast-v2-public-scope.json',encoding='utf-8'))
+          assert x['rule_bytes_verified'] is True
+          assert x['researched_public_cves']==63
+          assert x['excluded_researched_public_cves']==63
+          assert x['all_researched_public_cves_excluded'] is True
+          assert x['declared_target_cwe_count']==1
+          assert x['missing_target_cwe_count']==11
+          assert x['complete_declared_byte_scope'] is False
+          assert x['blind_benchmark_ready'] is False
+          assert x['gold_admitted']==0
+          print('V2_PUBLIC_KNOWN_CVE_EXCLUSIONS=63/63; CWE_RULE_BYTES=1/12; HOLDOUT=NOT_RUN')
+          PY
+      - name: Install exact research Semgrep tool version
+        run: |
+          python3 -m pip install --disable-pip-version-check 'semgrep==1.180.0'
+          semgrep --version
+      - name: Execute 11 NEW Semgrep research rules on positive and negative synthetic controls
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/sast_synthetic_rule_smoke.py \
+            --plan ultrasec-v7/verification/research/FUTURE_UNSEEN_SAST_BYTE_FREEZE_PLAN_V3.json \
+            --rules-root ultrasec-v7 \
+            --out future-sast-v3-public-synthetic.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('future-sast-v3-public-synthetic.json',encoding='utf-8'))
+          assert x['synthetic_rule_scopes_exercised']==11
+          assert x['synthetic_positive_hits']==11
+          assert x['synthetic_negative_hits']==0
+          assert x['benchmark_ready'] is False
+          assert x['gold_admitted']==0
+          print('V3_SYNTHETIC_RULE_SMOKE=11/11; NEGATIVE_CONTROLS=11/11; GOLD=0; REAL_HOLDOUT=NOT_RUN')
+          PY
+      - name: Run only safe synthetic detection smoke, not known CVE code
+        shell: bash
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ultrasec_rule_smoke
+          printf 'exec("public constant")\neval("1+1")\n' > /tmp/ultrasec_rule_smoke/synthetic.py
+          semgrep scan --oss-only --disable-version-check --metrics off --no-git-ignore \
+            --config ultrasec-v7/verification/rules/future-unseen-python-cwe94.yml \
+            --json --output /tmp/ultrasec-rule-smoke.json /tmp/ultrasec_rule_smoke/synthetic.py
+          python3 - <<'PY'
+          import json
+          doc=json.load(open('/tmp/ultrasec-rule-smoke.json',encoding='utf-8'))
+          assert not doc.get('errors'), 'Semgrep parser errors block the preregistration smoke'
+          rules={row.get('check_id','').split('.')[-1] for row in doc.get('results',[])}
+          assert rules=={'python-direct-exec','python-direct-eval'}, rules
+          assert len(doc['results'])==2, 'The synthetic baseline must report exactly two known test hits'
+          print('SYNTHETIC_DETECTION_SMOKE=2/2; REAL_HOLDOUT=NOT_RUN; GOLD=0')
+          PY
+          sha256sum future-sast-byte-lock.json \
+            ultrasec-v7/verification/rules/future-unseen-python-cwe94.yml \
+            > future-rules-public-sha256.txt
+      - name: Preserve public hashes and lock only, not source code or benchmark labels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: future-unseen-sast-byte-lock-public
+          path: |
+            future-sast-byte-lock.json
+            future-sast-v2-public-scope.json
+            future-sast-v3-public-synthetic.json
+            future-rules-public-sha256.txt
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,13 @@
+# Reproducible post-hoc exact-text research rule, intentionally not general SAST;
+# NOT suitable for claiming general-purpose detection quality or blind benchmark.
+rules:
+  - id: ultrasec.cwe120.moonlight-original-unbounded-copy
+    languages: [c]
+    severity: WARNING
+    message: "Unbounded copy of RTSP URL to caller-provided destination (research witness only)."
+    pattern-regex: 'strcpy\s*\(\s*destination\s*,\s*rtspUrlScratchBuffer\s*\+\s*prefixLen\s*\)'
+    metadata:
+      cwe: "CWE-120"
+      reference_only: true
+      developed_after_inspecting_patch: true
+      benchmark_eligible: false

@@ -1,0 +1,104 @@
+# Public-only native sanitizer witness from exact upstream function. No network operation.
+name: V7 Moonlight Native RTSP Witness
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-moonlight-rtsp-native.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-parser:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: before
+            sha: '116267a24569ec610f4c9efa1048541022981040'
+          - version: after
+            sha: '02b7742f4d19631024bd766bd2bb76715780004e'
+    steps:
+      - name: Resolve exact upstream commit
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/moonlight-stream/moonlight-common-c.git
+          git -C upstream fetch --depth 1 origin "$SOURCE_SHA"
+          git -C upstream checkout --detach -q FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SOURCE_SHA"
+          echo "SOURCE_SHA=$SOURCE_SHA" > original_commit.txt
+          git -C upstream rev-parse 'HEAD:src/RtspConnection.c' > original_blob.txt
+      - name: Extract exact static parser to isolated C harness
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('upstream/src/RtspConnection.c').read_text()
+          signature='static bool parseUrlAddrFromRtspUrlString('
+          assert s.count(signature)==1
+          start=s.index(signature); openbrace=s.index('{',start)
+          level=0; end=None
+          for i in range(openbrace,len(s)):
+              if s[i]=='{': level+=1
+              elif s[i]=='}':
+                  level-=1
+                  if level==0: end=i+1; break
+          assert end
+          function=s[start:end]
+          assert ('strcpy(destination, rtspUrlScratchBuffer + prefixLen)' in function or
+                  'PltSafeStrcpy(destination, destinationLength' in function)
+          Path('original_function.c').write_text(function+'\n')
+          shim='#define _GNU_SOURCE\n#include <stdbool.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <string.h>\nstatic void PltSafeStrcpy(char* d,size_t n,const char* s){if(n)snprintf(d,n,"%s",s);}\n'
+          main='\nint main(void){char out[16]={0};char url[100]="rtsp://";memset(url+7,98,70);url[77]=0;\n#ifdef VULNERABLE\nbool ok=parseUrlAddrFromRtspUrlString(url,out);\n#else\nbool ok=parseUrlAddrFromRtspUrlString(url,out,sizeof out);\n#endif\nprintf("PARSE=%d DEST_LENGTH=%zu\\n",ok,strlen(out));return ok?0:2;}\n'
+          Path('harness.c').write_text(shim+function+main)
+          PY
+          sha256sum upstream/src/RtspConnection.c original_function.c harness.c > source_sha256.txt
+          if test "$VARIANT" = before; then
+            gcc -std=c11 -O0 -g -fsanitize=address,undefined -fno-sanitize-recover=all -DVULNERABLE harness.c -o harness
+          else
+            gcc -std=c11 -O0 -g -fsanitize=address,undefined -fno-sanitize-recover=all harness.c -o harness
+          fi
+      - name: Assert ASan RED on vulnerable and GREEN on patched
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          set +e
+          ASAN_OPTIONS=halt_on_error=1:detect_leaks=0 ./harness > sanitizer.log 2>&1
+          code=$?
+          set -e
+          echo "PROCESS_EXIT=$code" > verdict.txt
+          if test "$VARIANT" = before; then
+            test "$code" -ne 0
+            grep -Fq 'AddressSanitizer: stack-buffer-overflow' sanitizer.log
+            echo 'EXPECTED_RED_ASAN=true' >> verdict.txt
+          else
+            test "$code" -eq 0
+            grep -Fq 'PARSE=1 DEST_LENGTH=15' sanitizer.log
+            echo 'EXPECTED_GREEN_BOUND=true' >> verdict.txt
+          fi
+          sha256sum sanitizer.log verdict.txt > log_sha256.txt
+      - name: Preserve only reference SHA, source hashes, and test verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-public-${{ matrix.version }}
+          path: |
+            original_commit.txt
+            original_blob.txt
+            source_sha256.txt
+            verdict.txt
+            log_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14

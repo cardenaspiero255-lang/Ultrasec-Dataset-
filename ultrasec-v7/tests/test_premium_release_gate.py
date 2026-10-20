@@ -41,6 +41,26 @@ class PremiumReleaseGates(unittest.TestCase):
         self.assertEqual(r["commercial_value_usd_150k"],"NOT_VERIFIED")
         self.assertIn("buyer_offer_missing",r["commercial_blockers"])
 
+    def test_automated_phase_does_not_require_human_review_but_is_not_certification(self):
+        r=module.evaluate_readiness({
+          "corpus":{"records":1000000,"exact_sha256_unique":1000000,
+                    "split_leaks":0,"lexical_patterns":250000},
+          "independent":{"confirmed_real_world_cases":100,"qualified_independent_reviewers":0},
+          "benchmark":{"baseline_real_executions":True,"low_recall_cwes":0},
+          "legal":{"redistribution_rights_verified":False},
+          "ci":{"total":17,"passed":17,"unresolved_security_findings":0},
+        })
+        self.assertTrue(r["internal_technical_screen_ready"])
+        self.assertFalse(r["technical_release_ready"])
+        self.assertEqual(r["certification"],"NOT_CERTIFIED")
+        self.assertEqual(r["external_review_phase"],"DEFERRED")
+        self.assertEqual(r["internal_blockers"], [])
+
+    def test_missing_sast_prevents_automated_phase_claim(self):
+        r=module.evaluate_readiness({})
+        self.assertFalse(r["internal_technical_screen_ready"])
+        self.assertIn("real_sast_comparison_not_proven",r["internal_blockers"])
+
     def test_exactly_eighty_percent_is_not_more_than_eighty(self):
         r=module.evaluate_readiness({"independent":{"confirmed_real_world_cases":100,
                      "qualified_independent_reviewers":2,"reviewer_agreement":0.8}})

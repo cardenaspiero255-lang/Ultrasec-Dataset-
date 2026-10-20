@@ -1,0 +1,148 @@
+# UltraSec V7: native Gitea regression; public upstream only, never the private corpus.
+name: V7 Gitea release native regression
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-gitea-native-regression.yml'
+      - 'ultrasec-v7/tests/test_upstream_workflow_integrity.py'
+      - 'ultrasec-v7/tests/test_original_negative_controls.py'
+      - 'ultrasec-v7/verification/research/gitea_release_negative_control_test.go'
+      - 'ultrasec-v7/tools/gitea_source_scope.py'
+      - 'ultrasec-v7/tests/test_gitea_source_scope.py'
+      - 'ultrasec-v7/tools/gitea_source_overlay.py'
+      - 'ultrasec-v7/tests/test_gitea_source_overlay.py'
+      - 'ultrasec-v7/verification/research/GITEA_ORIGINAL_FILE_RIGHTS_SCOPE.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-extension-check:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: 'before'
+            sha: '7fdfb8d642201b388014f29889ef28e35b8c1872'
+          - version: 'after'
+            sha: 'e4ef995f2a162e3aca3f3a0b536afae067975d71'
+    steps:
+      - name: Checkout UltraSec public manifest and validation code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Fetch original source with exact ref
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/go-gitea/gitea.git
+          git -C upstream fetch --depth 2 origin "$EXPECTED_SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
+          echo "$EXPECTED_SHA" > source_sha.txt
+          if test "${{ matrix.version }}" = "before"; then
+            git -C upstream fetch --depth 2 origin e4ef995f2a162e3aca3f3a0b536afae067975d71
+            git -C upstream show e4ef995f2a162e3aca3f3a0b536afae067975d71:services/release/release_test.go > upstream/services/release/release_test.go
+            echo 'TEST_SOURCE=FIX_REGRESSION_TRANSPLANTED_TO_PARENT' > test_provenance.txt
+          else
+            echo 'TEST_SOURCE=ORIGINAL_FIXED_UPSTREAM' > test_provenance.txt
+          fi
+          git -C upstream diff --check
+          sha256sum upstream/go.mod upstream/services/release/release.go upstream/services/release/release_test.go > source_hashes.txt
+      - name: Independently confirm exact upstream changed files, license and Go lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ultrasec-v7/tools/gitea_source_scope.py \
+            --original-repo upstream \
+            --receipt gitea-original-files-${{ matrix.version }}.json
+          echo 'Original six-file SHA / SPDX / Go lockfile audit completed; NO gold or commercial permission inferred.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify minimal original source overlay and retained MIT notice (runner-local only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_source_overlay.py -v
+          phase=fixed
+          if test "${{ matrix.version }}" = before; then phase=vulnerable; fi
+          ephemeral_zip="$(mktemp --suffix=.zip)"
+          trap 'rm -f "$ephemeral_zip"' EXIT
+          python3 ultrasec-v7/tools/gitea_source_overlay.py \
+            --upstream upstream --phase "$phase" \
+            --overlay "$ephemeral_zip" \
+            --receipt gitea-original-source-overlay-${{ matrix.version }}.json
+          echo 'Nine original source+lockfile+MIT LICENSE bytes packaged and round-trip verified in CI; ZIP NOT uploaded, not standalone or rights-cleared. Native Go regression follows on original upstream.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Set up original Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: upstream/go.mod
+          cache: false
+      - name: Execute upstream release-service regression only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream
+          go version
+          # RED is an expected failing upstream regression, not proof that old source is clean.
+          set +e
+          go test -tags sqlite -count=1 -timeout 10m -run '^TestRelease_Update$' ./services/release -v 2>&1 | tee ../gitea-${{ matrix.version }}.log
+          test_exit="${PIPESTATUS[0]}"
+          set -e
+          cd ..
+          echo "UPSTREAM_TEST_EXIT=$test_exit" | tee native_verdict.txt
+          if test "${{ matrix.version }}" = before; then
+            test "$test_exit" -ne 0
+            grep -Fq -- '--- FAIL: TestRelease_Update' gitea-before.log
+            grep -Fq -- 'An error is expected but got nil.' gitea-before.log
+            echo 'EXPECTED_RED_VERIFIED=true' | tee -a native_verdict.txt
+          else
+            test "$test_exit" -eq 0
+            grep -Fq -- '--- PASS: TestRelease_Update' gitea-after.log
+            echo 'FIXED_GREEN_VERIFIED=true' | tee -a native_verdict.txt
+          fi
+          sha256sum gitea-${{ matrix.version }}.log native_verdict.txt > log_sha256.txt
+      - name: Execute legitimate original-tree rename/no-op controls in same Go environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ultrasec-v7/verification/research/gitea_release_negative_control_test.go
+          cp ultrasec-v7/verification/research/gitea_release_negative_control_test.go upstream/services/release/ultrasec_negative_control_test.go
+          cmp ultrasec-v7/verification/research/gitea_release_negative_control_test.go upstream/services/release/ultrasec_negative_control_test.go
+          sha256sum ultrasec-v7/verification/research/gitea_release_negative_control_test.go > gitea-control-source-sha256.txt
+          cd upstream
+          # Same supplemental test on the exact original upstream source for both matrix SHAs.
+          go test -tags sqlite -count=1 -timeout 5m -run '^TestUltraSecReleaseAllowedRename$' ./services/release -v 2>&1 | tee ../gitea-negative-control-${{ matrix.version }}.log
+          test_exit="${PIPESTATUS[0]}"
+          cd ..
+          test "$test_exit" -eq 0
+          grep -Fq "ULTRASEC_NEGATIVE_ALLOWED_RENAME=PASS" "gitea-negative-control-${{ matrix.version }}.log"
+          grep -Fq "ULTRASEC_NEGATIVE_NOOP=PASS" "gitea-negative-control-${{ matrix.version }}.log"
+          grep -Fq -- '--- PASS: TestUltraSecReleaseAllowedRename' "gitea-negative-control-${{ matrix.version }}.log"
+          printf 'NEGATIVE_ALLOWED_RENAME_ORIGINAL_TREE=PASS\nNEGATIVE_METADATA_NOOP_ORIGINAL_TREE=PASS\nGOLD_ADMITTED=0\n' > gitea_negative_verdict.txt
+          sha256sum "gitea-negative-control-${{ matrix.version }}.log" gitea_negative_verdict.txt > negative_control_sha256.txt
+          echo 'Original Gitea trees: allowlisted ZIP rename and no-op verified under restrictive allowlist; no independent GOLD label inferred.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve public logs and SHA; never archive source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitea-native-public-${{ matrix.version }}
+          path: |
+            source_sha.txt
+            test_provenance.txt
+            source_hashes.txt
+            gitea-original-files-${{ matrix.version }}.json
+            gitea-original-source-overlay-${{ matrix.version }}.json
+            gitea-${{ matrix.version }}.log
+            log_sha256.txt
+            native_verdict.txt
+            gitea-negative-control-*.log
+            gitea-control-source-sha256.txt
+            gitea_negative_verdict.txt
+            negative_control_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14

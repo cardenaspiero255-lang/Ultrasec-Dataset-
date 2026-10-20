@@ -1,0 +1,14 @@
+# Research-only, pre-holdout syntactic risk indicator; NOT validated CWE coverage.
+# Positive/negative examples are synthetic and cannot establish recall or gold.
+rules:
+  - id: ultrasec.future-unseen.cwe89
+    languages: [python]
+    severity: WARNING
+    message: "SQL query assembled by string concatenation; review attacker control and parameterization."
+    pattern: $CURSOR.execute($QUERY + $PARAM)
+    metadata:
+      cwe: "CWE-89"
+      preregistration: "future-unseen-only"
+      result_type: "research-syntactic-risk-indicator"
+      not_a_ground_truth_label: true
+      scanner_semantics_verified: false

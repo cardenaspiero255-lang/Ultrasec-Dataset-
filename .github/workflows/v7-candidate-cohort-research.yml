@@ -1,0 +1,107 @@
+# PUBLIC research metadata only. Does not certify any commercial dataset.
+name: V7 Candidate Research - Fail-Closed
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-candidate-cohort-research.yml'
+      - 'ultrasec-v7/tools/verify_candidate_cohort.py'
+      - 'ultrasec-v7/tests/test_verify_candidate_cohort.py'
+      - 'ultrasec-v7/tests/test_prepare_blind_cohort.py'
+      - 'ultrasec-v7/tools/prepare_blind_cohort.py'
+      - 'ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json'
+      - 'ultrasec-v7/tools/verify_rights_inventory.py'
+      - 'ultrasec-v7/tests/test_rights_inventory.py'
+      - 'ultrasec-v7/tests/test_reconcile_cve_research.py'
+      - 'ultrasec-v7/tests/test_private_holdout_preflight.py'
+      - 'ultrasec-v7/tests/test_private_python_ast_screen.py'
+      - 'ultrasec-v7/tools/private_python_ast_screen.py'
+      - 'ultrasec-v7/tools/private_holdout_preflight.py'
+      - 'ultrasec-v7/tools/delivery_scope_manifest.py'
+      - 'ultrasec-v7/tools/premium_source_pair_scope.py'
+      - 'ultrasec-v7/tools/gitea_source_scope.py'
+      - 'ultrasec-v7/tests/test_gitea_source_scope.py'
+      - 'ultrasec-v7/verification/research/GITEA_ORIGINAL_FILE_RIGHTS_SCOPE.json'
+      - 'ultrasec-v7/tests/test_premium_source_pair_scope.py'
+      - 'ultrasec-v7/verification/research/PREMIUM_SOURCE_PAIR_PRODUCT_DRAFT.json'
+      - 'ultrasec-v7/tests/test_delivery_scope_manifest.py'
+      - 'ultrasec-v7/verification/research/DELIVERY_SCOPE_PUBLIC_METADATA_DRAFT.json'
+      - 'ultrasec-v7/tools/reconcile_cve_research.py'
+      - 'ultrasec-v7/verification/research/CVE_CANDIDATES_63_PUBLIC_METADATA.md'
+      - 'ultrasec-v7/verification/research/CVE_VERIFICATION_7_OF_63_2026-10-17.md'
+      - 'ultrasec-v7/verification/research/SOURCE_ELIGIBILITY_DECISIONS_20261017_ES.md'
+      - 'ultrasec-v7/verification/research/LICENSE_SCOPE_INVENTORY_5.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-research-invariants:
+    name: "Cohort: public provenance + blind protocol (NOT gold)"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact PR revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Test fail-closed manifest validation
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_verify_candidate_cohort.py -v
+      - name: Test disjoint reviewer queues and zero label leakage
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_prepare_blind_cohort.py -v
+      - name: Reconcile all 63 public CVE candidates without promoting any to gold
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_reconcile_cve_research.py -v
+      - name: Build explicit public-only CVE 63 evidence ledger
+        run: |
+          python3 ultrasec-v7/tools/reconcile_cve_research.py --public-report ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json
+          python3 - <<'PY'
+          import json, os, pathlib
+          report=json.loads(pathlib.Path('ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json').read_text())
+          c=report['counts']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+              out.write(f"### CVE 63 evidence ledger (NOT gold)\\n- Source commits inspected: {c['source_commit_inspected']}\\n- Independent native RED/GREEN: {c['native_red_green_in_original_63']}\\n- Without original source inspection: {c['not_yet_source_inspected_after_reconciliation']}\\n- Ineligible: {c['holdout_ineligible_without_source_pair']}\\n- Unresolved CWE mapping conflicts: {c['unresolved_cwe_mapping_conflicts']}\\n- Commercial permissions: {c['resale_rights_verified']}\\n")
+          PY
+      - name: Attach public metadata ledger for reproducibility
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultrasec-v7-public-cve-63-evidence
+          path: ultrasec-v7/verification/research/CVE_63_CI_REPORT_PUBLIC.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Test private benchmark metadata preflight without exposing user data
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_holdout_preflight.py -v
+      - name: Screen synthetic Python AST clones without exposing private source
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_private_python_ast_screen.py -v
+      - name: Test actual public delivery manifest and legal fail-closed restrictions
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_delivery_scope_manifest.py -v
+      - name: Hash exact candidate delivery files, without conferring resale rights
+        run: |
+          python3 ultrasec-v7/tools/delivery_scope_manifest.py \
+            --report ultrasec-v7/verification/research/DELIVERY_SCOPE_CI_INTEGRITY_REPORT.json
+          echo 'Proposed public metadata-only SKU. File digests match, but ownership, third-party terms and resale rights are NOT VERIFIED.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Attach public-only SKU file list with hashes, never private cases
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultrasec-v7-draft-metadata-sku-manifest
+          path: ultrasec-v7/verification/research/DELIVERY_SCOPE_CI_INTEGRITY_REPORT.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Validate original Gitea six-file license and Go module provenance claims
+        run: |
+          python3 -m unittest discover -s ultrasec-v7/tests -p test_gitea_source_scope.py -v
+          python3 ultrasec-v7/tools/gitea_source_scope.py
+      - name: Test private high-value source pair product cannot ship without rights or gold
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_premium_source_pair_scope.py -v
+      - name: Validate blocked premium product proposal with no private source
+        run: |
+          python3 ultrasec-v7/tools/premium_source_pair_scope.py
+          echo 'Premium minimal reproducible vulnerable/fixed source-pairs are the research target only. 0 eligible to ship until verified original evidence, file licenses and legal delivery conditions are met.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Test five-case historical license inventory without resale claims
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_rights_inventory.py -v
+      - name: Report original-source licenses separately from commercial clearance
+        run: |
+          python3 ultrasec-v7/tools/verify_rights_inventory.py ultrasec-v7/verification/research/LICENSE_SCOPE_INVENTORY_5.json ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json
+          echo 'Observed upstream license files do NOT certify per-file rights, sublicensing, or resale permissions.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Print truthful metadata-only report
+        run: |
+          python3 ultrasec-v7/tools/verify_candidate_cohort.py \
+            ultrasec-v7/verification/research/COHORT_5_PRE_ADMISSION_PUBLIC.json
+          echo 'This job checks public metadata consistency only. It does not verify real licensing, independent expert labels, private holdout, commercial resale rights or SAST on source pairs.' >> "$GITHUB_STEP_SUMMARY"

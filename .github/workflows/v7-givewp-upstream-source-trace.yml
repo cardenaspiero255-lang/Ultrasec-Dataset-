@@ -1,0 +1,84 @@
+# Original GiveWP source trace, not a native exploit reproduction or holdout gold.
+name: V7 GiveWP original source patch trace
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-givewp-upstream-source-trace.yml'
+      - 'ultrasec-v7/verification/research/CVE_GIVEWP_2024_11921_SOURCE_TRACE_20261018_ES.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-tag-diff:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tag: "3.18.0"
+            sha: "d056e04cbb1b43664b2b13c1df6fb7328cc0db11"
+            blob: "1693d95e6c3e88106169eb540630a1ece5978b2a"
+            expects_clean: "false"
+          - tag: "3.19.0"
+            sha: "b24415fee1438d321407dee8739733092ac0b90a"
+            blob: "2daa91f1c627a4c3d8e28bdcdbf148a0cf9ecef5"
+            expects_clean: "true"
+    steps:
+      - name: Fetch original SHA-fixed GiveWP revision
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ matrix.sha }}
+          SOURCE_TAG: ${{ matrix.tag }}
+          SOURCE_BLOB: ${{ matrix.blob }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/impress-org/givewp.git
+          git -C upstream fetch --depth 1 origin "refs/tags/$SOURCE_TAG"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git -C upstream rev-parse HEAD:src/Framework/Migrations/Controllers/ManualMigration.php)" = "$SOURCE_BLOB"
+          test "$(git -C upstream rev-parse HEAD:license.txt)" = "41caf864643409541acecae6b449abefa1425bb4"
+          sha256sum upstream/src/Framework/Migrations/Controllers/ManualMigration.php upstream/license.txt > original_file_hashes.txt
+          echo "ORIGINAL_TAG=$SOURCE_TAG" > source_receipt.txt
+          echo "ORIGINAL_SHA=$SOURCE_SHA" >> source_receipt.txt
+      - name: Verify original syntax, parameter handling and limited source scope
+        shell: bash
+        env:
+          EXPECTS_CLEAN: ${{ matrix.expects_clean }}
+        run: |
+          set -euo pipefail
+          php -l upstream/src/Framework/Migrations/Controllers/ManualMigration.php
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          source=Path("upstream/src/Framework/Migrations/Controllers/ManualMigration.php").read_text()
+          names=("give-run-migration","give-clear-update")
+          for field in names:
+              raw="$" + ("migrationToRun" if field=="give-run-migration" else "migrationToClear") + " = $_GET['" + field + "'];"
+              clean="$" + ("migrationToRun" if field=="give-run-migration" else "migrationToClear") + " = give_clean($_GET['" + field + "']);"
+              if os.environ["EXPECTS_CLEAN"]=="true":
+                  assert clean in source and raw not in source, "fixed-source-witness-mismatch"
+              else:
+                  assert raw in source and clean not in source, "original-source-witness-mismatch"
+          receipt="ORIGINAL_SOURCE_SANITIZATION_DIFF_CONFIRMED=true\n"
+          receipt+="STATIC_ONLY_NO_EXPLOIT_OR_NATIVE_WORDPRESS_TEST=true\n"
+          Path("verdict.txt").write_text(receipt)
+          print(receipt)
+          PY
+      - name: Store only provenance and file hashes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: givewp-original-source-${{ matrix.tag }}
+          path: |
+            source_receipt.txt
+            original_file_hashes.txt
+            verdict.txt
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,96 @@
+# Source acquisition only. No PHP execution or vulnerable XSS proof. No private dataset.
+name: V7 3DViewer original source pair provenance
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-3dvieweronline-original-source.yml'
+      - 'ultrasec-v7/tests/test_3dviewer_source_provenance_workflow.py'
+      - 'ultrasec-v7/verification/research/CVE_2024_12514_3DVIEWER_UPSTREAM_TRIAGE_ES.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-zip-comparison:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout non-private evidence validation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify source only contract
+        run: python3 -m unittest discover -s ultrasec-v7/tests -p test_3dviewer_source_provenance_workflow.py -v
+      - name: Fetch exact official WordPress plugin releases, no source execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p downloads src
+          curl --fail --location --retry 3 --connect-timeout 15 --max-time 90 \
+            --output downloads/2.2.2.zip https://downloads.wordpress.org/plugin/3dvieweronline-wp.2.2.2.zip
+          curl --fail --location --retry 3 --connect-timeout 15 --max-time 90 \
+            --output downloads/2.2.3.zip https://downloads.wordpress.org/plugin/3dvieweronline-wp.2.2.3.zip
+          python3 - <<'PY'
+          import pathlib,zipfile
+          for v in ("2.2.2","2.2.3"):
+              dest=pathlib.Path("src")/v
+              with zipfile.ZipFile("downloads/"+v+".zip") as z:
+                  for info in z.infolist():
+                      p=pathlib.PurePosixPath(info.filename)
+                      if p.is_absolute() or ".." in p.parts or not p.parts or p.parts[0]!="3dvieweronline-wp":
+                          raise SystemExit("untrusted_archive_member_path")
+                  z.extractall(dest)
+          PY
+      - name: Check specific original PHP source and preserve only hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v | head -n 1
+          php -l src/2.2.2/3dvieweronline-wp/public/class-threedvieweronline-iframe-public.php
+          php -l src/2.2.3/3dvieweronline-wp/public/class-threedvieweronline-iframe-public.php
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          src=pathlib.Path("src")
+          paths={}
+          for ver in ("2.2.2","2.2.3"):
+              target=src/ver/"3dvieweronline-wp/public/class-threedvieweronline-iframe-public.php"
+              if not target.is_file():
+                  raise SystemExit("reference_file_missing_from_official_original")
+              zipdata=(pathlib.Path("downloads")/(ver+".zip")).read_bytes()
+              targetdata=target.read_bytes()
+              header=src/ver/"3dvieweronline-wp/readme.txt"
+              readme=header.read_text(encoding="utf-8",errors="replace") if header.exists() else ""
+              declared_license=[line.split(":",1)[1].strip() for line in readme.splitlines() if line.lower().startswith("license:")]
+              paths[ver]={
+                  "official_release_url":"https://downloads.wordpress.org/plugin/3dvieweronline-wp."+ver+".zip",
+                  "release_sha256":hashlib.sha256(zipdata).hexdigest(),
+                  "referenced_original_file":"public/class-threedvieweronline-iframe-public.php",
+                  "file_sha256":hashlib.sha256(targetdata).hexdigest(),
+                  "readme_declared_license_observed":declared_license[:3],
+                  "shortcode_name_occurs_in_file":b"3Dvo-model" in targetdata,
+              }
+          out={
+            "schema":"ultrasec.original-3dviewer-plugin-snapshots.v1",
+            "origin":"wordpress.org plugin official releases",
+            "cve_id":"CVE-2024-12514",
+            "records":paths,
+            "original_target_file_changed":paths["2.2.2"]["file_sha256"]!=paths["2.2.3"]["file_sha256"],
+            "original_security_causality":"NOT_VERIFIED",
+            "native_wordpress_red_green":"NOT_RUN",
+            "gold_status":"NOT_ADMITTED",
+            "license_clearance":"NOT_VERIFIED",
+            "private_holdout":"UNASSIGNED",
+            "certification":"NOT_CERTIFIED",
+          }
+          pathlib.Path("source_verification_receipt.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("WordPress original releases verified by SHA-256 and PHP parsing.")
+          print("ORIGINAL_REFERENCED_FILE_CHANGED="+str(out["original_target_file_changed"]))
+          print("NO_CVE_CAUSAL_OR_GOLD_CLAIM")
+          PY
+      - name: Publish metadata receipt only, not original source
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3dviewer-upstream-original-source-metadata
+          path: source_verification_receipt.json
+          if-no-files-found: error
+          retention-days: 14

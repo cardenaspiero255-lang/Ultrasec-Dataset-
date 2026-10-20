@@ -43,6 +43,14 @@ def evaluate_readiness(evidence:dict)->dict:
             or ci.get("unresolved_security_findings")!=0):
         problems.append("ci_or_independent_code_review_incomplete")
 
+    # Internal technical screening remains distinct from independent certification.
+    # Reviewer signatures and resale rights never count as completed by this field.
+    external_only={"independent_review_missing","reviewer_agreement_below_target",
+                   "unresolved_adjudication","commercial_rights_not_cleared"}
+    internal_blockers=[p for p in problems if p not in external_only]
+    if number(independent,"confirmed_real_world_cases")<100:
+        internal_blockers.append("real_world_case_inventory_incomplete")
+
     commercial=[]
     if buyer.get("signed_150k_offer") is not True:
         commercial.append("buyer_offer_missing")
@@ -54,6 +62,10 @@ def evaluate_readiness(evidence:dict)->dict:
         "schema":"ultrasec.premium-readiness-evidence-v1",
         "certification":"NOT_CERTIFIED",
         "technical_release_ready":not problems,
+        "internal_technical_screen_ready":not internal_blockers,
+        "internal_blockers":internal_blockers,
+        "external_review_phase":"DEFERRED",
+        "internal_screen_assurance":"INPUT_ASSERTIONS_ONLY_NOT_CERTIFICATION",
         "blockers":problems,
         "commercial_value_usd_150k":"NOT_VERIFIED",
         "commercial_blockers":commercial,

@@ -1,0 +1,14 @@
+# Research-only, pre-holdout syntactic risk indicator; NOT validated CWE coverage.
+# Positive/negative examples are synthetic and cannot establish recall or gold.
+rules:
+  - id: ultrasec.future-unseen.cwe120
+    languages: [c]
+    severity: WARNING
+    message: "Unbounded C string copy; determine destination capacity."
+    pattern: strcpy($DEST, $SOURCE)
+    metadata:
+      cwe: "CWE-120"
+      preregistration: "future-unseen-only"
+      result_type: "research-syntactic-risk-indicator"
+      not_a_ground_truth_label: true
+      scanner_semantics_verified: false

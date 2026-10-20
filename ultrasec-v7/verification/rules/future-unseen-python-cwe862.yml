@@ -1,0 +1,17 @@
+# Research-only, pre-holdout syntactic risk indicator; NOT validated CWE coverage.
+# Positive/negative examples are synthetic and cannot establish recall or gold.
+rules:
+  - id: ultrasec.future-unseen.cwe862
+    languages: [python]
+    severity: WARNING
+    message: "Explicit Django REST framework AllowAny; check whether sensitive endpoint requires authorization."
+    pattern: |
+      @permission_classes([AllowAny])
+      def $HANDLER(...):
+          ...
+    metadata:
+      cwe: "CWE-862"
+      preregistration: "future-unseen-only"
+      result_type: "research-syntactic-risk-indicator"
+      not_a_ground_truth_label: true
+      scanner_semantics_verified: false

@@ -1,0 +1,14 @@
+# Research-only, pre-holdout syntactic risk indicator; NOT validated CWE coverage.
+# Positive/negative examples are synthetic and cannot establish recall or gold.
+rules:
+  - id: ultrasec.future-unseen.cwe125
+    languages: [c]
+    severity: WARNING
+    message: "C memcpy length derived from destination sizeof; investigate pointer-size and source bounds."
+    pattern: memcpy($DEST, $SOURCE, sizeof($DEST))
+    metadata:
+      cwe: "CWE-125"
+      preregistration: "future-unseen-only"
+      result_type: "research-syntactic-risk-indicator"
+      not_a_ground_truth_label: true
+      scanner_semantics_verified: false

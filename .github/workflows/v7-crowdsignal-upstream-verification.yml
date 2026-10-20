@@ -1,0 +1,383 @@
+# UltraSec V7: public upstream regression evidence only.
+# PR #10 research branch; no gold/holdout/private dataset read or uploaded.
+name: V7 Crowdsignal upstream PHPUnit evidence
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v7-crowdsignal-upstream-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upstream-phpunit:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '1.7.2'
+            sha: 'e0084d0760a16babe9ae441e24de3f4910d57b27'
+          - version: '1.8.0'
+            sha: '9ebf48d8d9d80fe96a2813d9a66120431399cac9'
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_public_test
+          MYSQL_DATABASE: wordpress_test
+        ports: [ '3306:3306' ]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pci_public_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - name: Checkout public research test (read-only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up PHP 8.1, Composer and PHPUnit 9.6
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2, phpunit:9.6
+          extensions: mysqli, pdo_mysql, mbstring, xml, curl, zip
+          coverage: none
+      - name: Fetch exact upstream commit and verify SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          mkdir upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/Automattic/crowdsignal-forms.git
+          git -C upstream -c protocol.version=2 fetch --depth 1 origin "$EXPECTED_SHA"
+          git -C upstream checkout --detach --quiet FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$EXPECTED_SHA"
+          git -C upstream show -s --format='UPSTREAM_SHA=%H%nUPSTREAM_DATE=%cI' HEAD | tee upstream_commit.txt
+      - name: Install pinned WordPress test environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion default-mysql-client
+          curl --fail --location --retry 3 --output wp.tar.gz https://wordpress.org/wordpress-6.6.2.tar.gz
+          mkdir -p /tmp/wordpress
+          tar -xzf wp.tar.gz -C /tmp
+          svn export --non-interactive --quiet https://develop.svn.wordpress.org/tags/6.6.2/tests/phpunit /tmp/wordpress-tests-lib
+          cat > /tmp/wordpress-tests-lib/wp-tests-config.php <<'PHP'
+          <?php
+          define( 'ABSPATH', '/tmp/wordpress/' );
+          define( 'DB_NAME', 'wordpress_test' );
+          define( 'DB_USER', 'root' );
+          define( 'DB_PASSWORD', 'ci_public_test' );
+          define( 'DB_HOST', '127.0.0.1' );
+          define( 'DB_CHARSET', 'utf8' );
+          define( 'DB_COLLATE', '' );
+          define( 'WP_TESTS_DOMAIN', 'example.org' );
+          define( 'WP_TESTS_EMAIL', 'test@example.org' );
+          define( 'WP_TESTS_TITLE', 'Public upstream isolated tests' );
+          define( 'WP_PHP_BINARY', 'php' );
+          define( 'WP_TESTS_MULTISITE', false );
+          define( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH', '/tmp/wp-polyfills/vendor/yoast/phpunit-polyfills' );
+          PHP
+          test -f /tmp/wordpress-tests-lib/includes/bootstrap.php
+          mysql --host 127.0.0.1 --user root --password=ci_public_test --execute 'SELECT VERSION();'
+          printf 'WP_VERSION=6.6.2\n' | tee wp_version.txt
+      - name: Install upstream dependencies from lockfile when available
+        shell: bash
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          php -v | head -2
+          composer --version
+          if test -f composer.lock; then sha256sum composer.lock; fi
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Install pinned PHPUnit polyfills outside upstream tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wp-polyfills
+          printf '%s\n' '{"require":{"yoast/phpunit-polyfills":"2.0.0"}}' > /tmp/wp-polyfills/composer.json
+          composer install --working-dir=/tmp/wp-polyfills --no-interaction --prefer-dist --no-progress --no-scripts
+          test -f /tmp/wp-polyfills/vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php
+          sha256sum /tmp/wp-polyfills/composer.lock | tee polyfills-lock-sha256.txt
+      - name: Adapt ONLY old test bootstrap signature for PHP 8.1 (never production source)
+        if: ${{ matrix.version == '1.7.2' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,re,hashlib
+          root=pathlib.Path('upstream/tests')
+          changed=[]
+          pattern=re.compile(r'(\bfunction\s+(?:setUp|tearDown)\s*\(\s*\))(\s*\{)')
+          for p in sorted(root.rglob('*.php')):
+              s=p.read_text()
+              new,n=pattern.subn(r'\1: void\2',s)
+              if n:
+                  before=hashlib.sha256(s.encode()).hexdigest()
+                  after=hashlib.sha256(new.encode()).hexdigest()
+                  p.write_text(new)
+                  changed.append((str(p.relative_to(root)),n,before,after))
+          assert changed,'Expected legacy test methods requiring PHP 8.1 signature compatibility'
+          with open('legacy_test_only_compatibility_sha256.txt','w') as output:
+              for name,n,before,after in changed:
+                  print(name, 'signature_count='+str(n), 'upstream_sha256='+before, 'adapted_sha256='+after,file=output)
+          print('LEGACY_TEST_SIGNATURE_ADAPTATIONS='+str(sum(x[1] for x in changed)))
+          print('LEGACY_TEST_FILES_CHANGED='+str(len(changed)))
+          PY
+          git -C upstream diff --check
+          git -C upstream diff --stat
+          echo 'TEST_ONLY_COMPATIBILITY_ADAPTATION=yes (production source untouched)'
+      - name: Run original PHPUnit suite and record log
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: |
+          set -euo pipefail
+          cd upstream
+          phpunit --version
+          set +e
+          phpunit --configuration phpunit.xml --colors=never 2>&1 | tee ../phpunit-${{ matrix.version }}.log
+          test_exit="${PIPESTATUS[0]}"
+          set -e
+          cd ..
+          echo "UPSTREAM_FULL_SUITE_EXIT=$test_exit" | tee upstream_suite_verdict.txt
+          if test "${{ matrix.version }}" = '1.7.2'; then
+            # Historical upstream test references a method absent in this revision.
+            # Preserve its real ERROR and require the exact known result; never call full suite PASS.
+            test "$test_exit" -ne 0
+            grep -Fq 'Account_Controller_Test::test_get_capabilities' phpunit-1.7.2.log
+            grep -Fq 'Tests: 23, Assertions: 50, Errors: 1.' phpunit-1.7.2.log
+            echo 'FULL_SUITE=EXPECTED_LEGACY_ERROR_NOT_PASS' | tee -a upstream_suite_verdict.txt
+          else
+            test "$test_exit" -eq 0
+            grep -Fq 'OK (98 tests, 191 assertions)' phpunit-1.8.0.log
+            echo 'FULL_SUITE=PASS' | tee -a upstream_suite_verdict.txt
+          fi
+          sha256sum upstream/phpunit.xml phpunit-${{ matrix.version }}.log upstream_commit.txt wp_version.txt upstream_suite_verdict.txt | tee checksums-${{ matrix.version }}.txt
+      - name: Run legacy REST polls unit tests separately (keep full-suite failure)
+        if: ${{ matrix.version == '1.7.2' }}
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: |
+          set -euo pipefail
+          cd upstream
+          phpunit --configuration phpunit.xml --colors=never --filter '^Polls_Controller_Test' 2>&1 | tee ../phpunit-polls-1.7.2.log
+          cd ..
+          sha256sum phpunit-polls-1.7.2.log | tee legacy-focused-sha256.txt
+      - name: Execute original WordPress permission callbacks under author role
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          VER: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          cp ultrasec-v7/verification/research/crowdsignal_rest_author_permissions_test.php upstream/tests/unit-tests/
+          sha256sum upstream/tests/unit-tests/crowdsignal_rest_author_permissions_test.php > rest_test_sha256.txt
+          cd upstream
+          set +e
+          phpunit --configuration phpunit.xml --colors=never --filter '^UltraSec_V7_Rest_Author_Test::test_' > ../rest-author-$VER.log 2>&1
+          code=$?
+          set -e
+          cd ..
+          cat "rest-author-$VER.log"
+          echo "REST_TEST_EXIT=$code" > rest_author_verdict.txt
+          if test "$VER" = '1.7.2'; then
+            test "$code" -ne 0
+            grep -Fq 'Tests: 4' rest-author-1.7.2.log
+            grep -Fq 'Failures: 4' rest-author-1.7.2.log
+            echo "EXPECTED_RED_AUTHOR_PERMISSIONS=true" >> rest_author_verdict.txt
+          else
+            test "$code" -eq 0
+            grep -Eq 'OK \(4 tests,' rest-author-1.8.0.log
+            echo "EXPECTED_GREEN_AUTHOR_PERMISSIONS=true" >> rest_author_verdict.txt
+          fi
+          sha256sum "rest-author-$VER.log" rest_author_verdict.txt > rest_author_hashes.txt
+      - name: Publish only public test logs (not code or datasets)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crowdsignal-public-test-${{ matrix.version }}
+          path: |
+            phpunit-${{ matrix.version }}.log
+            upstream_commit.txt
+            wp_version.txt
+            checksums-${{ matrix.version }}.txt
+            upstream_suite_verdict.txt
+            legacy_test_only_compatibility_sha256.txt
+            phpunit-polls-1.7.2.log
+            legacy-focused-sha256.txt
+            rest_test_sha256.txt
+            rest_author_verdict.txt
+            rest_author_hashes.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  bulgarisation-versioned-snapshots:
+    # Read-only inspection of public source: no plugin execution or dataset export.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 10 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout public guard test (read-only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Fetch official WordPress SVN tags at fixed revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion
+          mkdir -p snapshots
+          for entry in '3.0.14:before' '3.0.15:after'; do
+            version="${entry%%:*}"
+            dest="${entry#*:}"
+            svn_url="https://plugins.svn.wordpress.org/bulgarisation-for-woocommerce/tags/$version"
+            if svn info --non-interactive -r 3034198 "$svn_url" >/dev/null 2>&1; then
+              svn export --non-interactive --quiet -r 3034198 "$svn_url" "snapshots/$dest"
+              echo "$version SVN r3034198 $svn_url" >> source_revisions.txt
+            elif svn info --non-interactive "$svn_url" >/dev/null 2>&1; then
+              revision="$(svn info --non-interactive --show-item last-changed-revision "$svn_url")"
+              svn export --non-interactive --quiet "$svn_url" "snapshots/$dest"
+              echo "$version SVN HEAD $revision $svn_url" >> source_revisions.txt
+            else
+              url="https://downloads.wordpress.org/plugin/bulgarisation-for-woocommerce.$version.zip"
+              curl --fail --location --retry 3 --silent --show-error -o "pkg-$version.zip" "$url"
+              mkdir -p "wpzip-$version"
+              unzip -qq "pkg-$version.zip" -d "wpzip-$version"
+              mv "wpzip-$version/bulgarisation-for-woocommerce" "snapshots/$dest"
+              echo "$version WP_OFFICIAL_ZIP $url $(sha256sum "pkg-$version.zip" | cut -d' ' -f1)" >> source_revisions.txt
+            fi
+          done
+          (cd snapshots/before && find . -type f -print0 | sort -z | xargs -0 sha256sum) > hashes-3.0.14.txt
+          (cd snapshots/after && find . -type f -print0 | sort -z | xargs -0 sha256sum) > hashes-3.0.15.txt
+          cat source_revisions.txt
+          test -s hashes-3.0.14.txt
+          test -s hashes-3.0.15.txt
+      - name: Compare authorization control changes without publishing code
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,hashlib,json,difflib,re
+          root=pathlib.Path('snapshots')
+          def inspect(subdir):
+              return {str(p.relative_to(root/subdir)):p for p in (root/subdir).rglob('*') if p.is_file()}
+          a=inspect('before');b=inspect('after')
+          patterns=['check_ajax_referer','wp_verify_nonce','current_user_can','check_admin_referer','wp_ajax_','wp_ajax_nopriv_']
+          rows=[]
+          for name in sorted(set(a)|set(b)):
+              p=a.get(name);q=b.get(name)
+              x=p.read_bytes() if p else b'';y=q.read_bytes() if q else b''
+              if x==y: continue
+              if name.endswith('.php'):
+                  old=x.decode('utf-8','replace').splitlines()
+                  new=y.decode('utf-8','replace').splitlines()
+                  changes=list(difflib.unified_diff(old,new,n=0))
+                  added=[l[1:] for l in changes if l.startswith('+') and not l.startswith('+++')]
+                  removed=[l[1:] for l in changes if l.startswith('-') and not l.startswith('---')]
+                  api_deltas={s:{'added':sum(s in l for l in added),'removed':sum(s in l for l in removed)} for s in patterns}
+              else:
+                  api_deltas={}
+              rows.append({'file':name,'before_sha256':hashlib.sha256(x).hexdigest() if p else None,'after_sha256':hashlib.sha256(y).hexdigest() if q else None,'authorization_api_line_deltas':api_deltas})
+          summary={'source':'Official versioned WordPress SVN tags or official WordPress release archives (actual origin in sources)','sources':pathlib.Path('source_revisions.txt').read_text().splitlines(),'files_changed':len(rows),'files':rows,'rights':'NOT_VERIFIED','gold':'NOT_ADMITTED','causal_e2e':'NOT_RUN'}
+          pathlib.Path('svn_comparison_public_metadata.json').write_text(json.dumps(summary,indent=2,ensure_ascii=False)+'\n')
+          print('CHANGED_FILES='+str(len(rows)))
+          for item in rows:
+              print('PATH='+item['file']+' API_DELTAS='+json.dumps({k:v for k,v in item['authorization_api_line_deltas'].items() if v['added'] or v['removed']}))
+          PY
+          sha256sum hashes-3.0.14.txt hashes-3.0.15.txt source_revisions.txt svn_comparison_public_metadata.json > svn_manifest_sha256.txt
+      - name: Discover original PHP authorization function and historical license notices
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,re,json
+          data={}
+          for name in ('before','after'):
+              root=pathlib.Path('snapshots')/name
+              p=root/'app/functions.php'
+              s=p.read_text(encoding='utf-8',errors='replace').splitlines()
+              funcs=[]
+              hits=[]
+              for n,line in enumerate(s,1):
+                  m=re.search(r'\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(',line)
+                  if m: funcs.append((n,m.group(1)))
+                  if any(k in line for k in ('wp_verify_nonce','current_user_can','check_ajax_referer')):
+                      owner=next(((pos,fn) for pos,fn in reversed(funcs) if pos<=n),None)
+                      hits.append({'line':n,'kind':next(k for k in ('wp_verify_nonce','current_user_can','check_ajax_referer') if k in line),'owning_function':owner})
+              licenses=[]
+              for file in sorted(root.rglob('*')):
+                  if file.is_file() and re.search('license|copying|readme',file.name,re.I):
+                      t=file.read_text(encoding='utf-8',errors='replace')[:5500]
+                      lines=[v.strip()[:180] for v in t.splitlines() if re.search('license|GPL|copyright',v,re.I)]
+                      licenses.append({'path':str(file.relative_to(root)),'license_mentions':lines[:8]})
+              data[name]={'function_hits':hits,'historical_license_files':licenses}
+              print(name.upper()+'_SECURITY_FUNCTION_HITS='+json.dumps(hits))
+              print(name.upper()+'_LICENSE_REFERENCES='+json.dumps(licenses[:5]))
+          pathlib.Path('authorization_context_public_metadata.json').write_text(json.dumps(data,indent=2,ensure_ascii=False)+'\n')
+          PY
+          sha256sum authorization_context_public_metadata.json > authorization_context_sha256.txt
+      - name: Execute exact fixed PHP guard in a sandbox (no provider requests)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, hashlib
+          original=Path('snapshots/after/app/functions.php').read_text()
+          older=Path('snapshots/before/app/functions.php').read_text()
+          signature='function woo_bg_check_admin_label_actions()'
+          assert original.count(signature)==1, 'Guard must occur exactly once in official 3.0.15'
+          assert signature not in older, 'Old release unexpectedly contains same guard'
+          start=original.index(signature)
+          opened=original.index('{',start)
+          count=0
+          end=None
+          for i in range(opened,len(original)):
+              if original[i]=='{': count+=1
+              if original[i]=='}':
+                  count-=1
+                  if count==0:
+                      end=i+1
+                      break
+          assert end is not None
+          function=original[start:end]
+          assert 'wp_verify_nonce' in function and 'current_user_can' in function
+          p=Path('original_fixed_admin_guard.php')
+          p.write_text('<?php\n'+function+'\n')
+          print('ORIGINAL_PHP_GUARD_SHA256='+hashlib.sha256(p.read_bytes()).hexdigest())
+          observed={}
+          for name in ('CVC','Econt','Speedy'):
+              src=Path('snapshots/after/app/Admin/'+name+'.php').read_text()
+              observed[name]=src.count('woo_bg_check_admin_label_actions(')
+              assert observed[name]>=2, 'Missing call sites in original '+name
+          print('GUARD_CALLS_PER_PROVIDER='+json.dumps(observed))
+          PY
+          php -v | head -2
+          php ultrasec-v7/verification/research/bulgarisation_admin_guard_harness.php original_fixed_admin_guard.php 2>&1 | tee bulgarisation-guard-behavior.log
+          grep -Fq 'SUMMARY 4/4' bulgarisation-guard-behavior.log
+          sha256sum original_fixed_admin_guard.php ultrasec-v7/verification/research/bulgarisation_admin_guard_harness.php bulgarisation-guard-behavior.log > bulgarisation_guard_sha256.txt
+          echo 'ISOLATED_TEST_ONLY=YES; WP_E2E=NOT_RUN; LEGAL_RIGHTS=NOT_VERIFIED'
+      - name: Export hashes and metadata only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bulgarisation-official-version-evidence
+          path: |
+            hashes-3.0.14.txt
+            hashes-3.0.15.txt
+            source_revisions.txt
+            svn_comparison_public_metadata.json
+            svn_manifest_sha256.txt
+            authorization_context_public_metadata.json
+            authorization_context_sha256.txt
+            bulgarisation-guard-behavior.log
+            bulgarisation_guard_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
