@@ -1,0 +1,38 @@
+name: V7 REA optional JS evidence pilot
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_public_fixture_only:
+        description: "Type PUBLIC_FIXTURE_ONLY to run; no private dataset or untrusted target"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  rea-pilot:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_public_fixture_only == 'PUBLIC_FIXTURE_ONLY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify Node and isolated fixture
+        run: |
+          set -euo pipefail
+          node --version
+          test -f ultrasec-v7/verification/rea-fixture/app.js
+          test ! -L ultrasec-v7/verification/rea-fixture/app.js
+      - name: Analyze only committed synthetic JavaScript fixture
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ultrasec-rea
+          npx --yes rea-agents@4.1.0 analyze-javascript-application "$GITHUB_WORKSPACE/ultrasec-v7/verification/rea-fixture" --json > /tmp/ultrasec-rea/result.json
+          python3 -m json.tool /tmp/ultrasec-rea/result.json > /dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          obj=json.loads(Path('/tmp/ultrasec-rea/result.json').read_text())
+          assert isinstance(obj,(dict,list))
+          print('REA synthetic fixture produced parseable JSON; NOT_CERTIFIED, NOT_GOLD')
+          PY
+      # Intentionally do not upload the raw report: it is exploratory,
+      # not independent gold evidence or proof of licensing rights.
