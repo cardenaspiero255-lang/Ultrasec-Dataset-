@@ -45,6 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install -q -e './upstream[extra]' -r upstream/requirements/test.txt
+          # Original HTML fixtures predate Markdown 3.11 / Pygments 2.21 rendering changes.
+          python -m pip install -q 'Markdown==3.9' 'Pygments==2.19.2'
           python -m pip freeze > dependency_snapshot.txt
           python -VV > runtime_snapshot.txt
       - name: Execute full unmodified upstream suite
