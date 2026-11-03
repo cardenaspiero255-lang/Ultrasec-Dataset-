@@ -38,7 +38,8 @@ jobs:
           test "$(git -C upstream rev-parse "HEAD:$SOURCE")" = "$BLOB"
           sha256sum "upstream/$SOURCE" > source_sha256.txt
       - name: Install upstream test extras
-        env: {PROJECT: ${{ matrix.project }}}
+        env:
+          PROJECT: ${{ matrix.project }}
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +52,8 @@ jobs:
           python -m pip freeze > dependencies.txt
       - name: Execute original full test suite unchanged
         shell: bash
-        env: {PROJECT: ${{ matrix.project }}}
+        env:
+          PROJECT: ${{ matrix.project }}
         run: |
           set -u
           if [ "$PROJECT" = GitPython ]; then
@@ -108,7 +110,8 @@ jobs:
           sha256sum "upstream/$SOURCE" > source_sha256.txt
       - name: Install pinned upstream dependencies
         shell: bash
-        env: {PROJECT: ${{ matrix.project }}}
+        env:
+          PROJECT: ${{ matrix.project }}
         run: |
           set -euo pipefail
           if [ "$PROJECT" = ParseSDK ]; then
@@ -121,7 +124,8 @@ jobs:
           node -v > runtime_snapshot.txt
       - name: Execute original full test suite unchanged
         shell: bash
-        env: {PROJECT: ${{ matrix.project }}}
+        env:
+          PROJECT: ${{ matrix.project }}
         run: |
           set -u
           if [ "$PROJECT" = ParseSDK ]; then
