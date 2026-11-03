@@ -1,0 +1,199 @@
+name: V8.0 upstream Python JS native suites (research only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v80-external-suites.yml'
+      - 'ultrasec-v7/verification/research/native_v80/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  python-original:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {project: GitPython, variant: vulnerable, repo: gitpython-developers/GitPython, sha: 4199cb89755f705801a4cb241723325b46201f51, file: git/refs/symbolic.py, blob: 99af4f57cabac79f179df06239d41ee4fde32874}
+          - {project: GitPython, variant: patched, repo: gitpython-developers/GitPython, sha: 5a15361e0e1223f5c2e2c05688e6d094796b954d, file: git/refs/symbolic.py, blob: 020de5e1343ea9957f6e7982048f56db1ce35c38}
+          - {project: setuptools, variant: vulnerable, repo: pypa/setuptools, sha: 6ead555c5fb29bc57fe6105b1bffc163f56fd558, file: setuptools/package_index.py, blob: 1a6abebcda4f62c91e0843a17ed4716f8fd3b1d9}
+          - {project: setuptools, variant: patched, repo: pypa/setuptools, sha: 8e4868a036b7fae3208d16cb4e5fe6d63c3752df, file: setuptools/package_index.py, blob: 3500c2d86f15395b1e8be9535b36b90b7f2453f2}
+    steps:
+      - name: Checkout own public regression scripts (no private data)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Fetch pinned public source
+        env:
+          REPO: ${{ matrix.repo }}
+          SHA: ${{ matrix.sha }}
+          SOURCE: ${{ matrix.file }}
+          BLOB: ${{ matrix.blob }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin "https://github.com/$REPO.git"
+          git -C upstream fetch --depth 1 origin "$SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SHA"
+          test "$(git -C upstream rev-parse "HEAD:$SOURCE")" = "$BLOB"
+          if [ "$REPO" = "gitpython-developers/GitPython" ]; then
+            git -C upstream fetch --unshallow --tags origin
+            git -C upstream switch -c ultrasec-ci-local-branch
+            test "$(git -C upstream rev-parse HEAD)" = "$SHA"
+            git -C upstream submodule update --init --recursive
+            git config --global user.name 'UltraSec CI (ephemeral)'
+            git config --global user.email 'ci@ultrasec.invalid'
+          fi
+          sha256sum "upstream/$SOURCE" > source_sha256.txt
+      - name: Install upstream test extras
+        id: install
+        env:
+          PROJECT: ${{ matrix.project }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q 'pip==24.3.1' 'pytest==8.3.5'
+          if [ "$PROJECT" = GitPython ]; then
+            python -m pip install -q -e './upstream[test]' pytest pytest-cov
+          else
+            python -m pip install -q -e './upstream[test,core,cover,enabler]' 'pytest==8.3.5' pytest-cov
+            python -m pip install -q 'wheel==0.44.0'
+          fi
+          python -VV > runtime_snapshot.txt
+          python -m pip freeze > dependencies.txt
+      - name: Execute original full test suite unchanged
+        shell: bash
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -u
+          if [ "$PROJECT" = GitPython ]; then
+            (cd upstream && python -m pytest -q test/) > native_suite.log 2>&1
+          else
+            (cd upstream && python -m pytest -q setuptools/tests/) > native_suite.log 2>&1
+          fi
+          code=$?
+          echo "NATIVE_SUITE_EXIT=$code" > verdict.txt
+          tail -n 30 native_suite.log
+          exit "$code"
+      - name: Execute bounded original-library vulnerability contrast
+        if: always() && steps.install.outcome == 'success'
+        shell: bash
+        env:
+          PROJECT: ${{ matrix.project }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT" = GitPython ]; then
+            python ultrasec-v7/verification/research/native_v80/witness_gitpython.py "$VARIANT" > security_oracle.json
+          else
+            python ultrasec-v7/verification/research/native_v80/witness_setuptools.py "$VARIANT" > security_oracle.json
+          fi
+          cat security_oracle.json
+      - name: Upload results, not sources
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v80-${{ matrix.project }}-${{ matrix.variant }}
+          path: |
+            source_sha256.txt
+            runtime_snapshot.txt
+            dependencies.txt
+            native_suite.log
+            verdict.txt
+            security_oracle.json
+          if-no-files-found: warn
+          retention-days: 14
+  javascript-original:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {project: Quasar, node: '24', variant: vulnerable, repo: quasarframework/quasar, sha: 47e2c0f49c95e3eb3623af12bdf974943da043f1, file: ui/src/utils/extend/extend.js, blob: 4139c8d5374d5766f0267899f1ac789c131ec98d}
+          - {project: Quasar, node: '24', variant: patched, repo: quasarframework/quasar, sha: 1bae220c1205e28b31d54621c8954a05947224bb, file: ui/src/utils/extend/extend.js, blob: e18db7f8b588c05c28de1da4bf42e022a5bdb18d}
+          - {project: ParseSDK, node: '22.16.0', variant: vulnerable, repo: parse-community/Parse-SDK-JS, sha: 26d5cc95804e42f5fe5c4123c67881de119dbe65, file: src/ParseObject.ts, blob: a3503e41aff2428b0a136766942b20d0704c12d0}
+          - {project: ParseSDK, node: '22.16.0', variant: patched, repo: parse-community/Parse-SDK-JS, sha: 6a40c1e71944c886101bcc9df1da7c28d99234d3, file: src/ParseObject.ts, blob: 8564aa6e0c289af9582473a22c686195a082851e}
+    steps:
+      - name: Setup Node runtime from source constraints
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Fetch pinned public source
+        env:
+          REPO: ${{ matrix.repo }}
+          SHA: ${{ matrix.sha }}
+          SOURCE: ${{ matrix.file }}
+          BLOB: ${{ matrix.blob }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin "https://github.com/$REPO.git"
+          git -C upstream fetch --depth 1 origin "$SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$SHA"
+          test "$(git -C upstream rev-parse "HEAD:$SOURCE")" = "$BLOB"
+          if [ "$REPO" = "gitpython-developers/GitPython" ]; then
+            git -C upstream fetch --unshallow --tags origin
+            git -C upstream submodule update --init --recursive
+            git config --global user.name 'UltraSec CI (ephemeral)'
+            git config --global user.email 'ci@ultrasec.invalid'
+          fi
+          sha256sum "upstream/$SOURCE" > source_sha256.txt
+      - name: Install pinned upstream dependencies
+        shell: bash
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT" = ParseSDK ]; then
+            (cd upstream && npm ci --ignore-scripts --no-audit --no-fund) > install.log 2>&1
+          else
+            corepack enable
+            corepack prepare pnpm@11.9.0 --activate
+            (cd upstream && pnpm install --frozen-lockfile --ignore-scripts) > install.log 2>&1
+          fi
+          node -v > runtime_snapshot.txt
+      - name: Execute original full test suite unchanged
+        shell: bash
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -u
+          if [ "$PROJECT" = ParseSDK ]; then
+            (cd upstream && npm test -- --runInBand --watch=false) > native_suite.log 2>&1
+          else
+            (cd upstream && pnpm build) > build.log 2>&1
+            build_code=$?
+            echo "NATIVE_BUILD_EXIT=$build_code" > build_verdict.txt
+            if [ "$build_code" -eq 0 ]; then
+              (cd upstream && pnpm --filter quasar-ui-test test) > native_suite.log 2>&1
+            else
+              cat build.log > native_suite.log
+              echo 'Upstream build prerequisite failed; test suite NOT RUN' >> native_suite.log
+              exit "$build_code"
+            fi
+          fi
+          code=$?
+          echo "NATIVE_SUITE_EXIT=$code" > verdict.txt
+          tail -n 30 native_suite.log
+          exit "$code"
+      - name: Upload results, not sources
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v80-${{ matrix.project }}-${{ matrix.variant }}
+          path: |
+            source_sha256.txt
+            runtime_snapshot.txt
+            install.log
+            build.log
+            build_verdict.txt
+            native_suite.log
+            verdict.txt
+          if-no-files-found: warn
+          retention-days: 14
