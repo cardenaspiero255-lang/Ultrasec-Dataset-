@@ -153,6 +153,7 @@ jobs:
             else
               cat build.log > native_suite.log
               echo 'Upstream build prerequisite failed; test suite NOT RUN' >> native_suite.log
+              exit "$build_code"
             fi
           fi
           code=$?
