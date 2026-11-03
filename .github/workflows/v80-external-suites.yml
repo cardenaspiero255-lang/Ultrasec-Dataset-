@@ -36,6 +36,12 @@ jobs:
           git -C upstream checkout -q --detach FETCH_HEAD
           test "$(git -C upstream rev-parse HEAD)" = "$SHA"
           test "$(git -C upstream rev-parse "HEAD:$SOURCE")" = "$BLOB"
+          if [ "$REPO" = "gitpython-developers/GitPython" ]; then
+            git -C upstream fetch --unshallow --tags origin
+            git -C upstream submodule update --init --recursive
+            git config --global user.name 'UltraSec CI (ephemeral)'
+            git config --global user.email 'ci@ultrasec.invalid'
+          fi
           sha256sum "upstream/$SOURCE" > source_sha256.txt
       - name: Install upstream test extras
         env:
@@ -43,10 +49,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m pip install -q 'pip==24.3.1' 'pytest==8.3.5'
           if [ "$PROJECT" = GitPython ]; then
             python -m pip install -q -e './upstream[test]' pytest pytest-cov
           else
-            python -m pip install -q -e './upstream[test,core,cover,enabler]' pytest pytest-cov
+            python -m pip install -q -e './upstream[test,core,cover,enabler]' 'pytest==8.3.5' pytest-cov
           fi
           python -VV > runtime_snapshot.txt
           python -m pip freeze > dependencies.txt
@@ -85,14 +92,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {project: Quasar, variant: vulnerable, repo: quasarframework/quasar, sha: 47e2c0f49c95e3eb3623af12bdf974943da043f1, file: ui/src/utils/extend/extend.js, blob: 4139c8d5374d5766f0267899f1ac789c131ec98d}
-          - {project: Quasar, variant: patched, repo: quasarframework/quasar, sha: 1bae220c1205e28b31d54621c8954a05947224bb, file: ui/src/utils/extend/extend.js, blob: e18db7f8b588c05c28de1da4bf42e022a5bdb18d}
-          - {project: ParseSDK, variant: vulnerable, repo: parse-community/Parse-SDK-JS, sha: 26d5cc95804e42f5fe5c4123c67881de119dbe65, file: src/ParseObject.ts, blob: a3503e41aff2428b0a136766942b20d0704c12d0}
-          - {project: ParseSDK, variant: patched, repo: parse-community/Parse-SDK-JS, sha: 6a40c1e71944c886101bcc9df1da7c28d99234d3, file: src/ParseObject.ts, blob: 8564aa6e0c289af9582473a22c686195a082851e}
+          - {project: Quasar, node: '24', variant: vulnerable, repo: quasarframework/quasar, sha: 47e2c0f49c95e3eb3623af12bdf974943da043f1, file: ui/src/utils/extend/extend.js, blob: 4139c8d5374d5766f0267899f1ac789c131ec98d}
+          - {project: Quasar, node: '24', variant: patched, repo: quasarframework/quasar, sha: 1bae220c1205e28b31d54621c8954a05947224bb, file: ui/src/utils/extend/extend.js, blob: e18db7f8b588c05c28de1da4bf42e022a5bdb18d}
+          - {project: ParseSDK, node: '22.16.0', variant: vulnerable, repo: parse-community/Parse-SDK-JS, sha: 26d5cc95804e42f5fe5c4123c67881de119dbe65, file: src/ParseObject.ts, blob: a3503e41aff2428b0a136766942b20d0704c12d0}
+          - {project: ParseSDK, node: '22.16.0', variant: patched, repo: parse-community/Parse-SDK-JS, sha: 6a40c1e71944c886101bcc9df1da7c28d99234d3, file: src/ParseObject.ts, blob: 8564aa6e0c289af9582473a22c686195a082851e}
     steps:
-      - name: Node.js 22.16.0
+      - name: Setup Node runtime from source constraints
         uses: actions/setup-node@v4
-        with: {node-version: '22.16.0'}
+        with:
+          node-version: ${{ matrix.node }}
       - name: Fetch pinned public source
         env:
           REPO: ${{ matrix.repo }}
@@ -107,6 +115,12 @@ jobs:
           git -C upstream checkout -q --detach FETCH_HEAD
           test "$(git -C upstream rev-parse HEAD)" = "$SHA"
           test "$(git -C upstream rev-parse "HEAD:$SOURCE")" = "$BLOB"
+          if [ "$REPO" = "gitpython-developers/GitPython" ]; then
+            git -C upstream fetch --unshallow --tags origin
+            git -C upstream submodule update --init --recursive
+            git config --global user.name 'UltraSec CI (ephemeral)'
+            git config --global user.email 'ci@ultrasec.invalid'
+          fi
           sha256sum "upstream/$SOURCE" > source_sha256.txt
       - name: Install pinned upstream dependencies
         shell: bash
@@ -131,7 +145,15 @@ jobs:
           if [ "$PROJECT" = ParseSDK ]; then
             (cd upstream && npm test -- --runInBand --watch=false) > native_suite.log 2>&1
           else
-            (cd upstream && pnpm --filter quasar-ui-test test) > native_suite.log 2>&1
+            (cd upstream && pnpm build) > build.log 2>&1
+            build_code=$?
+            echo "NATIVE_BUILD_EXIT=$build_code" > build_verdict.txt
+            if [ "$build_code" -eq 0 ]; then
+              (cd upstream && pnpm --filter quasar-ui-test test) > native_suite.log 2>&1
+            else
+              cat build.log > native_suite.log
+              echo 'Upstream build prerequisite failed; test suite NOT RUN' >> native_suite.log
+            fi
           fi
           code=$?
           echo "NATIVE_SUITE_EXIT=$code" > verdict.txt
@@ -146,6 +168,8 @@ jobs:
             source_sha256.txt
             runtime_snapshot.txt
             install.log
+            build.log
+            build_verdict.txt
             native_suite.log
             verdict.txt
           if-no-files-found: warn
