@@ -41,6 +41,8 @@ jobs:
           test "$(git -C upstream rev-parse "HEAD:$SOURCE")" = "$BLOB"
           if [ "$REPO" = "gitpython-developers/GitPython" ]; then
             git -C upstream fetch --unshallow --tags origin
+            git -C upstream switch -c ultrasec-ci-local-branch
+            test "$(git -C upstream rev-parse HEAD)" = "$SHA"
             git -C upstream submodule update --init --recursive
             git config --global user.name 'UltraSec CI (ephemeral)'
             git config --global user.email 'ci@ultrasec.invalid'
@@ -58,6 +60,7 @@ jobs:
             python -m pip install -q -e './upstream[test]' pytest pytest-cov
           else
             python -m pip install -q -e './upstream[test,core,cover,enabler]' 'pytest==8.3.5' pytest-cov
+            python -m pip install -q 'wheel==0.44.0'
           fi
           python -VV > runtime_snapshot.txt
           python -m pip freeze > dependencies.txt
