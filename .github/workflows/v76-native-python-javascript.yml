@@ -1,0 +1,164 @@
+name: V7.6 Py JS native upstream regression and full suites
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v76-native-python-javascript.yml'
+      - 'ultrasec-v7/verification/research/native_v76/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pymdown-original:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: VULNERABLE
+            sha: a4fdd73554706877e339692183b9424e8f5fec24
+          - variant: PATCHED
+            sha: 42628414c6591b1a1ce211157090783e3b2242d6
+    steps:
+      - name: Checkout public regression scripts only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Acquire exact upstream public source
+        shell: bash
+        env:
+          UPSTREAM_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin https://github.com/facelessuser/pymdown-extensions.git
+          git -C upstream fetch --depth 1 origin "$UPSTREAM_SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$UPSTREAM_SHA"
+          git -C upstream rev-parse HEAD > source_commit.txt
+          git -C upstream rev-parse HEAD:pymdownx/snippets.py > source_blob.txt
+          sha256sum upstream/pymdownx/snippets.py upstream/pyproject.toml upstream/LICENSE.md > source_sha256.txt
+      - name: Set Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install native package and original test requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q -e './upstream[extra]' -r upstream/requirements/test.txt
+          # Original HTML fixtures predate Markdown 3.11 / Pygments 2.21 rendering changes.
+          python -m pip install -q 'Markdown==3.9' 'Pygments==2.19.2'
+          python -m pip freeze > dependency_snapshot.txt
+          python -VV > runtime_snapshot.txt
+      - name: Execute full unmodified upstream suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (cd upstream && python -m pytest -q tests/) > native_suite.log 2>&1
+          code=$?
+          set -e
+          tail -n 25 native_suite.log
+          echo "ORIGINAL_SUITE_EXIT=$code" > original_suite_verdict.txt
+          test "$code" -eq 0
+      - name: Execute native Markdown extension security witness
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          python ultrasec-v7/verification/research/native_v76/witness_pymdown.py "$VARIANT" > security_oracle.json
+          cat security_oracle.json
+          sha256sum native_suite.log security_oracle.json > evidence_sha256.txt
+      - name: Upload reports only no source or private corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v76-pymdown-${{ matrix.variant }}
+          path: |
+            source_commit.txt
+            source_blob.txt
+            source_sha256.txt
+            runtime_snapshot.txt
+            dependency_snapshot.txt
+            original_suite_verdict.txt
+            native_suite.log
+            security_oracle.json
+            evidence_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
+  koa-original:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: VULNERABLE
+            sha: 433b20c9e5954113e8d7a23a25e9d5bb750c3034
+          - variant: PATCHED
+            sha: ffd497a1903ff4df54f14b3d1763813d5c7d10fc
+    steps:
+      - name: Checkout public regression scripts only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Acquire exact upstream public source
+        shell: bash
+        env:
+          UPSTREAM_SHA: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          git init -q upstream
+          git -C upstream remote add origin https://github.com/koajs/koa.git
+          git -C upstream fetch --depth 1 origin "$UPSTREAM_SHA"
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "$UPSTREAM_SHA"
+          git -C upstream rev-parse HEAD > source_commit.txt
+          git -C upstream rev-parse HEAD:lib/response.js > source_blob.txt
+          sha256sum upstream/lib/response.js upstream/package-lock.json upstream/LICENSE > source_sha256.txt
+      - name: Set Node 22.16.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Install dependencies from upstream lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd upstream && npm ci --no-audit --no-fund) > install.log 2>&1
+          (cd upstream && npm ls --all --json) > dependency_snapshot.json || true
+          node --version > runtime_snapshot.txt
+      - name: Execute full unmodified upstream suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (cd upstream && npm test) > native_suite.log 2>&1
+          code=$?
+          set -e
+          tail -n 25 native_suite.log
+          echo "ORIGINAL_SUITE_EXIT=$code" > original_suite_verdict.txt
+          test "$code" -eq 0
+      - name: Execute native Koa HTTP callback security witness
+        shell: bash
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          (cd upstream && node ../ultrasec-v7/verification/research/native_v76/witness_koa.cjs "$VARIANT") > security_oracle.json
+          cat security_oracle.json
+          sha256sum native_suite.log security_oracle.json > evidence_sha256.txt
+      - name: Upload reports only no source or private corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v76-koa-${{ matrix.variant }}
+          path: |
+            source_commit.txt
+            source_blob.txt
+            source_sha256.txt
+            runtime_snapshot.txt
+            dependency_snapshot.json
+            original_suite_verdict.txt
+            native_suite.log
+            security_oracle.json
+            evidence_sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
