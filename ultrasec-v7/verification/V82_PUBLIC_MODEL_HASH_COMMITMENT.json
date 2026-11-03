@@ -1,0 +1,20 @@
+{
+  "schema": "ultrasec.v82.public-checkpoint-commitment.v1",
+  "scope": "hashes_only_no_weights_no_source_no_labels",
+  "model_A_sha256": "d5a259c73be007f7d0c74e2a722e7e6b87c84550dd5aec1eff6a43a868abae36",
+  "model_B_sha256": "b16aaafc52e962f51c3a15a0d649a351659dba70c21715908c10dbef70bdd7f5",
+  "recipe_sha256": "7a6a4bdfb9993987f41ed95de5d687062533efab2fe09c059d540ccc71ec9b0e",
+  "training_script_sha256": "eac0ccd06ecb52bedd978a757f24bb48cd67640f973e0bf0a6b253d0ccca5ec2",
+  "locally_recorded_freeze_utc": "2026-11-03T17:50:51Z",
+  "preregistration_commit": "ff53decc1101ba471744208f28f39c689466259b",
+  "num_checkpoints": 2,
+  "training_exposures_per_model": 4096,
+  "model_type": "experimental SGD logistic / character ngrams; tiny 12-example cleanroom reference baseline",
+  "independent_human_verification": false,
+  "prospective_cases_collected": 0,
+  "gold_admitted": 0,
+  "rights_cleared": false,
+  "buyer_release_allowed": false,
+  "comparative_utility_not_demonstrated": true,
+  "comment": "Git hash commitment is a timestamped snapshot assertion, NOT independent certification or evidence of legal rights."
+}
