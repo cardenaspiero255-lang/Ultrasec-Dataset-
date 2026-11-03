@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/v80-external-suites.yml'
+      - 'ultrasec-v7/verification/research/native_v80/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,6 +20,8 @@ jobs:
           - {project: setuptools, variant: vulnerable, repo: pypa/setuptools, sha: 6ead555c5fb29bc57fe6105b1bffc163f56fd558, file: setuptools/package_index.py, blob: 1a6abebcda4f62c91e0843a17ed4716f8fd3b1d9}
           - {project: setuptools, variant: patched, repo: pypa/setuptools, sha: 8e4868a036b7fae3208d16cb4e5fe6d63c3752df, file: setuptools/package_index.py, blob: 3500c2d86f15395b1e8be9535b36b90b7f2453f2}
     steps:
+      - name: Checkout own public regression scripts (no private data)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Python 3.11
         uses: actions/setup-python@v5
         with: {python-version: '3.11'}
@@ -44,6 +47,7 @@ jobs:
           fi
           sha256sum "upstream/$SOURCE" > source_sha256.txt
       - name: Install upstream test extras
+        id: install
         env:
           PROJECT: ${{ matrix.project }}
         shell: bash
@@ -72,6 +76,20 @@ jobs:
           echo "NATIVE_SUITE_EXIT=$code" > verdict.txt
           tail -n 30 native_suite.log
           exit "$code"
+      - name: Execute bounded original-library vulnerability contrast
+        if: always() && steps.install.outcome == 'success'
+        shell: bash
+        env:
+          PROJECT: ${{ matrix.project }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT" = GitPython ]; then
+            python ultrasec-v7/verification/research/native_v80/witness_gitpython.py "$VARIANT" > security_oracle.json
+          else
+            python ultrasec-v7/verification/research/native_v80/witness_setuptools.py "$VARIANT" > security_oracle.json
+          fi
+          cat security_oracle.json
       - name: Upload results, not sources
         if: always()
         uses: actions/upload-artifact@v4
@@ -83,6 +101,7 @@ jobs:
             dependencies.txt
             native_suite.log
             verdict.txt
+            security_oracle.json
           if-no-files-found: warn
           retention-days: 14
   javascript-original:
